@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,6 +23,7 @@ import ResultsStrip from "@/components/ResultsStrip";
 import SmartSuggestPanel from "@/components/SmartSuggestPanel";
 import ShareDialog from "@/components/ShareDialog";
 import ThemeToggle from "@/components/ThemeToggle";
+import DevSettingsDialog from "@/components/DevSettingsDialog";
 import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
@@ -52,11 +53,27 @@ const Index = () => {
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [preciseMode, setPreciseMode] = useState(false);
+  const [showDevSettings, setShowDevSettings] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+      if (data.user) {
+        supabase.rpc("has_role", { _user_id: data.user.id, _role: "admin" }).then(({ data: hasRole }) => {
+          setIsAdmin(!!hasRole);
+        });
+      }
+    });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      if (session?.user) {
+        supabase.rpc("has_role", { _user_id: session.user.id, _role: "admin" }).then(({ data: hasRole }) => {
+          setIsAdmin(!!hasRole);
+        });
+      } else {
+        setIsAdmin(false);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -325,6 +342,15 @@ const Index = () => {
                 <LogIn className="h-3.5 w-3.5" />
                 התחבר לשמירה
               </Link>
+            )}
+            {isAdmin && (
+              <button
+                onClick={() => setShowDevSettings(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-500 transition-colors hover:bg-amber-500/10 hover:border-amber-500/50"
+                title="הגדרות פיתוח"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
             )}
             <ThemeToggle />
             <button
@@ -672,6 +698,9 @@ const Index = () => {
           }}
         />
       )}
+
+      {/* Dev Settings */}
+      <DevSettingsDialog open={showDevSettings} onClose={() => setShowDevSettings(false)} />
     </div>
   );
 };
