@@ -452,7 +452,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
           <span className="font-display text-sm font-bold text-foreground">יועץ רקעים AI</span>
         </div>
         <div className="flex items-center gap-1">
-          {(productImage || referenceImage) && (
+          {(productImage || referenceImages.length > 0) && (
             <button
               onClick={resetFlow}
               className="rounded-lg px-2 py-1 font-accent text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
