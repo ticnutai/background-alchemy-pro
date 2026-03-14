@@ -7,6 +7,8 @@ interface Message {
   role: "user" | "assistant";
   content: string;
   images?: string[]; // base64 images attached to the message
+  previewImage?: string; // AI-generated preview image
+  previewPrompt?: string; // prompt used for preview generation
 }
 
 interface AIChatDialogProps {
