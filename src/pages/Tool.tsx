@@ -356,13 +356,42 @@ const Index = () => {
 
             {originalImage && (
               <div className="flex flex-wrap items-center gap-3">
+                {!multiSelectMode ? (
+                  <button
+                    onClick={handleProcess}
+                    disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
+                    className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 font-display text-sm font-semibold text-accent-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {isProcessing ? "מעבד..." : "החלף רקע"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleMultiProcess}
+                    disabled={batchProcessing || selectedPresetIds.length === 0}
+                    className="flex items-center gap-2 rounded-lg bg-gradient-to-l from-accent to-primary px-6 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Layers className="h-4 w-4" />
+                    {batchProcessing
+                      ? `מעבד ${batchProgress.current}/${batchProgress.total}...`
+                      : `החלף ${selectedPresetIds.length} רקעים`}
+                  </button>
+                )}
+
                 <button
-                  onClick={handleProcess}
-                  disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
-                  className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 font-display text-sm font-semibold text-accent-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    setMultiSelectMode(!multiSelectMode);
+                    setSelectedPresetIds([]);
+                    setBatchResults([]);
+                  }}
+                  className={`flex items-center gap-2 rounded-lg px-5 py-3 font-display text-sm font-semibold transition-all ${
+                    multiSelectMode
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card text-foreground hover:bg-secondary"
+                  }`}
                 >
-                  <Sparkles className="h-4 w-4" />
-                  {isProcessing ? "מעבד..." : "החלף רקע"}
+                  <Layers className="h-4 w-4" />
+                  {multiSelectMode ? "בחירה מרובה ✓" : "בחירה מרובה"}
                 </button>
 
                 <button
