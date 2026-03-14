@@ -885,6 +885,49 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
         onChange={handleReferenceUpload}
         className="hidden"
       />
+
+      {/* Gallery Picker Modal */}
+      {showGalleryPicker && (
+        <div className="absolute inset-0 z-50 flex flex-col bg-card rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-primary" />
+              <span className="font-display text-sm font-bold text-foreground">בחר מהגלריה</span>
+            </div>
+            <button onClick={() => setShowGalleryPicker(false)} className="rounded-lg p-1 hover:bg-secondary transition-colors">
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3" dir="rtl">
+            {galleryLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : galleryImages.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="font-body text-sm text-muted-foreground">אין תמונות בגלריה עדיין</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {galleryImages.map((img) => (
+                  <button
+                    key={img.id}
+                    onClick={() => handleGallerySelect(img.url)}
+                    className="group relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all"
+                  >
+                    <img src={img.url} alt={img.name || ""} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                    {img.name && (
+                      <span className="absolute bottom-0 inset-x-0 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 font-accent text-[8px] text-card truncate">
+                        {img.name}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
