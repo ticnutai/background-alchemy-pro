@@ -173,6 +173,8 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
     return content
       .replace(/\[ACTION:APPLY_BACKGROUND\].*?\[\/ACTION\]/g, "")
       .replace(/\[ELEMENTS\].*?\[\/ELEMENTS\]/g, "")
+      .replace(/\[QUICK_REPLIES\].*?\[\/QUICK_REPLIES\]/g, "")
+      .replace(/\[YES_NO\].*?\[\/YES_NO\]/g, "")
       .trim();
   };
 
