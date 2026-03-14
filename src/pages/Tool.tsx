@@ -260,6 +260,7 @@ const Index = () => {
                 התחבר לשמירה
               </Link>
             )}
+            <ThemeToggle />
           </div>
         </div>
       </header>
