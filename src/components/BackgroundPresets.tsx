@@ -653,6 +653,65 @@ const BackgroundPresets = ({
                   בחר
                 </button>
               </div>
+
+              {/* Describe your own style */}
+              <div className="space-y-2 pt-3 border-t border-border">
+                <label className="font-display text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  ✏️ תאר את הצבע / הסגנון שאתה רוצה
+                </label>
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => onCustomPromptChange(e.target.value)}
+                  placeholder="לדוגמה: רקע בגוון פסטל ורוד עם טקסטורת שיש, גרדיינט מזהב לבז׳, צבע חום חמים עם מרקם עור..."
+                  className="w-full rounded-lg border border-input bg-card p-2.5 font-body text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  rows={2}
+                  dir="rtl"
+                />
+              </div>
+
+              {/* Upload reference image for color matching */}
+              <div className="space-y-2 pt-3 border-t border-border">
+                <label className="font-display text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  📷 העלה תמונה להמחשה
+                </label>
+                <p className="font-body text-[10px] text-muted-foreground">
+                  העלה תמונה עם הצבעים או הסגנון שאתה רוצה — המערכת תתאים את הרקע בהתאם
+                </p>
+
+                {referenceImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {referenceImages.map((img, i) => (
+                      <div key={i} className="relative group">
+                        <img
+                          src={img}
+                          alt={`דוגמה ${i + 1}`}
+                          className="h-14 w-14 rounded-md object-cover border border-border"
+                        />
+                        <button
+                          onClick={() => removeRefImage(i)}
+                          className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <label className="flex items-center gap-2 rounded-lg border border-dashed border-border p-2.5 cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors">
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-body text-xs text-muted-foreground">
+                    העלה תמונה לדוגמה
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleRefImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
