@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings } from "lucide-react";
+import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import studioLogo from "@/assets/studio-logo.png";
@@ -336,7 +336,11 @@ const Index = () => {
           <p className="font-body text-xs text-card/40">
             © {new Date().getFullYear()} סטודיו מעצבים רותי פרל. כל הזכויות שמורות.
           </p>
-          <div className="flex gap-4">
+          <div className="flex gap-4 items-center">
+            <a href="https://wa.me/972500000000" target="_blank" rel="noopener noreferrer" className="text-card/40 hover:text-[hsl(142,70%,45%)] transition-colors"><MessageCircle className="h-4 w-4" /></a>
+            <a href="https://instagram.com/rutipearl.studio" target="_blank" rel="noopener noreferrer" className="text-card/40 hover:text-[hsl(333,80%,55%)] transition-colors"><Instagram className="h-4 w-4" /></a>
+            <a href="https://facebook.com/rutipearl.studio" target="_blank" rel="noopener noreferrer" className="text-card/40 hover:text-[hsl(220,46%,48%)] transition-colors"><Facebook className="h-4 w-4" /></a>
+            <span className="text-card/20">|</span>
             <a href="#" className="font-body text-xs text-card/40 hover:text-gold transition-colors">מדיניות פרטיות</a>
             <a href="#" className="font-body text-xs text-card/40 hover:text-gold transition-colors">תנאי שימוש</a>
           </div>
