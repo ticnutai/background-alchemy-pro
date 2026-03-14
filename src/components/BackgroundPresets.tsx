@@ -525,6 +525,7 @@ const BackgroundPresets = ({
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [customColor, setCustomColor] = useState("#FFFFFF");
   const [selectedColorId, setSelectedColorId] = useState<string | null>(null);
+  const [previewPreset, setPreviewPreset] = useState<Preset | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
