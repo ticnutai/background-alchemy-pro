@@ -28,6 +28,8 @@ const Index = () => {
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [suggestedName, setSuggestedName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
+  const [showMockup, setShowMockup] = useState(false);
+  const [showBatch, setShowBatch] = useState(false);
 
   const handleImageSelect = useCallback((base64: string) => {
     setOriginalImage(base64);
