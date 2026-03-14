@@ -275,6 +275,12 @@ const Index = () => {
             )}
 
             {/* Suggested name badge */}
+            {user && (
+              <ResultsStrip
+                onSelectImage={(url) => setResultImage(url)}
+                currentResultUrl={resultImage}
+              />
+            )}
             {suggestedName && resultImage && (
               <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
                 <Tag className="h-4 w-4 text-primary" />
