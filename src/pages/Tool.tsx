@@ -344,6 +344,42 @@ const Index = () => {
                 currentResultUrl={resultImage}
               />
             )}
+
+            {/* Batch results grid */}
+            {batchResults.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-sm font-bold text-foreground">
+                    תוצאות — {batchResults.length} רקעים
+                  </h3>
+                  <button
+                    onClick={() => setBatchResults([])}
+                    className="font-accent text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    נקה
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {batchResults.map((r, i) => (
+                    <div
+                      key={i}
+                      className="group relative rounded-xl border border-border overflow-hidden bg-card cursor-pointer hover:border-gold/50 hover:shadow-md transition-all"
+                      onClick={() => setResultImage(r.image)}
+                    >
+                      <div className="aspect-square overflow-hidden">
+                        <img src={r.image} alt={r.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                      </div>
+                      <div className="p-2 text-center">
+                        <p className="font-display text-xs font-semibold text-foreground truncate">{r.name}</p>
+                      </div>
+                      <div className="absolute top-1.5 right-1.5 rounded-full bg-gold/90 px-2 py-0.5 font-accent text-[10px] font-bold text-gold-foreground">
+                        {i + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {suggestedName && resultImage && (
               <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
                 <Tag className="h-4 w-4 text-primary" />
