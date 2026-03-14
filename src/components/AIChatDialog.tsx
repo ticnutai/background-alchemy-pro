@@ -348,8 +348,19 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
       }
 
       if (assistantSoFar) {
-        parseActions(assistantSoFar);
+        const quickReplies = parseActions(assistantSoFar);
         setAnalysisResult(assistantSoFar);
+        if (quickReplies?.length) {
+          // Add quick replies to the last assistant message
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (updated[lastIdx]?.role === "assistant") {
+              updated[lastIdx] = { ...updated[lastIdx], quickReplies };
+            }
+            return updated;
+          });
+        }
       }
     } catch (err: any) {
       setMessages((prev) => [
