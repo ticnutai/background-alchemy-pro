@@ -423,7 +423,14 @@ const Index = () => {
         />
       )}
 
-      {/* AI Chat */}
+      {/* Social Templates */}
+      {showSocial && resultImage && (
+        <SocialTemplates
+          imageUrl={resultImage}
+          onClose={() => setShowSocial(false)}
+        />
+      )}
+
       <AIChatDialog
         onApplyBackground={(prompt, name) => {
           setCustomPrompt(prompt);
