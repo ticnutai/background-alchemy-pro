@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Sparkles, Loader2, ImagePlus, Trash2, Camera, ChevronDown, Eye, Wand2 } from "lucide-react";
+import { MessageCircle, X, Send, Sparkles, Loader2, ImagePlus, Trash2, Camera, ChevronDown, Eye, Wand2, Check, XCircle, Plus } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { toast } from "@/hooks/use-toast";
 
@@ -9,6 +9,13 @@ interface Message {
   images?: string[]; // base64 images attached to the message
   previewImage?: string; // AI-generated preview image
   previewPrompt?: string; // prompt used for preview generation
+  quickReplies?: QuickReply[]; // yes/no or option buttons
+}
+
+interface QuickReply {
+  label: string;
+  value: string;
+  icon?: string;
 }
 
 interface AIChatDialogProps {
@@ -47,7 +54,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   // Guided flow state
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
   const [productImage, setProductImage] = useState<string | null>(null);
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [selectedFidelity, setSelectedFidelity] = useState("similar");
   const [suggestedElements, setSuggestedElements] = useState<string[]>([]);
   const [selectedElements, setSelectedElements] = useState<string[]>([]);
@@ -68,7 +75,6 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           const action = JSON.parse(match[1]);
           if (action.prompt && action.name) {
             setLastSuggestedPrompt({ prompt: action.prompt, name: action.name });
-            // Don't auto-apply - let user preview first
           }
         } catch {}
       }
@@ -85,6 +91,28 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           }
         } catch {}
       }
+
+      // Parse quick replies [QUICK_REPLIES][{"label":"כן","value":"yes"},{"label":"לא","value":"no"}][/QUICK_REPLIES]
+      const qrRegex = /\[QUICK_REPLIES\](.*?)\[\/QUICK_REPLIES\]/g;
+      const qrMatch = qrRegex.exec(content);
+      let quickReplies: QuickReply[] | undefined;
+      if (qrMatch) {
+        try {
+          quickReplies = JSON.parse(qrMatch[1]);
+        } catch {}
+      }
+
+      // Parse yes/no questions [YES_NO]question text[/YES_NO]
+      const ynRegex = /\[YES_NO\](.*?)\[\/YES_NO\]/g;
+      const ynMatch = ynRegex.exec(content);
+      if (ynMatch && !quickReplies) {
+        quickReplies = [
+          { label: "✅ כן", value: `כן, ${ynMatch[1]}` },
+          { label: "❌ לא", value: `לא, ${ynMatch[1]}` },
+        ];
+      }
+
+      return quickReplies;
     },
     []
   );
@@ -145,6 +173,8 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
     return content
       .replace(/\[ACTION:APPLY_BACKGROUND\].*?\[\/ACTION\]/g, "")
       .replace(/\[ELEMENTS\].*?\[\/ELEMENTS\]/g, "")
+      .replace(/\[QUICK_REPLIES\].*?\[\/QUICK_REPLIES\]/g, "")
+      .replace(/\[YES_NO\].*?\[\/YES_NO\]/g, "")
       .trim();
   };
 
@@ -174,45 +204,55 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   };
 
   const handleReferenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await toBase64(file);
-    setReferenceImage(base64);
-    setPreviewUrl(base64);
+    const files = e.target.files;
+    if (!files?.length) return;
+    
+    const newImages: string[] = [];
+    for (let i = 0; i < Math.min(files.length, 5); i++) {
+      newImages.push(await toBase64(files[i]));
+    }
+    
+    setReferenceImages(prev => [...prev, ...newImages]);
+    setPreviewUrl(newImages[0]);
     setFlowStep("choose-fidelity");
 
     const userMsg: Message = {
       role: "user",
-      content: "העליתי תמונת ייחוס לרקע. נתח מה הרקע בתמונה הזו ותציע אילו אלמנטים אפשר להוסיף.",
-      images: [base64],
+      content: `העליתי ${newImages.length} תמונות ייחוס לרקע. נתח מה הרקע בתמונות ותציע אילו אלמנטים אפשר להוסיף.`,
+      images: newImages,
     };
     setMessages((prev) => [...prev, userMsg]);
     await sendToAI([...messages, userMsg], true);
   };
 
   const handleInlineImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await toBase64(file);
+    const files = e.target.files;
+    if (!files?.length) return;
+    
+    const newImages: string[] = [];
+    for (let i = 0; i < Math.min(files.length, 5); i++) {
+      newImages.push(await toBase64(files[i]));
+    }
 
     if (!productImage) {
-      setProductImage(base64);
+      setProductImage(newImages[0]);
       setFlowStep("upload-reference");
       const userMsg: Message = {
         role: "user",
         content: "העליתי תמונת מוצר. נתח אותה ותציע רקעים מתאימים.",
-        images: [base64],
+        images: [newImages[0]],
       };
       setMessages((prev) => [...prev, userMsg]);
       await sendToAI([...messages, userMsg], true);
-    } else if (!referenceImage) {
-      setReferenceImage(base64);
-      setPreviewUrl(base64);
+    } else {
+      // Additional images go to reference
+      setReferenceImages(prev => [...prev, ...newImages]);
+      setPreviewUrl(newImages[0]);
       setFlowStep("choose-fidelity");
       const userMsg: Message = {
         role: "user",
-        content: "העליתי תמונת ייחוס לרקע. נתח מה הרקע בתמונה ותציע אלמנטים.",
-        images: [base64],
+        content: `העליתי ${newImages.length} תמונות ייחוס לרקע. נתח מה הרקע בתמונות ותציע אלמנטים.`,
+        images: newImages,
       };
       setMessages((prev) => [...prev, userMsg]);
       await sendToAI([...messages, userMsg], true);
@@ -308,8 +348,19 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
       }
 
       if (assistantSoFar) {
-        parseActions(assistantSoFar);
+        const quickReplies = parseActions(assistantSoFar);
         setAnalysisResult(assistantSoFar);
+        if (quickReplies?.length) {
+          // Add quick replies to the last assistant message
+          setMessages((prev) => {
+            const updated = [...prev];
+            const lastIdx = updated.length - 1;
+            if (updated[lastIdx]?.role === "assistant") {
+              updated[lastIdx] = { ...updated[lastIdx], quickReplies };
+            }
+            return updated;
+          });
+        }
       }
     } catch (err: any) {
       setMessages((prev) => [
@@ -332,15 +383,14 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   }, [input, isLoading, messages]);
 
   const handleApplyWithFidelity = () => {
-    if (!productImage || !referenceImage) return;
+    if (!productImage || referenceImages.length === 0) return;
 
     const fidelity = fidelityLevels.find((f) => f.id === selectedFidelity);
     const elementsStr = selectedElements.join(", ");
 
-    // Send final instruction to AI
     const instruction = `
 בבקשה צור prompt מפורט להחלפת רקע בהתבסס על:
-- תמונת הייחוס שהעליתי
+- ${referenceImages.length} תמונות ייחוס שהעליתי
 - רמת דיוק: ${fidelity?.label} (${fidelity?.desc})
 ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""}
 תן לי את ה-prompt הטוב ביותר והחל אותו.
@@ -351,10 +401,16 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
     setFlowStep("ready");
 
     if (onEditWithImages) {
-      onEditWithImages(productImage, referenceImage, fidelity?.strength || "0.5", elementsStr);
+      onEditWithImages(productImage, referenceImages[0], fidelity?.strength || "0.5", elementsStr);
     }
 
     sendToAI([...messages, userMsg]);
+  };
+
+  const handleQuickReply = async (value: string) => {
+    const userMsg: Message = { role: "user", content: value };
+    setMessages((prev) => [...prev, userMsg]);
+    await sendToAI([...messages, userMsg]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -367,12 +423,13 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
   const resetFlow = () => {
     setFlowStep("idle");
     setProductImage(null);
-    setReferenceImage(null);
+    setReferenceImages([]);
     setSelectedFidelity("similar");
     setSuggestedElements([]);
     setSelectedElements([]);
     setPreviewUrl(null);
     setAnalysisResult("");
+    setLastSuggestedPrompt(null);
   };
 
   if (!isOpen) {
@@ -395,7 +452,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
           <span className="font-display text-sm font-bold text-foreground">יועץ רקעים AI</span>
         </div>
         <div className="flex items-center gap-1">
-          {(productImage || referenceImage) && (
+          {(productImage || referenceImages.length > 0) && (
             <button
               onClick={resetFlow}
               className="rounded-lg px-2 py-1 font-accent text-[10px] text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
@@ -410,10 +467,10 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
       </div>
 
       {/* Image preview strip */}
-      {(productImage || referenceImage) && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-secondary/30" dir="rtl">
+      {(productImage || referenceImages.length > 0) && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-secondary/30 overflow-x-auto" dir="rtl">
           {productImage && (
-            <div className="relative group">
+            <div className="relative group shrink-0">
               <img src={productImage} alt="מוצר" className="h-12 w-12 rounded-lg object-cover border border-border" />
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-primary px-1 py-0.5 font-accent text-[7px] text-primary-foreground whitespace-nowrap">מוצר</span>
               <button
@@ -424,20 +481,31 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
               </button>
             </div>
           )}
-          {referenceImage && (
-            <div className="relative group">
-              <img src={referenceImage} alt="ייחוס" className="h-12 w-12 rounded-lg object-cover border border-gold/50" />
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-gold px-1 py-0.5 font-accent text-[7px] text-gold-foreground whitespace-nowrap">ייחוס</span>
+          {referenceImages.map((img, idx) => (
+            <div key={idx} className="relative group shrink-0">
+              <img src={img} alt={`ייחוס ${idx + 1}`} className="h-12 w-12 rounded-lg object-cover border border-gold/50" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-gold px-1 py-0.5 font-accent text-[7px] text-gold-foreground whitespace-nowrap">ייחוס {idx + 1}</span>
               <button
-                onClick={() => { setReferenceImage(null); setPreviewUrl(null); setFlowStep("upload-reference"); }}
+                onClick={() => {
+                  setReferenceImages(prev => prev.filter((_, i) => i !== idx));
+                  if (referenceImages.length <= 1) { setPreviewUrl(null); setFlowStep("upload-reference"); }
+                }}
                 className="absolute -top-1 -right-1 rounded-full bg-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X className="h-2.5 w-2.5 text-destructive-foreground" />
               </button>
             </div>
+          ))}
+          {referenceImages.length > 0 && (
+            <button
+              onClick={() => refFileInputRef.current?.click()}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gold/30 text-gold/50 hover:border-gold hover:text-gold transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           )}
-          {selectedFidelity && referenceImage && (
-            <span className="mr-auto rounded-full bg-accent/10 px-2 py-0.5 font-accent text-[10px] text-accent-foreground">
+          {selectedFidelity && referenceImages.length > 0 && (
+            <span className="mr-auto rounded-full bg-accent/10 px-2 py-0.5 font-accent text-[10px] text-accent-foreground shrink-0">
               {fidelityLevels.find((f) => f.id === selectedFidelity)?.icon} {fidelityLevels.find((f) => f.id === selectedFidelity)?.label}
             </span>
           )}
@@ -498,6 +566,21 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
                       🔄 חדש
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Quick reply buttons */}
+              {msg.quickReplies && msg.quickReplies.length > 0 && i === messages.length - 1 && !isLoading && (
+                <div className="flex flex-wrap gap-1.5">
+                  {msg.quickReplies.map((qr, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleQuickReply(qr.value)}
+                      className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 font-body text-[11px] text-foreground transition-all hover:bg-primary/15 hover:border-primary/50 active:scale-95"
+                    >
+                      {qr.label}
+                    </button>
+                  ))}
                 </div>
               )}
             </div>
@@ -713,6 +796,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleInlineImageUpload}
         className="hidden"
       />
@@ -720,6 +804,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
         ref={refFileInputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleReferenceUpload}
         className="hidden"
       />
