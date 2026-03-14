@@ -4,6 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { toast } from "@/hooks/use-toast";
 
+interface ColorSwatch {
+  hex: string;
+  name: string;
+}
+
+interface VisualOption {
+  prompt: string;
+  label: string;
+  previewUrl?: string;
+  isGenerating?: boolean;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -11,6 +23,8 @@ interface Message {
   previewImage?: string; // AI-generated preview image
   previewPrompt?: string; // prompt used for preview generation
   quickReplies?: QuickReply[]; // yes/no or option buttons
+  colorPalette?: ColorSwatch[];
+  visualOptions?: VisualOption[];
 }
 
 interface QuickReply {
@@ -213,7 +227,37 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         ];
       }
 
-      return quickReplies;
+      // Parse color palette
+      let colorPalette: ColorSwatch[] | undefined;
+      const colorRaw = extractTaggedContent(content, "COLOR_PALETTE");
+      if (colorRaw) {
+        try {
+          const colorJson = colorRaw.match(/\[[\s\S]*\]/)?.[0] ?? colorRaw;
+          const parsed = JSON.parse(colorJson);
+          if (Array.isArray(parsed)) {
+            colorPalette = parsed.filter(
+              (c): c is ColorSwatch => c && typeof c.hex === "string" && typeof c.name === "string"
+            );
+          }
+        } catch {}
+      }
+
+      // Parse visual options
+      let visualOptions: VisualOption[] | undefined;
+      const visualRaw = extractTaggedContent(content, "VISUAL_OPTIONS");
+      if (visualRaw) {
+        try {
+          const visualJson = visualRaw.match(/\[[\s\S]*\]/)?.[0] ?? visualRaw;
+          const parsed = JSON.parse(visualJson);
+          if (Array.isArray(parsed)) {
+            visualOptions = parsed.filter(
+              (v): v is VisualOption => v && typeof v.prompt === "string" && typeof v.label === "string"
+            );
+          }
+        } catch {}
+      }
+
+      return { quickReplies, colorPalette, visualOptions };
     },
     [extractTaggedContent, parseQuickReplies]
   );
@@ -272,11 +316,61 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
 
   const cleanContent = (content: string) => {
     let cleaned = content;
-    ["ACTION:APPLY_BACKGROUND", "ELEMENTS", "QUICK_REPLIES", "YES_NO"].forEach((tag) => {
+    ["ACTION:APPLY_BACKGROUND", "ELEMENTS", "QUICK_REPLIES", "YES_NO", "COLOR_PALETTE", "VISUAL_OPTIONS"].forEach((tag) => {
       cleaned = stripTaggedContent(cleaned, tag);
     });
     return cleaned.trim();
   };
+
+  const VISUAL_PREVIEW_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat-preview`;
+
+  const generateVisualOptionPreviews = useCallback(async (options: VisualOption[], msgIdx: number) => {
+    for (let i = 0; i < options.length; i++) {
+      if (options[i].previewUrl) continue;
+      // Mark as generating
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated[msgIdx]?.visualOptions) {
+          const vo = [...updated[msgIdx].visualOptions!];
+          vo[i] = { ...vo[i], isGenerating: true };
+          updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
+        }
+        return updated;
+      });
+      try {
+        const resp = await fetch(VISUAL_PREVIEW_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ prompt: options[i].prompt }),
+        });
+        const data = await resp.json();
+        if (data.image) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            if (updated[msgIdx]?.visualOptions) {
+              const vo = [...updated[msgIdx].visualOptions!];
+              vo[i] = { ...vo[i], previewUrl: data.image, isGenerating: false };
+              updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
+            }
+            return updated;
+          });
+        }
+      } catch {
+        setMessages((prev) => {
+          const updated = [...prev];
+          if (updated[msgIdx]?.visualOptions) {
+            const vo = [...updated[msgIdx].visualOptions!];
+            vo[i] = { ...vo[i], isGenerating: false };
+            updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
+          }
+          return updated;
+        });
+      }
+    }
+  }, []);
 
   const toBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
@@ -448,18 +542,37 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
       }
 
       if (assistantSoFar) {
-        const quickReplies = parseActions(assistantSoFar);
+        const parsed = parseActions(assistantSoFar);
         setAnalysisResult(assistantSoFar);
-        if (quickReplies?.length) {
-          // Add quick replies to the last assistant message
+        const hasInteractive = parsed.quickReplies?.length || parsed.colorPalette?.length || parsed.visualOptions?.length;
+        if (hasInteractive) {
           setMessages((prev) => {
             const updated = [...prev];
             const lastIdx = updated.length - 1;
             if (updated[lastIdx]?.role === "assistant") {
-              updated[lastIdx] = { ...updated[lastIdx], quickReplies };
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                quickReplies: parsed.quickReplies,
+                colorPalette: parsed.colorPalette,
+                visualOptions: parsed.visualOptions,
+              };
             }
             return updated;
           });
+          // Auto-generate visual option previews
+          if (parsed.visualOptions?.length) {
+            const msgIdx = messages.length; // index of the assistant message we just added
+            // We need the actual index after setMessages completes
+            setTimeout(() => {
+              setMessages((prev) => {
+                const lastAssistantIdx = prev.length - 1;
+                if (prev[lastAssistantIdx]?.visualOptions?.length) {
+                  generateVisualOptionPreviews(prev[lastAssistantIdx].visualOptions!, lastAssistantIdx);
+                }
+                return prev;
+              });
+            }, 100);
+          }
         }
       }
     } catch (err: any) {
@@ -714,6 +827,65 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
                       <span>{qr.label}</span>
                     </button>
                   ))}
+                </div>
+              )}
+
+              {/* Color palette swatches */}
+              {msg.colorPalette && msg.colorPalette.length > 0 && i === messages.length - 1 && !isLoading && (
+                <div className="mt-2 space-y-1.5">
+                  <p className="font-display text-[10px] font-bold text-muted-foreground text-center">🎨 לחץ על הצבע שהתכוונת אליו:</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {msg.colorPalette.map((color, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleQuickReply(`בחרתי את הצבע: ${color.name} (${color.hex})`)}
+                        className="flex flex-col items-center gap-1 rounded-xl border-2 border-border bg-background p-2 transition-all hover:border-primary/50 hover:scale-105 active:scale-95 min-w-[60px]"
+                        title={color.name}
+                      >
+                        <div
+                          className="h-10 w-10 rounded-full border-2 border-border shadow-sm"
+                          style={{ backgroundColor: color.hex }}
+                        />
+                        <span className="font-body text-[9px] text-foreground leading-tight text-center">{color.name}</span>
+                        <span className="font-mono text-[8px] text-muted-foreground">{color.hex}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Visual options (textures, materials) */}
+              {msg.visualOptions && msg.visualOptions.length > 0 && i === messages.length - 1 && !isLoading && (
+                <div className="mt-2 space-y-1.5">
+                  <p className="font-display text-[10px] font-bold text-muted-foreground text-center">👁️ לחץ על האופציה שהכי קרובה למה שחשבת:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {msg.visualOptions.map((vo, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => handleQuickReply(`בחרתי: ${vo.label}`)}
+                        className="group relative rounded-xl border-2 border-border bg-background overflow-hidden transition-all hover:border-primary/50 hover:scale-[1.02] active:scale-95"
+                      >
+                        <div className="aspect-square bg-secondary/50 flex items-center justify-center">
+                          {vo.isGenerating ? (
+                            <div className="flex flex-col items-center gap-1">
+                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                              <span className="font-accent text-[8px] text-muted-foreground">מייצר...</span>
+                            </div>
+                          ) : vo.previewUrl ? (
+                            <img src={vo.previewUrl} alt={vo.label} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex flex-col items-center gap-1">
+                              <Wand2 className="h-5 w-5 text-muted-foreground" />
+                              <span className="font-accent text-[8px] text-muted-foreground">ממתין...</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className="px-2 py-1.5 bg-background">
+                          <span className="font-display text-[10px] font-bold text-foreground block text-center">{vo.label}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
