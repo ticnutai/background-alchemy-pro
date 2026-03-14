@@ -63,6 +63,68 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [lastSuggestedPrompt, setLastSuggestedPrompt] = useState<{prompt: string; name: string} | null>(null);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<Array<{id: string; url: string; name: string | null}>>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+
+  const loadGalleryImages = async () => {
+    setGalleryLoading(true);
+    const { data } = await supabase
+      .from("processing_history")
+      .select("id, result_image_url, background_name, original_image_url")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (data) {
+      const imgs: Array<{id: string; url: string; name: string | null; type: string}> = [];
+      data.forEach(item => {
+        imgs.push({ id: item.id + "-result", url: item.result_image_url, name: item.background_name, type: "result" });
+        imgs.push({ id: item.id + "-orig", url: item.original_image_url, name: "מקור", type: "original" });
+      });
+      // Deduplicate by url
+      const seen = new Set<string>();
+      setGalleryImages(imgs.filter(i => { if (seen.has(i.url)) return false; seen.add(i.url); return true; }));
+    }
+    setGalleryLoading(false);
+  };
+
+  const handleGallerySelect = async (url: string) => {
+    setShowGalleryPicker(false);
+    // Fetch image and convert to base64
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+
+      if (!productImage) {
+        setProductImage(base64);
+        setFlowStep("upload-reference");
+        const userMsg: Message = {
+          role: "user",
+          content: "בחרתי תמונת מוצר מהגלריה. נתח אותה ותציע רקעים מתאימים.",
+          images: [base64],
+        };
+        setMessages((prev) => [...prev, userMsg]);
+        await sendToAI([...messages, userMsg], true);
+      } else {
+        setReferenceImages(prev => [...prev, base64]);
+        setPreviewUrl(base64);
+        setFlowStep("choose-fidelity");
+        const userMsg: Message = {
+          role: "user",
+          content: "בחרתי תמונת ייחוס מהגלריה. נתח מה הרקע ותציע אלמנטים.",
+          images: [base64],
+        };
+        setMessages((prev) => [...prev, userMsg]);
+        await sendToAI([...messages, userMsg], true);
+      }
+    } catch {
+      toast({ title: "שגיאה", description: "לא הצלחתי לטעון את התמונה", variant: "destructive" });
+    }
+  };
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
