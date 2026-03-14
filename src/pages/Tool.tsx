@@ -82,6 +82,36 @@ const Index = () => {
       setResultImage(data.resultImage);
       toast.success("הרקע הוחלף בהצלחה!");
 
+      // Save to history if user is logged in
+      if (user) {
+        try {
+          // Upload both images to storage
+          const uid = user.id;
+          const ts = Date.now();
+          const origBlob = await fetch(originalImage).then(r => r.blob());
+          const resultBlob = await fetch(data.resultImage).then(r => r.blob());
+
+          const [origUpload, resultUpload] = await Promise.all([
+            supabase.storage.from("processed-images").upload(`${uid}/${ts}_original.png`, origBlob, { contentType: "image/png" }),
+            supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" }),
+          ]);
+
+          if (origUpload.data && resultUpload.data) {
+            const origUrl = supabase.storage.from("processed-images").getPublicUrl(origUpload.data.path).data.publicUrl;
+            const resultUrl = supabase.storage.from("processed-images").getPublicUrl(resultUpload.data.path).data.publicUrl;
+
+            await supabase.from("processing_history").insert({
+              user_id: uid,
+              original_image_url: origUrl,
+              result_image_url: resultUrl,
+              background_prompt: prompt,
+              background_name: selectedPresetName || customPrompt.trim().slice(0, 50) || null,
+            });
+          }
+        } catch (saveErr) {
+          console.error("Failed to save to history:", saveErr);
+        }
+      }
       // Get professional name suggestion
       if (customPrompt.trim() && !selectedPresetName) {
         supabase.functions.invoke("suggest-name", {
