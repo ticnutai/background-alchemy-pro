@@ -185,6 +185,17 @@ const Index = () => {
               <ImageUploader onImageSelect={handleImageSelect} />
             )}
 
+            {/* Suggested name badge */}
+            {suggestedName && resultImage && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+                <Tag className="h-4 w-4 text-primary" />
+                <div className="flex flex-col">
+                  <span className="font-body text-xs text-muted-foreground">שם מקצועי מוצע למוצר:</span>
+                  <span className="font-display text-sm font-bold text-primary">{suggestedName}</span>
+                </div>
+              </div>
+            )}
+
             {originalImage && (
               <div className="flex flex-wrap items-center gap-3">
                 <button
