@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
@@ -11,6 +11,8 @@ import ImageAdjustmentsPanel, {
   getFilterString,
 } from "@/components/ImageAdjustmentsPanel";
 import ExportPanel from "@/components/ExportPanel";
+import MockupPreview from "@/components/MockupPreview";
+import BatchProcessor from "@/components/BatchProcessor";
 
 const Index = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -26,6 +28,8 @@ const Index = () => {
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [suggestedName, setSuggestedName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
+  const [showMockup, setShowMockup] = useState(false);
+  const [showBatch, setShowBatch] = useState(false);
 
   const handleImageSelect = useCallback((base64: string) => {
     setOriginalImage(base64);
@@ -216,6 +220,24 @@ const Index = () => {
                   {isEnhancing ? "משפר..." : "שפר איכות"}
                 </button>
 
+                {resultImage && (
+                  <button
+                    onClick={() => setShowMockup(true)}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                  >
+                    <Eye className="h-4 w-4" />
+                    מוקאפ
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowBatch(true)}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                >
+                  <Layers className="h-4 w-4" />
+                  עיבוד מרובה
+                </button>
+
                 <button
                   onClick={() => {
                     setOriginalImage(null);
@@ -293,6 +315,20 @@ const Index = () => {
           )}
         </div>
       </main>
+
+      {/* Mockup Modal */}
+      {showMockup && resultImage && (
+        <MockupPreview imageUrl={resultImage} onClose={() => setShowMockup(false)} />
+      )}
+
+      {/* Batch Processing Modal */}
+      {showBatch && (
+        <BatchProcessor
+          backgroundPrompt={customPrompt.trim() || activePrompt}
+          referenceImages={referenceImages}
+          onClose={() => setShowBatch(false)}
+        />
+      )}
     </div>
   );
 };
