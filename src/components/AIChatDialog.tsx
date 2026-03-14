@@ -129,55 +129,93 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const extractTaggedContent = useCallback((content: string, tag: string) => {
+    const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`\\[\\s*${escapedTag}\\s*\\]([\\s\\S]*?)(?:\\[\\s*\\/\\s*${escapedTag}\\s*\\]|$)`, "i");
+    const match = content.match(regex);
+    return match?.[1]?.trim() || null;
+  }, []);
+
+  const stripTaggedContent = useCallback((content: string, tag: string) => {
+    const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`\\[\\s*${escapedTag}\\s*\\][\\s\\S]*?(?:\\[\\s*\\/\\s*${escapedTag}\\s*\\]|$)`, "gi");
+    return content.replace(regex, "");
+  }, []);
+
+  const parseQuickReplies = useCallback((rawContent: string): QuickReply[] | undefined => {
+    const normalized = rawContent.replace(/```json|```/gi, "").trim();
+
+    try {
+      const parsed = JSON.parse(normalized);
+      if (Array.isArray(parsed)) {
+        const valid = parsed
+          .filter((item): item is QuickReply =>
+            Boolean(item && typeof item === "object" && "label" in item && "value" in item)
+          )
+          .map((item) => ({ label: String(item.label), value: String(item.value), icon: item.icon }));
+        if (valid.length) return valid;
+      }
+    } catch {
+      // fallback parser below
+    }
+
+    const fallback: QuickReply[] = [];
+    const pairRegex = /["']label["']\s*:\s*["']([^"']+)["'][\s\S]*?["']value["']\s*:\s*["']([^"']+)["']/g;
+    let match: RegExpExecArray | null;
+
+    while ((match = pairRegex.exec(normalized)) !== null) {
+      fallback.push({ label: match[1].trim(), value: match[2].trim() });
+    }
+
+    return fallback.length ? fallback.slice(0, 6) : undefined;
+  }, []);
+
   const parseActions = useCallback(
     (content: string) => {
-      const actionRegex = /\[ACTION:APPLY_BACKGROUND\]([\s\S]*?)\[\/ACTION\]/g;
-      const match = actionRegex.exec(content);
-      if (match) {
+      const actionRaw = extractTaggedContent(content, "ACTION:APPLY_BACKGROUND");
+      if (actionRaw) {
         try {
-          const action = JSON.parse(match[1].trim());
+          const actionJson = actionRaw.match(/\{[\s\S]*\}/)?.[0] ?? actionRaw;
+          const action = JSON.parse(actionJson);
           if (action.prompt && action.name) {
             setLastSuggestedPrompt({ prompt: action.prompt, name: action.name });
           }
-        } catch {}
+        } catch {
+          // ignore malformed action block
+        }
       }
 
-      // Parse element suggestions
-      const elemRegex = /\[ELEMENTS\]([\s\S]*?)\[\/ELEMENTS\]/g;
-      const elemMatch = elemRegex.exec(content);
-      if (elemMatch) {
+      const elementsRaw = extractTaggedContent(content, "ELEMENTS");
+      if (elementsRaw) {
         try {
-          const elements = JSON.parse(elemMatch[1].trim());
+          const elementsJson = elementsRaw.match(/\[[\s\S]*\]/)?.[0] ?? elementsRaw;
+          const elements = JSON.parse(elementsJson);
           if (Array.isArray(elements)) {
-            setSuggestedElements(elements);
+            setSuggestedElements(elements.map((el) => String(el)));
             setFlowStep("choose-elements");
           }
-        } catch {}
+        } catch {
+          // ignore malformed elements block
+        }
       }
 
-      // Parse quick replies
-      const qrRegex = /\[QUICK_REPLIES\]([\s\S]*?)\[\/QUICK_REPLIES\]/g;
-      const qrMatch = qrRegex.exec(content);
       let quickReplies: QuickReply[] | undefined;
-      if (qrMatch) {
-        try {
-          quickReplies = JSON.parse(qrMatch[1].trim());
-        } catch {}
+      const quickRepliesRaw = extractTaggedContent(content, "QUICK_REPLIES");
+      if (quickRepliesRaw) {
+        quickReplies = parseQuickReplies(quickRepliesRaw);
       }
 
-      // Parse yes/no questions
-      const ynRegex = /\[YES_NO\]([\s\S]*?)\[\/YES_NO\]/g;
-      const ynMatch = ynRegex.exec(content);
-      if (ynMatch && !quickReplies) {
+      const yesNoRaw = extractTaggedContent(content, "YES_NO");
+      if (yesNoRaw && !quickReplies?.length) {
         quickReplies = [
-          { label: "✅ כן", value: `כן, ${ynMatch[1]}` },
-          { label: "❌ לא", value: `לא, ${ynMatch[1]}` },
+          { label: "✅ כן", value: `כן, ${yesNoRaw}` },
+          { label: "❌ לא", value: `לא, ${yesNoRaw}` },
         ];
       }
 
       return quickReplies;
     },
-    []
+    [extractTaggedContent, parseQuickReplies]
   );
 
   const generatePreview = async (prompt: string, msgIndex?: number) => {
@@ -233,12 +271,11 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   };
 
   const cleanContent = (content: string) => {
-    return content
-      .replace(/\[ACTION:APPLY_BACKGROUND\][\s\S]*?\[\/ACTION\]/g, "")
-      .replace(/\[ELEMENTS\][\s\S]*?\[\/ELEMENTS\]/g, "")
-      .replace(/\[QUICK_REPLIES\][\s\S]*?\[\/QUICK_REPLIES\]/g, "")
-      .replace(/\[YES_NO\][\s\S]*?\[\/YES_NO\]/g, "")
-      .trim();
+    let cleaned = content;
+    ["ACTION:APPLY_BACKGROUND", "ELEMENTS", "QUICK_REPLIES", "YES_NO"].forEach((tag) => {
+      cleaned = stripTaggedContent(cleaned, tag);
+    });
+    return cleaned.trim();
   };
 
   const toBase64 = (file: File): Promise<string> =>
