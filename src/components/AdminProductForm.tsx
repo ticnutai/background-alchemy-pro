@@ -200,7 +200,7 @@ const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
                   <label className="font-accent text-xs text-muted-foreground mb-1 block">קטגוריה</label>
                   <select
                     value={category}
-                    onChange={(e) => setCategory(e.target.value)}
+                    onChange={(e) => setCategory(e.target.value as ProductCategory)}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2.5 font-body text-sm text-foreground focus:border-gold/50 focus:outline-none"
                   >
                     {categories.map((c) => (
