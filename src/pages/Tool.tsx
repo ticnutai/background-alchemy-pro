@@ -281,6 +281,13 @@ const Index = () => {
           <div className="flex items-center gap-3">
             {user && (
               <>
+                <Link
+                  to="/"
+                  className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
+                >
+                  <Home className="h-3.5 w-3.5" />
+                  דף הבית
+                </Link>
                 <button
                   onClick={() => setShowHistory(true)}
                   className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
