@@ -32,7 +32,7 @@ const Index = () => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [activePrompt, setActivePrompt] = useState("");
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
-  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "export">("backgrounds");
+  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "tools" | "export">("backgrounds");
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [suggestedName, setSuggestedName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
