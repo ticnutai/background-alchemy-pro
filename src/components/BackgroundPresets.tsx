@@ -1356,6 +1356,7 @@ const BackgroundPresets = ({
             <div className="p-4 text-center space-y-1">
               <h3 className="font-display text-base font-bold text-foreground">{previewPreset.label}</h3>
               <p className="font-body text-sm text-muted-foreground italic">{previewPreset.professionalName}</p>
+              {/* Edit names in preview modal too */}
               <div className="flex gap-2 pt-3 justify-center">
                 <button
                   onClick={() => {
