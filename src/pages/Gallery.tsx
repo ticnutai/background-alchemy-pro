@@ -234,7 +234,29 @@ const Gallery = () => {
     toast.success("נמחק");
   };
 
-  const toggleCompareItem = (item: HistoryItem) => {
+  const duplicateItem = async (item: HistoryItem) => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("processing_history")
+      .insert({
+        user_id: user.id,
+        original_image_url: item.original_image_url,
+        result_image_url: item.result_image_url,
+        background_prompt: item.background_prompt,
+        background_name: item.background_name ? `${item.background_name} (עותק)` : "עותק",
+        is_favorite: false,
+        folder_id: item.folder_id,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error("שגיאה בשכפול");
+    } else if (data) {
+      setItems(prev => [data as HistoryItem, ...prev]);
+      toast.success("התמונה שוכפלה! ערוך את העותק בלי לפגוע במקור ✨");
+    }
+  };
+
     setCompareItems(prev => {
       const exists = prev.find(i => i.id === item.id);
       if (exists) return prev.filter(i => i.id !== item.id);
