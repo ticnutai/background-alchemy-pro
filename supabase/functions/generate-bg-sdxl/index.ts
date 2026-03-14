@@ -33,22 +33,23 @@ serve(async (req) => {
     const dataUri = `data:image/png;base64,${base64Data}`;
 
     // Stable Diffusion XL Inpainting for high-quality background generation
-    const createRes = await fetch("https://api.replicate.com/v1/predictions", {
+    const createRes = await fetch("https://api.replicate.com/v1/models/stability-ai/sdxl/predictions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        version: "c11bac58203367db93a3c552bd49a25a5c839ced1b0a39ed1f1a5e1c5c4a1f6e",
         input: {
           image: dataUri,
           prompt: `${backgroundPrompt || "Professional product photography background, studio lighting"}, high quality, detailed, 8k`,
           negative_prompt: negativePrompt || "blurry, low quality, distorted, text, watermark, deformed product",
           num_inference_steps: 30,
           guidance_scale: 7.5,
-          strength: strength || 0.85,
+          prompt_strength: strength || 0.85,
           scheduler: "K_EULER_ANCESTRAL",
+          width: 1024,
+          height: 1024,
         },
       }),
     });
