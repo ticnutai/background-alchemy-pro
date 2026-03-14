@@ -1,6 +1,20 @@
 import { useState, useCallback } from "react";
 import marbleRef from "@/assets/marble-reference.jpeg";
-import { Upload, ImagePlus, X, Palette } from "lucide-react";
+import { Upload, ImagePlus, X, Palette, ScanSearch, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+
+interface ColorInfo {
+  hex: string;
+  name: string;
+  percentage: number;
+}
+interface AnalysisResult {
+  colors: ColorInfo[];
+  elements: string[];
+  style: string;
+  suggestedBackgrounds: { hex: string; name: string; reason: string }[];
+}
 
 interface Preset {
   id: string;
