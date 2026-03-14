@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
@@ -16,6 +16,8 @@ import MockupPreview from "@/components/MockupPreview";
 import BatchProcessor from "@/components/BatchProcessor";
 import AIChatDialog from "@/components/AIChatDialog";
 import HistoryPanel from "@/components/HistoryPanel";
+import AdvancedToolsPanel from "@/components/AdvancedToolsPanel";
+import SocialTemplates from "@/components/SocialTemplates";
 import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
@@ -30,13 +32,14 @@ const Index = () => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [activePrompt, setActivePrompt] = useState("");
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
-  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "export">("backgrounds");
+  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "tools" | "export">("backgrounds");
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [suggestedName, setSuggestedName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
   const [showMockup, setShowMockup] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSocial, setShowSocial] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -302,6 +305,16 @@ const Index = () => {
                   </button>
                 )}
 
+                {resultImage && (
+                  <button
+                    onClick={() => setShowSocial(true)}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    תבניות
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowBatch(true)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
@@ -333,6 +346,7 @@ const Index = () => {
                 <div className="flex border-b border-border">
                   {[
                     { key: "backgrounds" as const, label: "רקעים" },
+                    { key: "tools" as const, label: "כלים" },
                     { key: "adjust" as const, label: "התאמות" },
                     { key: "export" as const, label: "ייצוא" },
                   ].map((tab) => (
@@ -365,6 +379,13 @@ const Index = () => {
                       }}
                       referenceImages={referenceImages}
                       onReferenceImagesChange={setReferenceImages}
+                    />
+                  )}
+                  {activeTab === "tools" && (
+                    <AdvancedToolsPanel
+                      originalImage={originalImage}
+                      resultImage={resultImage}
+                      onResult={setResultImage}
                     />
                   )}
                   {activeTab === "adjust" && (
@@ -402,7 +423,14 @@ const Index = () => {
         />
       )}
 
-      {/* AI Chat */}
+      {/* Social Templates */}
+      {showSocial && resultImage && (
+        <SocialTemplates
+          imageUrl={resultImage}
+          onClose={() => setShowSocial(false)}
+        />
+      )}
+
       <AIChatDialog
         onApplyBackground={(prompt, name) => {
           setCustomPrompt(prompt);
