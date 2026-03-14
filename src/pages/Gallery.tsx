@@ -804,23 +804,25 @@ const Gallery = () => {
             <div className="flex flex-1 overflow-hidden border border-t-0 border-border rounded-b-xl">
               {/* Image */}
               <div
-                className="flex-1 overflow-hidden bg-foreground/5 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                className="flex-1 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing"
                 onWheel={handleZoomWheel}
                 onMouseDown={handlePanStart}
                 onMouseMove={handlePanMove}
                 onMouseUp={() => setIsPanning(false)}
                 onMouseLeave={() => setIsPanning(false)}
               >
-                <img
-                  src={showOriginal ? zoomedItem.original_image_url : zoomedItem.result_image_url}
-                  alt=""
-                  className="w-full h-full max-h-[75vh] object-contain transition-transform duration-200 select-none"
-                  style={{
-                    transform: `scale(${zoomLevel}) translate(${panPos.x / zoomLevel}px, ${panPos.y / zoomLevel}px)`,
-                    filter: showOriginal ? undefined : filterStyle,
-                  }}
-                  draggable={false}
-                />
+                <div className="max-h-[75vh] max-w-full overflow-hidden rounded-md border border-border/60 shadow-sm">
+                  <img
+                    src={showOriginal ? zoomedItem.original_image_url : zoomedItem.result_image_url}
+                    alt=""
+                    className="block max-h-[75vh] max-w-full object-contain transition-transform duration-200 select-none"
+                    style={{
+                      transform: `scale(${zoomLevel}) translate(${panPos.x / zoomLevel}px, ${panPos.y / zoomLevel}px)`,
+                      filter: showOriginal ? undefined : filterStyle,
+                    }}
+                    draggable={false}
+                  />
+                </div>
               </div>
 
               {/* Adjustments panel */}
