@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Sparkles, FolderPlus, Folder, Heart, Trash2, Download, ZoomIn, X, ArrowRight,
   ChevronLeft, ChevronRight, Maximize2, Minimize2, LogIn, Search, SlidersHorizontal,
-  Grid, Columns2, Pin, Wand2,
+  Grid, Columns2, Pin, Wand2, Eye, GripVertical,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import ImageAdjustmentsPanel, { getFilterString, defaultAdjustments, type ImageAdjustments } from "@/components/ImageAdjustmentsPanel";
@@ -58,6 +58,10 @@ const Gallery = () => {
   const [showAdjustments, setShowAdjustments] = useState(false);
   const [pinnedItem, setPinnedItem] = useState<HistoryItem | null>(null);
   const [sideBySideIndex, setSideBySideIndex] = useState(0);
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [showCompareView, setShowCompareView] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -272,7 +276,11 @@ const Gallery = () => {
 
               <button
                 onClick={() => setActiveFolder(null)}
+                onDragOver={e => { e.preventDefault(); setDragOverFolderId("__all__"); }}
+                onDragLeave={() => setDragOverFolderId(null)}
+                onDrop={e => { e.preventDefault(); setDragOverFolderId(null); if (draggedItemId) { moveToFolder(draggedItemId, null); setDraggedItemId(null); } }}
                 className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 font-accent text-xs transition-colors ${
+                  dragOverFolderId === "__all__" ? "bg-gold/20 border-2 border-dashed border-gold" :
                   !activeFolder ? "bg-gold/10 text-gold font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 }`}
               >
@@ -285,7 +293,11 @@ const Gallery = () => {
                   <div key={folder.id} className="group flex items-center gap-1">
                     <button
                       onClick={() => setActiveFolder(folder.id)}
+                      onDragOver={e => { e.preventDefault(); setDragOverFolderId(folder.id); }}
+                      onDragLeave={() => setDragOverFolderId(null)}
+                      onDrop={e => { e.preventDefault(); setDragOverFolderId(null); if (draggedItemId) { moveToFolder(draggedItemId, folder.id); setDraggedItemId(null); } }}
                       className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2 font-accent text-xs transition-colors ${
+                        dragOverFolderId === folder.id ? "bg-gold/20 border-2 border-dashed border-gold" :
                         activeFolder === folder.id ? "bg-gold/10 text-gold font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                       }`}
                     >
@@ -351,17 +363,28 @@ const Gallery = () => {
               <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-display text-sm font-bold text-foreground">השוואה ({compareItems.length}/4)</span>
-                  <button onClick={() => setCompareItems([])} className="font-accent text-xs text-muted-foreground hover:text-foreground">נקה</button>
+                  <div className="flex items-center gap-2">
+                    {compareItems.length >= 2 && (
+                      <button
+                        onClick={() => setShowCompareView(true)}
+                        className="rounded-lg bg-gold px-4 py-1.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+                      >
+                        צור השוואה
+                      </button>
+                    )}
+                    <button onClick={() => setCompareItems([])} className="font-accent text-xs text-muted-foreground hover:text-foreground">נקה</button>
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   {compareItems.map(item => (
                     <div key={item.id} className="relative w-40 aspect-square rounded-lg overflow-hidden border border-border group">
                       <img src={item.result_image_url} alt="" className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/30 transition-colors flex items-center justify-center">
-                        <button onClick={() => setZoomedItem(item)} className="opacity-0 group-hover:opacity-100 rounded-full bg-card p-2 transition-opacity">
-                          <ZoomIn className="h-4 w-4 text-foreground" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleCompareItem(item)}
+                        className="absolute top-1 right-1 rounded-full bg-foreground/60 p-1 text-card opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                       <p className="absolute bottom-1 left-1 right-1 rounded bg-foreground/70 px-1.5 py-0.5 font-accent text-[10px] text-card truncate text-center">
                         {item.background_name || "רקע מותאם"}
                       </p>
@@ -490,7 +513,13 @@ const Gallery = () => {
                 {filtered.map(item => (
                   <div
                     key={item.id}
+                    draggable
+                    onDragStart={() => setDraggedItemId(item.id)}
+                    onDragEnd={() => setDraggedItemId(null)}
+                    onMouseEnter={() => setHoveredItemId(item.id)}
+                    onMouseLeave={() => setHoveredItemId(null)}
                     className={`group relative rounded-xl border overflow-hidden bg-card transition-all hover:shadow-lg cursor-pointer ${
+                      draggedItemId === item.id ? "opacity-50 scale-95" :
                       compareMode && compareItems.find(c => c.id === item.id)
                         ? "border-primary ring-2 ring-primary/30"
                         : pinnedItem?.id === item.id
@@ -500,63 +529,81 @@ const Gallery = () => {
                     onClick={() => compareMode ? toggleCompareItem(item) : setZoomedItem(item)}
                   >
                     <div className="aspect-square overflow-hidden">
-                      <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" draggable={false} />
                     </div>
                     <div className="p-2.5">
                       <p className="font-display text-xs font-semibold text-foreground truncate">{item.background_name || "רקע מותאם"}</p>
                       <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
                     </div>
 
-                    {/* Hover actions */}
-                    <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={e => { e.stopPropagation(); toggleFavorite(item); }}
-                        className={`rounded-full p-1.5 backdrop-blur-sm transition-colors ${
-                          item.is_favorite ? "bg-gold/90 text-gold-foreground" : "bg-foreground/50 text-card hover:bg-gold/90"
-                        }`}
-                      >
-                        <Heart className={`h-3 w-3 ${item.is_favorite ? "fill-current" : ""}`} />
-                      </button>
-                      {viewMode === "sideBySide" && (
+                    {/* Hover action popup - top center */}
+                    {hoveredItemId === item.id && !compareMode && (
+                      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-full bg-card/95 backdrop-blur-md shadow-lg border border-border px-2 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
                         <button
-                          onClick={e => { e.stopPropagation(); setPinnedItem(item); setSideBySideIndex(0); }}
-                          className={`rounded-full p-1.5 backdrop-blur-sm transition-colors ${
-                            pinnedItem?.id === item.id ? "bg-gold/90 text-gold-foreground" : "bg-foreground/50 text-card hover:bg-gold/90"
+                          onClick={e => { e.stopPropagation(); toggleFavorite(item); }}
+                          className={`rounded-full p-1.5 transition-colors ${
+                            item.is_favorite ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
+                          }`}
+                          title={item.is_favorite ? "הסר ממועדפים" : "הוסף למועדפים"}
+                        >
+                          <Heart className={`h-3.5 w-3.5 ${item.is_favorite ? "fill-current" : ""}`} />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (!compareMode) {
+                              setCompareMode(true);
+                            }
+                            toggleCompareItem(item);
+                          }}
+                          className={`rounded-full p-1.5 transition-colors ${
+                            compareItems.find(c => c.id === item.id) ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          }`}
+                          title="הוסף להשוואה"
+                        >
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => { e.stopPropagation(); setPinnedItem(item); setSideBySideIndex(0); setViewMode("sideBySide"); }}
+                          className={`rounded-full p-1.5 transition-colors ${
+                            pinnedItem?.id === item.id ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
                           }`}
                           title="נעץ להשוואה"
                         >
-                          <Pin className="h-3 w-3" />
+                          <Pin className="h-3.5 w-3.5" />
                         </button>
-                      )}
-                      <button
-                        onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
-                        className="rounded-full bg-foreground/50 p-1.5 text-card backdrop-blur-sm hover:bg-destructive transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-
-                    {/* Folder assign dropdown */}
-                    {folders.length > 0 && !compareMode && (
-                      <div className="absolute bottom-12 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <select
-                          value={item.folder_id || ""}
-                          onClick={e => e.stopPropagation()}
-                          onChange={e => { e.stopPropagation(); moveToFolder(item.id, e.target.value || null); }}
-                          className="rounded-md bg-foreground/70 px-1.5 py-1 font-accent text-[10px] text-card backdrop-blur-sm border-none focus:outline-none cursor-pointer"
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => { e.stopPropagation(); setZoomedItem(item); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                          title="הגדל"
                         >
-                          <option value="">ללא תיקייה</option>
-                          {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                        </select>
+                          <ZoomIn className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="מחק"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )}
 
-                    {item.is_favorite && (
-                      <div className="absolute top-2 right-2"><span className="text-xs">⭐</span></div>
+                    {/* Drag indicator */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-60 transition-opacity">
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
+
+                    {item.is_favorite && hoveredItemId !== item.id && (
+                      <div className="absolute top-2 left-2"><span className="text-xs">⭐</span></div>
                     )}
 
                     {compareMode && compareItems.find(c => c.id === item.id) && (
-                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center pointer-events-none">
                         <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center font-accent text-xs font-bold">
                           {compareItems.findIndex(c => c.id === item.id) + 1}
                         </div>
@@ -569,6 +616,62 @@ const Gallery = () => {
           </div>
         </div>
       </main>
+
+      {/* Full Compare View Modal */}
+      {showCompareView && compareItems.length >= 2 && (
+        <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex flex-col" onClick={() => setShowCompareView(false)}>
+          <div className="flex items-center justify-between bg-card px-6 py-4 border-b border-border" dir="rtl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <SlidersHorizontal className="h-5 w-5 text-gold" />
+              <h2 className="font-display text-lg font-bold text-foreground">השוואת תמונות</h2>
+              <span className="font-accent text-xs text-muted-foreground">{compareItems.length} תמונות</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setShowCompareView(false); setCompareMode(false); setCompareItems([]); }}
+                className="rounded-lg border border-border px-4 py-2 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                סיום השוואה
+              </button>
+              <button onClick={() => setShowCompareView(false)} className="rounded-lg p-2 hover:bg-secondary transition-colors">
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+          <div
+            className={`flex-1 p-6 overflow-auto grid gap-4 ${
+              compareItems.length === 2 ? "grid-cols-2" : compareItems.length === 3 ? "grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
+            }`}
+            onClick={e => e.stopPropagation()}
+          >
+            {compareItems.map((item, idx) => (
+              <div key={item.id} className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+                <div className="flex-1 flex items-center justify-center bg-foreground/5 p-2">
+                  <img src={item.result_image_url} alt="" className="max-h-[65vh] w-full object-contain" />
+                </div>
+                <div className="flex items-center justify-between p-3 border-t border-border">
+                  <div>
+                    <p className="font-display text-sm font-bold text-foreground">{item.background_name || "רקע מותאם"}</p>
+                    <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-accent text-xs text-gold font-bold">{idx + 1}</span>
+                    <button
+                      onClick={() => toggleFavorite(item)}
+                      className={`rounded-full p-1.5 transition-colors ${item.is_favorite ? "text-gold" : "text-muted-foreground hover:text-gold"}`}
+                    >
+                      <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
+                    </button>
+                    <a href={item.result_image_url} download className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <Download className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Zoom Modal with editing tools */}
       {zoomedItem && (
