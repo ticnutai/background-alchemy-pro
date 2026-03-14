@@ -257,6 +257,7 @@ const Gallery = () => {
     }
   };
 
+  const toggleCompareItem = (item: HistoryItem) => {
     setCompareItems(prev => {
       const exists = prev.find(i => i.id === item.id);
       if (exists) return prev.filter(i => i.id !== item.id);
