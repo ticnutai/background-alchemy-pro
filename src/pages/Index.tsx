@@ -10,6 +10,7 @@ import gallery2 from "@/assets/gallery-2.jpg";
 import gallery3 from "@/assets/gallery-3.jpg";
 import ProductGallery from "@/components/ProductGallery";
 import AdminProductForm from "@/components/AdminProductForm";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Index = () => {
   const [isAdmin, setIsAdmin] = useState(false);
