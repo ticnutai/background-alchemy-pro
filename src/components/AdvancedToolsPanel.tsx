@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Eraser, Sun, Type, Frame, Grid2X2, LayoutGrid, X,
-  Trash2, Sparkles, PenTool
+  Trash2, Sparkles, PenTool, PackagePlus
 } from "lucide-react";
 
 interface AdvancedToolsPanelProps {
@@ -12,7 +12,7 @@ interface AdvancedToolsPanelProps {
   onResult: (img: string) => void;
 }
 
-type ToolMode = null | "remove" | "shadow" | "text" | "frame" | "multi-bg" | "collage";
+type ToolMode = null | "remove" | "shadow" | "text" | "frame" | "multi-bg" | "collage" | "add-elements";
 
 const frameStyles = [
   { id: "gold-ornate", label: "מסגרת זהב מפוארת", icon: "✦" },
@@ -22,6 +22,21 @@ const frameStyles = [
   { id: "holiday-passover", label: "מסגרת פסח", icon: "🍷" },
   { id: "holiday-sukkot", label: "מסגרת סוכות", icon: "🌿" },
   { id: "holiday-rosh", label: "מסגרת ראש השנה", icon: "🍎" },
+];
+
+const elementPresets = [
+  { id: "shabbat-table", label: "שולחן שבת ערוך", icon: "🕯️", desc: "נרות, חלות, יין, מפה לבנה" },
+  { id: "kiddush-cups", label: "גביעי קידוש", icon: "🥂", desc: "גביעי כסף/זהב לקידוש" },
+  { id: "flowers", label: "סידור פרחים", icon: "💐", desc: "זר פרחים אלגנטי" },
+  { id: "candles", label: "נרות", icon: "🕯️", desc: "נרות דקורטיביים" },
+  { id: "gold-plate", label: "צלחת זהב", icon: "🍽️", desc: "צלחת הגשה מוזהבת" },
+  { id: "greenery", label: "ירוק וצמחים", icon: "🌿", desc: "ענפי ירק, אקליפטוס" },
+  { id: "seder-plate", label: "קערת סדר", icon: "🍷", desc: "קערת סדר עם כל הסימנים" },
+  { id: "honey-apple", label: "דבש ותפוח", icon: "🍎", desc: "צנצנת דבש ותפוחים" },
+  { id: "pomegranate", label: "רימונים", icon: "🍑", desc: "רימונים דקורטיביים" },
+  { id: "linen-napkin", label: "מפית פשתן", icon: "🧵", desc: "מפית מקופלת בסטייל" },
+  { id: "books", label: "ספרים", icon: "📚", desc: "ספרים דקורטיביים" },
+  { id: "wooden-tray", label: "מגש עץ", icon: "🪵", desc: "מגש הגשה מעץ" },
 ];
 
 const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedToolsPanelProps) => {
@@ -41,6 +56,10 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
 
   // Frame
   const [frameStyle, setFrameStyle] = useState("gold-ornate");
+
+  // Add elements
+  const [selectedElements, setSelectedElements] = useState<string[]>([]);
+  const [customElementDesc, setCustomElementDesc] = useState("");
 
   const currentImage = resultImage || originalImage;
 
@@ -64,6 +83,7 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
   };
 
   const tools = [
+    { id: "add-elements" as ToolMode, label: "הוספת אלמנטים", icon: PackagePlus, desc: "גביעים, נרות, פרחים..." },
     { id: "remove" as ToolMode, label: "מחיקת אלמנט", icon: Eraser, desc: "מחק חלקים לא רצויים" },
     { id: "shadow" as ToolMode, label: "צל ושיקוף", icon: Sun, desc: "הוסף צל או שיקוף" },
     { id: "text" as ToolMode, label: "טקסט וריקמה", icon: Type, desc: "הוסף כיתוב מוטבע" },
@@ -71,6 +91,12 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
     { id: "multi-bg" as ToolMode, label: "שכפול רקעים", icon: Grid2X2, desc: "4 רקעים שונים" },
     { id: "collage" as ToolMode, label: "קולאז׳", icon: LayoutGrid, desc: "תצוגת קטלוג" },
   ];
+
+  const toggleElement = (id: string) => {
+    setSelectedElements(prev =>
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -279,6 +305,91 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                 className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
               >
                 {processing ? "מעבד..." : "צור קולאז׳"}
+              </button>
+            </div>
+          )}
+
+          {/* Add Elements */}
+          {activeTool === "add-elements" && (
+            <div className="space-y-3">
+              <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <PackagePlus className="h-4 w-4 text-gold" />
+                הוספת אלמנטים לתמונה
+              </h4>
+              <p className="font-body text-xs text-muted-foreground">
+                בחר אלמנטים להוסיף סביב המוצר — הם יתווספו בצורה טבעית ואלגנטית
+              </p>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {elementPresets.map((el) => (
+                  <button
+                    key={el.id}
+                    onClick={() => toggleElement(el.id)}
+                    className={`flex items-center gap-2 rounded-lg border-2 p-2 text-right transition-all ${
+                      selectedElements.includes(el.id)
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-base shrink-0">{el.icon}</span>
+                    <div className="min-w-0">
+                      <span className="block font-display text-[10px] font-bold text-foreground truncate">{el.label}</span>
+                      <span className="block font-body text-[8px] text-muted-foreground truncate">{el.desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <label className="font-body text-xs text-muted-foreground mb-1 block">
+                  או תאר אלמנטים משלך:
+                </label>
+                <textarea
+                  value={customElementDesc}
+                  onChange={(e) => setCustomElementDesc(e.target.value)}
+                  placeholder="לדוגמה: מגש כסף עם עוגיות, כוס תה עם צלוחית..."
+                  className="w-full rounded-lg border border-input bg-card p-3 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
+                  rows={2}
+                  dir="rtl"
+                />
+              </div>
+
+              {selectedElements.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {selectedElements.map((id) => {
+                    const el = elementPresets.find(e => e.id === id);
+                    return (
+                      <span key={id} className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-body text-[10px] text-primary">
+                        {el?.icon} {el?.label}
+                        <button onClick={() => toggleElement(id)} className="hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  const chosenLabels = selectedElements
+                    .map(id => elementPresets.find(e => e.id === id))
+                    .filter(Boolean)
+                    .map(e => `${e!.label} (${e!.desc})`);
+                  const allElements = [
+                    ...chosenLabels,
+                    ...(customElementDesc.trim() ? [customElementDesc.trim()] : []),
+                  ];
+                  if (allElements.length === 0) {
+                    toast.error("יש לבחור לפחות אלמנט אחד");
+                    return;
+                  }
+                  runTool("add-elements", { elements: allElements.join(", ") });
+                }}
+                disabled={processing || (selectedElements.length === 0 && !customElementDesc.trim())}
+                className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {processing ? "מעבד..." : `הוסף ${selectedElements.length + (customElementDesc.trim() ? 1 : 0)} אלמנטים`}
               </button>
             </div>
           )}
