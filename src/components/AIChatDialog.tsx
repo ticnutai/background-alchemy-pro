@@ -873,6 +873,22 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
 
       {/* Input */}
       <div className="border-t border-border p-3" dir="rtl">
+        <div className="mb-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5">
+          <button
+            onClick={handlePersistentApply}
+            disabled={isLoading}
+            className="w-full rounded-lg bg-primary py-2 font-display text-xs font-bold text-primary-foreground transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-1.5"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            החל רקע עכשיו
+          </button>
+          <p className="mt-1 text-center font-body text-[10px] text-muted-foreground">
+            {canApplyAnytime
+              ? "זמין — לוחצים והעריכה מופעלת מיד"
+              : "זמין תמיד: קודם בחר הצעת AI או העלה תמונת ייחוס"}
+          </p>
+        </div>
+
         {/* Quick action buttons */}
         {flowStep === "idle" && !productImage && (
           <div className="flex items-center gap-2 mb-2 flex-wrap">
