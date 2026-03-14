@@ -1,12 +1,14 @@
 import { useState, useRef, useCallback } from "react";
+import { getFilterString, type ImageAdjustments, defaultAdjustments } from "./ImageAdjustmentsPanel";
 
 interface ImageCanvasProps {
   originalImage: string;
   resultImage: string | null;
   isProcessing: boolean;
+  adjustments: ImageAdjustments;
 }
 
-const ImageCanvas = ({ originalImage, resultImage, isProcessing }: ImageCanvasProps) => {
+const ImageCanvas = ({ originalImage, resultImage, isProcessing, adjustments }: ImageCanvasProps) => {
   const [sliderPos, setSliderPos] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -21,16 +23,16 @@ const ImageCanvas = ({ originalImage, resultImage, isProcessing }: ImageCanvasPr
   const handleMouseDown = () => { isDragging.current = true; };
   const handleMouseUp = () => { isDragging.current = false; };
 
+  const filterStyle = getFilterString(adjustments);
+  const hasAdjustments = JSON.stringify(adjustments) !== JSON.stringify(defaultAdjustments);
+
   return (
     <div className="relative w-full overflow-hidden rounded-lg bg-card shadow-lg">
-      {/* Processing shimmer overlay */}
       {isProcessing && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-foreground/20 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-            <p className="font-display text-sm font-semibold text-primary-foreground">
-              מעבד תמונה...
-            </p>
+            <p className="font-display text-sm font-semibold text-primary-foreground">מעבד תמונה...</p>
           </div>
           <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-primary/10 to-transparent" />
         </div>
@@ -48,14 +50,9 @@ const ImageCanvas = ({ originalImage, resultImage, isProcessing }: ImageCanvasPr
           onTouchStart={handleMouseDown}
           onTouchEnd={handleMouseUp}
         >
-          {/* Result (full) */}
-          <img src={resultImage} alt="Result" className="block w-full" />
+          <img src={resultImage} alt="Result" className="block w-full" style={{ filter: filterStyle }} />
 
-          {/* Original (clipped) */}
-          <div
-            className="absolute inset-0 overflow-hidden"
-            style={{ width: `${sliderPos}%` }}
-          >
+          <div className="absolute inset-0 overflow-hidden" style={{ width: `${sliderPos}%` }}>
             <img
               src={originalImage}
               alt="Original"
@@ -64,11 +61,7 @@ const ImageCanvas = ({ originalImage, resultImage, isProcessing }: ImageCanvasPr
             />
           </div>
 
-          {/* Slider line */}
-          <div
-            className="absolute top-0 bottom-0 z-10 w-0.5 bg-primary-foreground shadow-lg"
-            style={{ left: `${sliderPos}%` }}
-          >
+          <div className="absolute top-0 bottom-0 z-10 w-0.5 bg-card shadow-lg" style={{ left: `${sliderPos}%` }}>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-primary shadow-lg">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M7 4L3 10L7 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-primary-foreground" />
@@ -77,13 +70,11 @@ const ImageCanvas = ({ originalImage, resultImage, isProcessing }: ImageCanvasPr
             </div>
           </div>
 
-          {/* Labels */}
-          <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">
-            לפני
-          </div>
-          <div className="absolute top-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">
-            אחרי
-          </div>
+          <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
+          <div className="absolute top-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+          {hasAdjustments && (
+            <div className="absolute bottom-3 right-3 rounded-md bg-accent/90 px-2 py-1 font-display text-xs font-semibold text-accent-foreground">+ התאמות</div>
+          )}
         </div>
       ) : (
         <img src={originalImage} alt="Original" className="block w-full" />
