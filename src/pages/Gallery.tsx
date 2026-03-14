@@ -5,8 +5,10 @@ import { toast } from "sonner";
 import {
   Sparkles, FolderPlus, Folder, Heart, Trash2, Download, ZoomIn, X, ArrowRight,
   ChevronLeft, ChevronRight, Maximize2, Minimize2, LogIn, Search, SlidersHorizontal,
+  Grid, Columns2, Pin, Wand2,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import ImageAdjustmentsPanel, { getFilterString, defaultAdjustments, type ImageAdjustments } from "@/components/ImageAdjustmentsPanel";
 
 interface HistoryItem {
   id: string;
@@ -25,6 +27,8 @@ interface ImageFolder {
   color: string;
   created_at: string;
 }
+
+type ViewMode = "grid" | "single" | "sideBySide";
 
 const Gallery = () => {
   const navigate = useNavigate();
@@ -47,6 +51,13 @@ const Gallery = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [showOriginal, setShowOriginal] = useState(false);
+
+  // New: view mode, adjustments, side-by-side
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
+  const [showAdjustments, setShowAdjustments] = useState(false);
+  const [pinnedItem, setPinnedItem] = useState<HistoryItem | null>(null);
+  const [sideBySideIndex, setSideBySideIndex] = useState(0);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -102,11 +113,13 @@ const Gallery = () => {
     const newVal = !item.is_favorite;
     await supabase.from("processing_history").update({ is_favorite: newVal }).eq("id", item.id);
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_favorite: newVal } : i));
+    if (zoomedItem?.id === item.id) setZoomedItem({ ...item, is_favorite: newVal });
   };
 
   const deleteItem = async (id: string) => {
     await supabase.from("processing_history").delete().eq("id", id);
     setItems(prev => prev.filter(i => i.id !== id));
+    if (zoomedItem?.id === id) setZoomedItem(null);
     toast.success("נמחק");
   };
 
@@ -135,6 +148,39 @@ const Gallery = () => {
     setPanPos({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
   };
 
+  // Keyboard navigation in zoom modal
+  useEffect(() => {
+    if (!zoomedItem) return;
+    const handler = (e: KeyboardEvent) => {
+      const idx = filtered.findIndex(i => i.id === zoomedItem.id);
+      if (e.key === "ArrowLeft" && idx < filtered.length - 1) {
+        setZoomedItem(filtered[idx + 1]);
+        setAdjustments(defaultAdjustments);
+      } else if (e.key === "ArrowRight" && idx > 0) {
+        setZoomedItem(filtered[idx - 1]);
+        setAdjustments(defaultAdjustments);
+      } else if (e.key === "Escape") {
+        setZoomedItem(null);
+        setZoomLevel(1);
+        setPanPos({ x: 0, y: 0 });
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [zoomedItem, items, activeFolder, filter, searchQuery]);
+
+  // Side-by-side keyboard navigation
+  useEffect(() => {
+    if (viewMode !== "sideBySide" || !pinnedItem) return;
+    const others = filtered.filter(i => i.id !== pinnedItem.id);
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") setSideBySideIndex(prev => Math.min(others.length - 1, prev + 1));
+      else if (e.key === "ArrowRight") setSideBySideIndex(prev => Math.max(0, prev - 1));
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [viewMode, pinnedItem, items, activeFolder, filter, searchQuery]);
+
   // Filtered items
   let filtered = items;
   if (activeFolder) filtered = filtered.filter(i => i.folder_id === activeFolder);
@@ -142,6 +188,8 @@ const Gallery = () => {
   if (searchQuery.trim()) filtered = filtered.filter(i =>
     (i.background_name || i.background_prompt).toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const filterStyle = getFilterString(adjustments);
 
   if (!user) {
     return (
@@ -157,6 +205,9 @@ const Gallery = () => {
     );
   }
 
+  const sideBySideOthers = pinnedItem ? filtered.filter(i => i.id !== pinnedItem.id) : [];
+  const sideBySideCurrent = sideBySideOthers[sideBySideIndex] || null;
+
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
       {/* Header */}
@@ -170,6 +221,23 @@ const Gallery = () => {
             <span className="rounded-full bg-gold/10 px-2.5 py-0.5 font-accent text-xs text-gold">{items.length} תמונות</span>
           </div>
           <div className="flex items-center gap-3">
+            {/* View mode toggle */}
+            <div className="flex rounded-lg border border-border overflow-hidden">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-gold text-gold-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                title="תצוגת רשת"
+              >
+                <Grid className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setViewMode("sideBySide")}
+                className={`p-2 transition-colors ${viewMode === "sideBySide" ? "bg-gold text-gold-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                title="תצוגה זו ליד זו"
+              >
+                <Columns2 className="h-4 w-4" />
+              </button>
+            </div>
             <Link to="/tool" className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-accent text-xs font-semibold text-accent-foreground transition-all hover:brightness-110">
               <Sparkles className="h-3.5 w-3.5" /> לכלי העריכה
             </Link>
@@ -276,7 +344,7 @@ const Gallery = () => {
             </div>
           </div>
 
-          {/* Grid */}
+          {/* Main content area */}
           <div className="flex-1">
             {/* Compare strip */}
             {compareMode && compareItems.length > 0 && (
@@ -303,6 +371,110 @@ const Gallery = () => {
               </div>
             )}
 
+            {/* Side-by-side instructions */}
+            {viewMode === "sideBySide" && !pinnedItem && (
+              <div className="mb-4 rounded-xl border border-gold/30 bg-gold/5 p-4 text-center">
+                <Pin className="h-5 w-5 text-gold mx-auto mb-2" />
+                <p className="font-display text-sm font-bold text-foreground">בחר תמונה לנעוץ</p>
+                <p className="font-body text-xs text-muted-foreground">לחץ על 📌 כדי לנעוץ תמונה בצד שמאל, ואז השתמש בחיצים כדי להחליף רקעים בצד ימין</p>
+              </div>
+            )}
+
+            {/* Side-by-side view */}
+            {viewMode === "sideBySide" && pinnedItem && (
+              <div className="mb-6 rounded-xl border border-border bg-card overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    <Pin className="h-4 w-4 text-gold" />
+                    <span className="font-display text-sm font-bold text-foreground">השוואה זו ליד זו</span>
+                    <span className="font-accent text-xs text-muted-foreground">
+                      (חיצים ← → להחלפה)
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-accent text-xs text-muted-foreground">
+                      {sideBySideOthers.length > 0 ? `${sideBySideIndex + 1}/${sideBySideOthers.length}` : ""}
+                    </span>
+                    <button onClick={() => { setPinnedItem(null); setSideBySideIndex(0); }} className="rounded-md p-1 hover:bg-secondary transition-colors">
+                      <X className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  </div>
+                </div>
+                <div className="flex">
+                  {/* Pinned (left) */}
+                  <div className="flex-1 border-l border-border p-3">
+                    <div className="aspect-square rounded-lg overflow-hidden bg-secondary mb-2">
+                      <img src={pinnedItem.result_image_url} alt="" className="h-full w-full object-cover" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Pin className="h-3 w-3 text-gold shrink-0" />
+                      <p className="font-display text-xs font-semibold text-foreground truncate">{pinnedItem.background_name || "נעוץ"}</p>
+                    </div>
+                  </div>
+
+                  {/* Comparison (right) with arrows */}
+                  <div className="flex-1 p-3 relative">
+                    {sideBySideCurrent ? (
+                      <>
+                        <div className="aspect-square rounded-lg overflow-hidden bg-secondary mb-2 relative">
+                          <img src={sideBySideCurrent.result_image_url} alt="" className="h-full w-full object-cover" />
+                          {/* Navigation arrows */}
+                          {sideBySideIndex > 0 && (
+                            <button
+                              onClick={() => setSideBySideIndex(prev => prev - 1)}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 shadow-md hover:bg-primary transition-colors"
+                            >
+                              <ChevronRight className="h-4 w-4 text-foreground" />
+                            </button>
+                          )}
+                          {sideBySideIndex < sideBySideOthers.length - 1 && (
+                            <button
+                              onClick={() => setSideBySideIndex(prev => prev + 1)}
+                              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 shadow-md hover:bg-primary transition-colors"
+                            >
+                              <ChevronLeft className="h-4 w-4 text-foreground" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <p className="font-display text-xs font-semibold text-foreground truncate">{sideBySideCurrent.background_name || "רקע מותאם"}</p>
+                          <div className="flex gap-1">
+                            <button onClick={() => toggleFavorite(sideBySideCurrent)} className="rounded p-1 hover:bg-secondary transition-colors">
+                              <Heart className={`h-3.5 w-3.5 ${sideBySideCurrent.is_favorite ? "fill-gold text-gold" : "text-muted-foreground"}`} />
+                            </button>
+                            <button onClick={() => { setPinnedItem(sideBySideCurrent); setSideBySideIndex(0); }} className="rounded p-1 hover:bg-secondary transition-colors" title="נעץ תמונה זו">
+                              <Pin className="h-3.5 w-3.5 text-muted-foreground" />
+                            </button>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="aspect-square rounded-lg bg-secondary flex items-center justify-center">
+                        <p className="font-body text-xs text-muted-foreground">אין עוד תמונות להשוואה</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Thumbnails strip */}
+                {sideBySideOthers.length > 0 && (
+                  <div className="flex gap-1.5 px-3 pb-3 overflow-x-auto">
+                    {sideBySideOthers.map((item, idx) => (
+                      <button
+                        key={item.id}
+                        onClick={() => setSideBySideIndex(idx)}
+                        className={`shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-all ${
+                          idx === sideBySideIndex ? "border-gold" : "border-transparent hover:border-border"
+                        }`}
+                      >
+                        <img src={item.result_image_url} alt="" className="h-full w-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" />
@@ -321,6 +493,8 @@ const Gallery = () => {
                     className={`group relative rounded-xl border overflow-hidden bg-card transition-all hover:shadow-lg cursor-pointer ${
                       compareMode && compareItems.find(c => c.id === item.id)
                         ? "border-primary ring-2 ring-primary/30"
+                        : pinnedItem?.id === item.id
+                        ? "border-gold ring-2 ring-gold/30"
                         : "border-border hover:border-gold/40"
                     }`}
                     onClick={() => compareMode ? toggleCompareItem(item) : setZoomedItem(item)}
@@ -343,6 +517,17 @@ const Gallery = () => {
                       >
                         <Heart className={`h-3 w-3 ${item.is_favorite ? "fill-current" : ""}`} />
                       </button>
+                      {viewMode === "sideBySide" && (
+                        <button
+                          onClick={e => { e.stopPropagation(); setPinnedItem(item); setSideBySideIndex(0); }}
+                          className={`rounded-full p-1.5 backdrop-blur-sm transition-colors ${
+                            pinnedItem?.id === item.id ? "bg-gold/90 text-gold-foreground" : "bg-foreground/50 text-card hover:bg-gold/90"
+                          }`}
+                          title="נעץ להשוואה"
+                        >
+                          <Pin className="h-3 w-3" />
+                        </button>
+                      )}
                       <button
                         onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
                         className="rounded-full bg-foreground/50 p-1.5 text-card backdrop-blur-sm hover:bg-destructive transition-colors"
@@ -385,17 +570,85 @@ const Gallery = () => {
         </div>
       </main>
 
-      {/* Zoom Modal */}
+      {/* Zoom Modal with editing tools */}
       {zoomedItem && (
-        <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); }}>
+        <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}>
+          {/* Navigation arrows */}
+          {filtered.findIndex(i => i.id === zoomedItem.id) < filtered.length - 1 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const idx = filtered.findIndex(i => i.id === zoomedItem.id);
+                setZoomedItem(filtered[idx + 1]);
+                setAdjustments(defaultAdjustments);
+              }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-card/90 shadow-lg hover:bg-primary transition-colors"
+            >
+              <ChevronLeft className="h-6 w-6 text-foreground" />
+            </button>
+          )}
+          {filtered.findIndex(i => i.id === zoomedItem.id) > 0 && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                const idx = filtered.findIndex(i => i.id === zoomedItem.id);
+                setZoomedItem(filtered[idx - 1]);
+                setAdjustments(defaultAdjustments);
+              }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-card/90 shadow-lg hover:bg-primary transition-colors"
+            >
+              <ChevronRight className="h-6 w-6 text-foreground" />
+            </button>
+          )}
+
           <div className="relative w-full max-w-5xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
             {/* Controls */}
             <div className="flex items-center justify-between bg-card rounded-t-xl px-4 py-3 border border-border" dir="rtl">
               <div className="flex items-center gap-3">
                 <h3 className="font-display text-sm font-bold text-foreground">{zoomedItem.background_name || "רקע מותאם"}</h3>
                 <span className="font-body text-xs text-muted-foreground">{new Date(zoomedItem.created_at).toLocaleDateString("he-IL")}</span>
+                <span className="font-accent text-xs text-muted-foreground">
+                  ({filtered.findIndex(i => i.id === zoomedItem.id) + 1}/{filtered.length})
+                </span>
               </div>
               <div className="flex items-center gap-2">
+                {/* Favorite */}
+                <button
+                  onClick={() => toggleFavorite(zoomedItem)}
+                  className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 ${
+                    zoomedItem.is_favorite ? "bg-gold text-gold-foreground" : "border border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Heart className={`h-3.5 w-3.5 ${zoomedItem.is_favorite ? "fill-current" : ""}`} />
+                  {zoomedItem.is_favorite ? "מועדף" : "הוסף למועדפים"}
+                </button>
+                {/* Pin */}
+                <button
+                  onClick={() => {
+                    setPinnedItem(zoomedItem);
+                    setSideBySideIndex(0);
+                    setViewMode("sideBySide");
+                    setZoomedItem(null);
+                    setZoomLevel(1);
+                    setPanPos({ x: 0, y: 0 });
+                    setAdjustments(defaultAdjustments);
+                    setShowAdjustments(false);
+                    toast.success("תמונה ננעצה — עבור לתצוגת השוואה");
+                  }}
+                  className="rounded-lg border border-border px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                >
+                  <Pin className="h-3.5 w-3.5" /> נעץ להשוואה
+                </button>
+                {/* Adjustments toggle */}
+                <button
+                  onClick={() => setShowAdjustments(!showAdjustments)}
+                  className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 ${
+                    showAdjustments ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Wand2 className="h-3.5 w-3.5" /> כלי עריכה
+                </button>
+                {/* Original/Result toggle */}
                 <button
                   onClick={() => setShowOriginal(!showOriginal)}
                   className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors ${
@@ -426,7 +679,7 @@ const Gallery = () => {
                   <Download className="h-3.5 w-3.5" />
                 </a>
                 <button
-                  onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); }}
+                  onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}
                   className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
                 >
                   <X className="h-4 w-4 text-muted-foreground" />
@@ -434,27 +687,42 @@ const Gallery = () => {
               </div>
             </div>
 
-            {/* Image */}
-            <div
-              className="flex-1 overflow-hidden bg-foreground/5 rounded-b-xl border border-t-0 border-border flex items-center justify-center cursor-grab active:cursor-grabbing"
-              onWheel={handleZoomWheel}
-              onMouseDown={handlePanStart}
-              onMouseMove={handlePanMove}
-              onMouseUp={() => setIsPanning(false)}
-              onMouseLeave={() => setIsPanning(false)}
-            >
-              <img
-                src={showOriginal ? zoomedItem.original_image_url : zoomedItem.result_image_url}
-                alt=""
-                className="max-h-[75vh] object-contain transition-transform duration-200 select-none"
-                style={{
-                  transform: `scale(${zoomLevel}) translate(${panPos.x / zoomLevel}px, ${panPos.y / zoomLevel}px)`,
-                }}
-                draggable={false}
-              />
+            {/* Content: image + optional adjustments panel */}
+            <div className="flex flex-1 overflow-hidden border border-t-0 border-border rounded-b-xl">
+              {/* Image */}
+              <div
+                className="flex-1 overflow-hidden bg-foreground/5 flex items-center justify-center cursor-grab active:cursor-grabbing"
+                onWheel={handleZoomWheel}
+                onMouseDown={handlePanStart}
+                onMouseMove={handlePanMove}
+                onMouseUp={() => setIsPanning(false)}
+                onMouseLeave={() => setIsPanning(false)}
+              >
+                <img
+                  src={showOriginal ? zoomedItem.original_image_url : zoomedItem.result_image_url}
+                  alt=""
+                  className="max-h-[75vh] object-contain transition-transform duration-200 select-none"
+                  style={{
+                    transform: `scale(${zoomLevel}) translate(${panPos.x / zoomLevel}px, ${panPos.y / zoomLevel}px)`,
+                    filter: showOriginal ? undefined : filterStyle,
+                  }}
+                  draggable={false}
+                />
+              </div>
+
+              {/* Adjustments panel */}
+              {showAdjustments && (
+                <div className="w-64 shrink-0 border-r border-border bg-card p-4 overflow-y-auto" dir="rtl">
+                  <ImageAdjustmentsPanel
+                    adjustments={adjustments}
+                    onChange={setAdjustments}
+                    onReset={() => setAdjustments(defaultAdjustments)}
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Before/After labels */}
+            {/* Before/After label */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
               <span className={`rounded-full px-3 py-1 font-accent text-xs ${showOriginal ? "bg-foreground/70 text-card" : "bg-gold text-gold-foreground"}`}>
                 {showOriginal ? "לפני" : "אחרי"}
