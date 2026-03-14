@@ -32,6 +32,7 @@ const EXPORT_FORMATS = [
   { id: "png", label: "PNG", mime: "image/png", desc: "שקיפות, lossless" },
   { id: "jpg", label: "JPG", mime: "image/jpeg", desc: "קובץ קטן" },
   { id: "webp", label: "WebP", mime: "image/webp", desc: "מודרני, קל" },
+  { id: "tiff", label: "TIFF", mime: "image/tiff", desc: "איכות מקסימלית, הדפסה" },
   { id: "pdf", label: "PDF", mime: "application/pdf", desc: "מסמך להדפסה" },
 ];
 
