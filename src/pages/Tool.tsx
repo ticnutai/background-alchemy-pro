@@ -79,6 +79,34 @@ const Index = () => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Load image from query param (e.g. from gallery "edit" button)
+  useEffect(() => {
+    const editImageUrl = searchParams.get("editImage");
+    if (editImageUrl && !originalImage) {
+      // Fetch the URL and convert to base64
+      fetch(editImageUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setOriginalImage(reader.result as string);
+            // If there's also a result image
+            const resultUrl = searchParams.get("resultImage");
+            if (resultUrl) {
+              setResultImage(resultUrl);
+            }
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => {
+          // If CORS fails, use the URL directly as result
+          setResultImage(editImageUrl);
+          // Create a placeholder original
+          setOriginalImage(editImageUrl);
+        });
+    }
+  }, [searchParams]);
+
   const handleImageSelect = useCallback((base64: string) => {
     setOriginalImage(base64);
     setResultImage(null);
