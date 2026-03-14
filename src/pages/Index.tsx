@@ -54,6 +54,7 @@ const Index = () => {
               כלי AI לרקעים
             </Link>
           </div>
+        </div>
       </nav>
 
       {/* Hero Section */}
