@@ -53,7 +53,8 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   const [selectedElements, setSelectedElements] = useState<string[]>([]);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [lastSuggestedPrompt, setLastSuggestedPrompt] = useState<{prompt: string; name: string} | null>(null);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
