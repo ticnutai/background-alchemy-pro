@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Trash2, X, ImagePlus, Edit2 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 interface Product {
   id: string;
