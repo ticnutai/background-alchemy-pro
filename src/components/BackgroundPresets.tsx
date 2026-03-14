@@ -910,69 +910,63 @@ const BackgroundPresets = ({
         </>
       )}
 
-      {/* Reference image */}
-      <div className="rounded-lg overflow-hidden border border-border">
-        <img src={marbleRef} alt="דוגמת שיש" className="w-full h-20 object-cover" />
-        <div className="px-2 py-1.5 bg-secondary text-center">
-          <span className="font-body text-xs text-muted-foreground">דוגמת שיש — Calacatta Bianco</span>
-        </div>
-      </div>
-
-      {/* Custom background section */}
-      <div className="space-y-3 pt-3 border-t border-border">
-        <label className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          רקע מותאם אישית
-        </label>
-
-        <textarea
-          value={customPrompt}
-          onChange={(e) => onCustomPromptChange(e.target.value)}
-          placeholder="תאר את הרקע שאתה רוצה, לדוגמה: שיש ורוד עם גידים זהובים, עץ טיק כהה..."
-          className="w-full rounded-lg border border-input bg-card p-3 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
-          rows={3}
-          dir="rtl"
-        />
-
-        <div className="space-y-2">
-          <span className="font-body text-xs text-muted-foreground">
-            העלה תמונות להמחשה (אופציונלי)
-          </span>
-
-          {referenceImages.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {referenceImages.map((img, i) => (
-                <div key={i} className="relative group">
-                  <img
-                    src={img}
-                    alt={`דוגמה ${i + 1}`}
-                    className="h-16 w-16 rounded-md object-cover border border-border"
-                  />
-                  <button
-                    onClick={() => removeRefImage(i)}
-                    className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <label className="flex items-center gap-2 rounded-lg border border-dashed border-border p-3 cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors">
-            <ImagePlus className="h-4 w-4 text-muted-foreground" />
-            <span className="font-body text-xs text-muted-foreground">
-              העלה תמונות רקע לדוגמה
-            </span>
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleRefImageUpload}
-              className="hidden"
-            />
+      {/* Custom background section - only show when NOT in color-only category */}
+      {activeCategory && activeCategory !== "צבע בלבד" && (
+        <div className="space-y-3 pt-3 border-t border-border">
+          <label className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            רקע מותאם אישית
           </label>
+
+          <textarea
+            value={customPrompt}
+            onChange={(e) => onCustomPromptChange(e.target.value)}
+            placeholder="תאר את הרקע שאתה רוצה, לדוגמה: שיש ורוד עם גידים זהובים, עץ טיק כהה..."
+            className="w-full rounded-lg border border-input bg-card p-3 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+            rows={2}
+            dir="rtl"
+          />
+
+          <div className="space-y-2">
+            <span className="font-body text-xs text-muted-foreground">
+              העלה תמונות להמחשה (אופציונלי)
+            </span>
+
+            {referenceImages.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {referenceImages.map((img, i) => (
+                  <div key={i} className="relative group">
+                    <img
+                      src={img}
+                      alt={`דוגמה ${i + 1}`}
+                      className="h-14 w-14 rounded-md object-cover border border-border"
+                    />
+                    <button
+                      onClick={() => removeRefImage(i)}
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <label className="flex items-center gap-2 rounded-lg border border-dashed border-border p-2.5 cursor-pointer hover:border-primary/50 hover:bg-secondary/30 transition-colors">
+              <ImagePlus className="h-4 w-4 text-muted-foreground" />
+              <span className="font-body text-xs text-muted-foreground">
+                העלה תמונות רקע לדוגמה
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={handleRefImageUpload}
+                className="hidden"
+              />
+            </label>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Preview Modal */}
       {previewPreset && (
