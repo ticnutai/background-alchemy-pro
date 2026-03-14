@@ -772,6 +772,15 @@ const Gallery = () => {
                 >
                   <Wand2 className="h-3.5 w-3.5" /> כלי עריכה
                 </button>
+                {/* Edit in tool */}
+                <button
+                  onClick={() => {
+                    navigate(`/tool?editImage=${encodeURIComponent(zoomedItem.result_image_url)}`);
+                  }}
+                  className="rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 bg-primary text-primary-foreground hover:brightness-110"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> ערוך בכלי
+                </button>
                 {/* Original/Result toggle */}
                 <button
                   onClick={() => setShowOriginal(!showOriginal)}
