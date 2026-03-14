@@ -473,6 +473,33 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
                   <span className="whitespace-pre-wrap">{cleanContent(msg.content)}</span>
                 )}
               </div>
+
+              {/* AI-generated preview image */}
+              {msg.previewImage && (
+                <div className="rounded-xl border border-primary/30 overflow-hidden">
+                  <img src={msg.previewImage} alt="תצוגה מקדימה" className="w-full max-h-48 object-cover" />
+                  <div className="flex items-center gap-1.5 p-2 bg-secondary/50">
+                    <button
+                      onClick={() => {
+                        if (msg.previewPrompt) {
+                          onApplyBackground(msg.previewPrompt, "רקע מותאם אישית");
+                        }
+                      }}
+                      className="flex-1 rounded-lg bg-primary py-1.5 font-display text-[11px] font-bold text-primary-foreground hover:brightness-110 transition-all flex items-center justify-center gap-1"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      החל רקע זה
+                    </button>
+                    <button
+                      onClick={() => generatePreview(msg.previewPrompt || "", i)}
+                      disabled={isGeneratingPreview}
+                      className="rounded-lg border border-border bg-background px-3 py-1.5 font-accent text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      🔄 חדש
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
