@@ -242,10 +242,19 @@ const Gallery = () => {
                 <Columns2 className="h-4 w-4" />
               </button>
             </div>
+            <Link to="/" className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40">
+              <Home className="h-3.5 w-3.5" /> דף הבית
+            </Link>
             <Link to="/tool" className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-accent text-xs font-semibold text-accent-foreground transition-all hover:brightness-110">
               <Sparkles className="h-3.5 w-3.5" /> לכלי העריכה
             </Link>
-          </div>
+            <button
+              onClick={() => navigate(-1)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground hover:border-gold/40"
+              title="חזור"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </button>
         </div>
       </header>
 
