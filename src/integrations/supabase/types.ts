@@ -77,6 +77,45 @@ export type Database = {
         }
         Relationships: []
       }
+      products: {
+        Row: {
+          category: Database["public"]["Enums"]["product_category"]
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          image_url: string
+          is_featured: boolean
+          price: number | null
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["product_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url: string
+          is_featured?: boolean
+          price?: number | null
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["product_category"]
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string
+          is_featured?: boolean
+          price?: number | null
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
@@ -110,6 +149,16 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      product_category:
+        | "פסח"
+        | "שבועות"
+        | "סוכות"
+        | "ראש השנה"
+        | "חנוכה"
+        | "פורים"
+        | "שבת"
+        | "מתנות"
+        | "אחר"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -238,6 +287,17 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      product_category: [
+        "פסח",
+        "שבועות",
+        "סוכות",
+        "ראש השנה",
+        "חנוכה",
+        "פורים",
+        "שבת",
+        "מתנות",
+        "אחר",
+      ],
     },
   },
 } as const
