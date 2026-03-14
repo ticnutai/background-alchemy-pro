@@ -796,6 +796,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleInlineImageUpload}
         className="hidden"
       />
@@ -803,6 +804,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
         ref={refFileInputRef}
         type="file"
         accept="image/*"
+        multiple
         onChange={handleReferenceUpload}
         className="hidden"
       />
