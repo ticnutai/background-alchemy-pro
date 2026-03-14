@@ -27,7 +27,7 @@ const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
   // Form state
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<string>("אחר");
+  const [category, setCategory] = useState<ProductCategory>("אחר");
   const [price, setPrice] = useState("");
   const [isFeatured, setIsFeatured] = useState(false);
   const [imageFile, setImageFile] = useState<File | null>(null);
