@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ZoomIn, ArrowLeft, X } from "lucide-react";
+import { ZoomIn, ArrowLeft, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface ResultItem {
