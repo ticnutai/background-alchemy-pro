@@ -443,7 +443,36 @@ const presets: Preset[] = [
   },
 ];
 
-const categories = ["שיש", "עץ", "חלק", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט"];
+const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט"];
+
+const colorOnlySwatches = [
+  { hex: "#FFFFFF", label: "לבן", name: "Pure White" },
+  { hex: "#F5F5F5", label: "לבן שבור", name: "Off White" },
+  { hex: "#F5F0E8", label: "קרם", name: "Cream" },
+  { hex: "#E8DDD0", label: "בז׳", name: "Beige" },
+  { hex: "#D4BC8A", label: "חול", name: "Sand" },
+  { hex: "#F5D5D0", label: "ורוד בהיר", name: "Light Pink" },
+  { hex: "#FFB6C1", label: "ורוד", name: "Pink" },
+  { hex: "#E8B0B8", label: "רוזה", name: "Rose" },
+  { hex: "#FF6B6B", label: "אדום", name: "Red" },
+  { hex: "#FF8C42", label: "כתום", name: "Orange" },
+  { hex: "#FFD93D", label: "צהוב", name: "Yellow" },
+  { hex: "#B2C5A8", label: "ירוק מרווה", name: "Sage Green" },
+  { hex: "#4A7C59", label: "ירוק", name: "Green" },
+  { hex: "#2D4A3E", label: "ירוק כהה", name: "Dark Green" },
+  { hex: "#A8D4F0", label: "תכלת", name: "Light Blue" },
+  { hex: "#4A6A8A", label: "כחול", name: "Blue" },
+  { hex: "#1A2744", label: "כחול כהה", name: "Navy" },
+  { hex: "#C8B4E8", label: "לילך", name: "Lilac" },
+  { hex: "#7B5EA7", label: "סגול", name: "Purple" },
+  { hex: "#E5E5E5", label: "אפור בהיר", name: "Light Gray" },
+  { hex: "#999999", label: "אפור", name: "Gray" },
+  { hex: "#555555", label: "אפור כהה", name: "Dark Gray" },
+  { hex: "#111111", label: "שחור", name: "Black" },
+  { hex: "#C8A868", label: "זהב", name: "Gold" },
+  { hex: "#C0C0C0", label: "כסף", name: "Silver" },
+  { hex: "#B87333", label: "נחושת", name: "Copper" },
+];
 
 interface BackgroundPresetsProps {
   selectedId: string | null;
