@@ -1,11 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Sparkles, Loader2, ImagePlus, Trash2, Camera, ChevronDown, Eye } from "lucide-react";
+import { MessageCircle, X, Send, Sparkles, Loader2, ImagePlus, Trash2, Camera, ChevronDown, Eye, Wand2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { toast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
   images?: string[]; // base64 images attached to the message
+  previewImage?: string; // AI-generated preview image
+  previewPrompt?: string; // prompt used for preview generation
 }
 
 interface AIChatDialogProps {
@@ -23,6 +26,7 @@ const fidelityLevels = [
 ];
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+const PREVIEW_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat-preview`;
 
 const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +53,8 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   const [selectedElements, setSelectedElements] = useState<string[]>([]);
   const [analysisResult, setAnalysisResult] = useState<string>("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [lastSuggestedPrompt, setLastSuggestedPrompt] = useState<{prompt: string; name: string} | null>(null);
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -62,7 +67,8 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         try {
           const action = JSON.parse(match[1]);
           if (action.prompt && action.name) {
-            onApplyBackground(action.prompt, action.name);
+            setLastSuggestedPrompt({ prompt: action.prompt, name: action.name });
+            // Don't auto-apply - let user preview first
           }
         } catch {}
       }
@@ -80,8 +86,60 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         } catch {}
       }
     },
-    [onApplyBackground]
+    []
   );
+
+  const generatePreview = async (prompt: string, msgIndex?: number) => {
+    setIsGeneratingPreview(true);
+    try {
+      const resp = await fetch(PREVIEW_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          prompt,
+          productImage: productImage || undefined,
+        }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || "שגיאה ביצירת תצוגה מקדימה");
+      }
+
+      const data = await resp.json();
+      
+      if (data.image) {
+        // Add preview as a message with the generated image
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "🖼️ **תצוגה מקדימה של הרקע:**",
+            previewImage: data.image,
+            previewPrompt: prompt,
+          },
+        ]);
+        setPreviewUrl(data.image);
+      } else {
+        toast({
+          title: "לא הצלחתי ליצור תצוגה מקדימה",
+          description: data.text || "נסה שוב עם תיאור אחר",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "שגיאה",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
 
   const cleanContent = (content: string) => {
     return content
@@ -415,6 +473,33 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
                   <span className="whitespace-pre-wrap">{cleanContent(msg.content)}</span>
                 )}
               </div>
+
+              {/* AI-generated preview image */}
+              {msg.previewImage && (
+                <div className="rounded-xl border border-primary/30 overflow-hidden">
+                  <img src={msg.previewImage} alt="תצוגה מקדימה" className="w-full max-h-48 object-cover" />
+                  <div className="flex items-center gap-1.5 p-2 bg-secondary/50">
+                    <button
+                      onClick={() => {
+                        if (msg.previewPrompt) {
+                          onApplyBackground(msg.previewPrompt, "רקע מותאם אישית");
+                        }
+                      }}
+                      className="flex-1 rounded-lg bg-primary py-1.5 font-display text-[11px] font-bold text-primary-foreground hover:brightness-110 transition-all flex items-center justify-center gap-1"
+                    >
+                      <Sparkles className="h-3 w-3" />
+                      החל רקע זה
+                    </button>
+                    <button
+                      onClick={() => generatePreview(msg.previewPrompt || "", i)}
+                      disabled={isGeneratingPreview}
+                      className="rounded-lg border border-border bg-background px-3 py-1.5 font-accent text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      🔄 חדש
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -423,6 +508,43 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
           <div className="flex justify-end">
             <div className="bg-secondary rounded-2xl rounded-tl-sm px-4 py-3">
               <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            </div>
+          </div>
+        )}
+
+        {/* Generating preview indicator */}
+        {isGeneratingPreview && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-center justify-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="font-display text-xs text-primary">מייצר תצוגה מקדימה...</span>
+          </div>
+        )}
+
+        {/* Preview generation button - appears when AI suggests a background */}
+        {lastSuggestedPrompt && !isLoading && !isGeneratingPreview && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+            <p className="font-display text-xs font-bold text-foreground text-center">🖼️ רוצה לראות תצוגה מקדימה?</p>
+            <p className="font-body text-[10px] text-muted-foreground text-center">
+              {lastSuggestedPrompt.name}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => generatePreview(lastSuggestedPrompt.prompt)}
+                className="flex-1 rounded-lg bg-secondary py-2 font-display text-xs font-semibold text-foreground transition-all hover:bg-secondary/70 flex items-center justify-center gap-1.5"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                צפה בתצוגה מקדימה
+              </button>
+              <button
+                onClick={() => {
+                  onApplyBackground(lastSuggestedPrompt.prompt, lastSuggestedPrompt.name);
+                  setLastSuggestedPrompt(null);
+                }}
+                className="flex-1 rounded-lg bg-primary py-2 font-display text-xs font-semibold text-primary-foreground transition-all hover:brightness-110 flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                החל ישירות
+              </button>
             </div>
           </div>
         )}
