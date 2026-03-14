@@ -421,6 +421,18 @@ const Index = () => {
                       onResult={setResultImage}
                     />
                   )}
+                  {activeTab === "smart" && (
+                    <SmartSuggestPanel
+                      imageBase64={originalImage}
+                      onSelectPrompt={(prompt, name) => {
+                        setCustomPrompt(prompt);
+                        setActivePrompt(prompt);
+                        setSelectedPreset(null);
+                        setSelectedPresetName(name);
+                        setSuggestedName(name);
+                        toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
+                      }}
+                    />
                   {activeTab === "adjust" && (
                     <ImageAdjustmentsPanel
                       adjustments={adjustments}
