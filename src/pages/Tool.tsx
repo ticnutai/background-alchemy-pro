@@ -336,6 +336,7 @@ const Index = () => {
                 <div className="flex border-b border-border">
                   {[
                     { key: "backgrounds" as const, label: "רקעים" },
+                    { key: "tools" as const, label: "כלים" },
                     { key: "adjust" as const, label: "התאמות" },
                     { key: "export" as const, label: "ייצוא" },
                   ].map((tab) => (
@@ -368,6 +369,13 @@ const Index = () => {
                       }}
                       referenceImages={referenceImages}
                       onReferenceImagesChange={setReferenceImages}
+                    />
+                  )}
+                  {activeTab === "tools" && (
+                    <AdvancedToolsPanel
+                      originalImage={originalImage}
+                      resultImage={resultImage}
+                      onResult={setResultImage}
                     />
                   )}
                   {activeTab === "adjust" && (
