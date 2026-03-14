@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Heart, Trash2, Clock, X, Download } from "lucide-react";
+import { Heart, Trash2, Clock, X, Download, Pencil } from "lucide-react";
+import EditableLabel from "@/components/EditableLabel";
 
 interface HistoryItem {
   id: string;
