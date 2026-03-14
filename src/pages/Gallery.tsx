@@ -28,6 +28,23 @@ interface ImageFolder {
   created_at: string;
 }
 
+async function downloadImage(url: string, filename: string) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename || "image.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    console.error("Download failed");
+  }
+}
+
 type ViewMode = "grid" | "single" | "sideBySide";
 
 const Gallery = () => {
