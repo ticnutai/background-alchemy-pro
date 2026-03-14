@@ -513,7 +513,13 @@ const Gallery = () => {
                 {filtered.map(item => (
                   <div
                     key={item.id}
+                    draggable
+                    onDragStart={() => setDraggedItemId(item.id)}
+                    onDragEnd={() => setDraggedItemId(null)}
+                    onMouseEnter={() => setHoveredItemId(item.id)}
+                    onMouseLeave={() => setHoveredItemId(null)}
                     className={`group relative rounded-xl border overflow-hidden bg-card transition-all hover:shadow-lg cursor-pointer ${
+                      draggedItemId === item.id ? "opacity-50 scale-95" :
                       compareMode && compareItems.find(c => c.id === item.id)
                         ? "border-primary ring-2 ring-primary/30"
                         : pinnedItem?.id === item.id
@@ -523,63 +529,81 @@ const Gallery = () => {
                     onClick={() => compareMode ? toggleCompareItem(item) : setZoomedItem(item)}
                   >
                     <div className="aspect-square overflow-hidden">
-                      <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                      <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" draggable={false} />
                     </div>
                     <div className="p-2.5">
                       <p className="font-display text-xs font-semibold text-foreground truncate">{item.background_name || "רקע מותאם"}</p>
                       <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
                     </div>
 
-                    {/* Hover actions */}
-                    <div className="absolute top-2 left-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={e => { e.stopPropagation(); toggleFavorite(item); }}
-                        className={`rounded-full p-1.5 backdrop-blur-sm transition-colors ${
-                          item.is_favorite ? "bg-gold/90 text-gold-foreground" : "bg-foreground/50 text-card hover:bg-gold/90"
-                        }`}
-                      >
-                        <Heart className={`h-3 w-3 ${item.is_favorite ? "fill-current" : ""}`} />
-                      </button>
-                      {viewMode === "sideBySide" && (
+                    {/* Hover action popup - top center */}
+                    {hoveredItemId === item.id && !compareMode && (
+                      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-full bg-card/95 backdrop-blur-md shadow-lg border border-border px-2 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
                         <button
-                          onClick={e => { e.stopPropagation(); setPinnedItem(item); setSideBySideIndex(0); }}
-                          className={`rounded-full p-1.5 backdrop-blur-sm transition-colors ${
-                            pinnedItem?.id === item.id ? "bg-gold/90 text-gold-foreground" : "bg-foreground/50 text-card hover:bg-gold/90"
+                          onClick={e => { e.stopPropagation(); toggleFavorite(item); }}
+                          className={`rounded-full p-1.5 transition-colors ${
+                            item.is_favorite ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
+                          }`}
+                          title={item.is_favorite ? "הסר ממועדפים" : "הוסף למועדפים"}
+                        >
+                          <Heart className={`h-3.5 w-3.5 ${item.is_favorite ? "fill-current" : ""}`} />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            if (!compareMode) {
+                              setCompareMode(true);
+                            }
+                            toggleCompareItem(item);
+                          }}
+                          className={`rounded-full p-1.5 transition-colors ${
+                            compareItems.find(c => c.id === item.id) ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                          }`}
+                          title="הוסף להשוואה"
+                        >
+                          <SlidersHorizontal className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => { e.stopPropagation(); setPinnedItem(item); setSideBySideIndex(0); setViewMode("sideBySide"); }}
+                          className={`rounded-full p-1.5 transition-colors ${
+                            pinnedItem?.id === item.id ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
                           }`}
                           title="נעץ להשוואה"
                         >
-                          <Pin className="h-3 w-3" />
+                          <Pin className="h-3.5 w-3.5" />
                         </button>
-                      )}
-                      <button
-                        onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
-                        className="rounded-full bg-foreground/50 p-1.5 text-card backdrop-blur-sm hover:bg-destructive transition-colors"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </button>
-                    </div>
-
-                    {/* Folder assign dropdown */}
-                    {folders.length > 0 && !compareMode && (
-                      <div className="absolute bottom-12 left-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <select
-                          value={item.folder_id || ""}
-                          onClick={e => e.stopPropagation()}
-                          onChange={e => { e.stopPropagation(); moveToFolder(item.id, e.target.value || null); }}
-                          className="rounded-md bg-foreground/70 px-1.5 py-1 font-accent text-[10px] text-card backdrop-blur-sm border-none focus:outline-none cursor-pointer"
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => { e.stopPropagation(); setZoomedItem(item); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                          title="הגדל"
                         >
-                          <option value="">ללא תיקייה</option>
-                          {folders.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
-                        </select>
+                          <ZoomIn className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                          title="מחק"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     )}
 
-                    {item.is_favorite && (
-                      <div className="absolute top-2 right-2"><span className="text-xs">⭐</span></div>
+                    {/* Drag indicator */}
+                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-60 transition-opacity">
+                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                    </div>
+
+                    {item.is_favorite && hoveredItemId !== item.id && (
+                      <div className="absolute top-2 left-2"><span className="text-xs">⭐</span></div>
                     )}
 
                     {compareMode && compareItems.find(c => c.id === item.id) && (
-                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center">
+                      <div className="absolute inset-0 bg-primary/10 flex items-center justify-center pointer-events-none">
                         <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center font-accent text-xs font-bold">
                           {compareItems.findIndex(c => c.id === item.id) + 1}
                         </div>
