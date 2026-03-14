@@ -735,6 +735,14 @@ const Gallery = () => {
                         </button>
                         <div className="w-px h-4 bg-border" />
                         <button
+                          onClick={e => { e.stopPropagation(); duplicateItem(item); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-accent-foreground hover:bg-accent/10 transition-colors"
+                          title="שכפל תמונה"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
                           onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
                           className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           title="מחק"
