@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { ZoomIn, ArrowLeft, X } from "lucide-react";
+import { ZoomIn, ArrowLeft, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface ResultItem {
@@ -40,6 +40,27 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
     setSliderPos(Math.max(0, Math.min(100, x)));
   }, []);
 
+  const navigateZoom = useCallback((direction: "prev" | "next") => {
+    if (!zoomedItem) return;
+    const idx = items.findIndex(i => i.id === zoomedItem.id);
+    const nextIdx = direction === "next" ? idx + 1 : idx - 1;
+    if (nextIdx >= 0 && nextIdx < items.length) {
+      setZoomedItem(items[nextIdx]);
+      setSliderPos(50);
+    }
+  }, [zoomedItem, items]);
+
+  useEffect(() => {
+    if (!zoomedItem) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") navigateZoom("next");
+      else if (e.key === "ArrowRight") navigateZoom("prev");
+      else if (e.key === "Escape") setZoomedItem(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [zoomedItem, navigateZoom]);
+
   if (items.length === 0) return null;
 
   return (
@@ -77,11 +98,36 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
       {/* Zoom overlay with slider */}
       {zoomedItem && (
         <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex items-center justify-center p-6" onClick={() => setZoomedItem(null)}>
-          <div className="relative w-full max-w-3xl" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setZoomedItem(null)} className="absolute -top-10 left-0 rounded-full bg-card p-2 hover:bg-secondary transition-colors z-20">
-              <X className="h-4 w-4 text-foreground" />
+          {/* Nav arrows */}
+          {items.findIndex(i => i.id === zoomedItem.id) < items.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); navigateZoom("next"); }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-card/90 shadow-lg hover:bg-primary transition-colors"
+            >
+              <ChevronLeft className="h-6 w-6 text-foreground" />
             </button>
-            <p className="absolute -top-10 right-0 font-display text-sm font-bold text-card">{zoomedItem.background_name || "רקע מותאם"}</p>
+          )}
+          {items.findIndex(i => i.id === zoomedItem.id) > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); navigateZoom("prev"); }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-card/90 shadow-lg hover:bg-primary transition-colors"
+            >
+              <ChevronRight className="h-6 w-6 text-foreground" />
+            </button>
+          )}
+
+          <div className="relative w-full max-w-3xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between absolute -top-10 inset-x-0">
+              <button onClick={() => setZoomedItem(null)} className="rounded-full bg-card p-2 hover:bg-secondary transition-colors z-20">
+                <X className="h-4 w-4 text-foreground" />
+              </button>
+              <p className="font-display text-sm font-bold text-card">
+                {zoomedItem.background_name || "רקע מותאם"}
+                <span className="font-accent text-xs font-normal opacity-70 mr-2">
+                  ({items.findIndex(i => i.id === zoomedItem.id) + 1}/{items.length})
+                </span>
+              </p>
+            </div>
 
             <div
               ref={containerRef}
@@ -94,20 +140,10 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
               onTouchStart={() => { isDragging.current = true; }}
               onTouchEnd={() => { isDragging.current = false; }}
             >
-              {/* Result (full) */}
               <img src={zoomedItem.result_image_url} alt="Result" className="block w-full" />
-
-              {/* Original (clipped) */}
               <div className="absolute inset-0 overflow-hidden" style={{ width: `${sliderPos}%` }}>
-                <img
-                  src={zoomedItem.original_image_url}
-                  alt="Original"
-                  className="block w-full"
-                  style={{ width: containerRef.current?.offsetWidth || "100%" }}
-                />
+                <img src={zoomedItem.original_image_url} alt="Original" className="block w-full" style={{ width: containerRef.current?.offsetWidth || "100%" }} />
               </div>
-
-              {/* Slider handle */}
               <div className="absolute top-0 bottom-0 z-10" style={{ left: `${sliderPos}%` }}>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-primary shadow-lg">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -116,8 +152,6 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
                   </svg>
                 </div>
               </div>
-
-              {/* Labels */}
               <div className="absolute top-3 left-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
               <div className="absolute top-3 right-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-card">לפני</div>
             </div>
