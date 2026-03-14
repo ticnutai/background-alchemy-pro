@@ -512,6 +512,43 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
           </div>
         )}
 
+        {/* Generating preview indicator */}
+        {isGeneratingPreview && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 flex items-center justify-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="font-display text-xs text-primary">מייצר תצוגה מקדימה...</span>
+          </div>
+        )}
+
+        {/* Preview generation button - appears when AI suggests a background */}
+        {lastSuggestedPrompt && !isLoading && !isGeneratingPreview && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
+            <p className="font-display text-xs font-bold text-foreground text-center">🖼️ רוצה לראות תצוגה מקדימה?</p>
+            <p className="font-body text-[10px] text-muted-foreground text-center">
+              {lastSuggestedPrompt.name}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => generatePreview(lastSuggestedPrompt.prompt)}
+                className="flex-1 rounded-lg bg-secondary py-2 font-display text-xs font-semibold text-foreground transition-all hover:bg-secondary/70 flex items-center justify-center gap-1.5"
+              >
+                <Wand2 className="h-3.5 w-3.5" />
+                צפה בתצוגה מקדימה
+              </button>
+              <button
+                onClick={() => {
+                  onApplyBackground(lastSuggestedPrompt.prompt, lastSuggestedPrompt.name);
+                  setLastSuggestedPrompt(null);
+                }}
+                className="flex-1 rounded-lg bg-primary py-2 font-display text-xs font-semibold text-primary-foreground transition-all hover:brightness-110 flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                החל ישירות
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Guided flow cards */}
         {flowStep === "upload-reference" && !isLoading && (
           <div className="rounded-xl border border-gold/30 bg-gold/5 p-3 space-y-2">
