@@ -720,6 +720,168 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
               </button>
             </div>
           )}
+
+          {/* Color Grading */}
+          {activeTool === "color-grade" && (
+            <div className="space-y-3">
+              <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <Palette className="h-4 w-4 text-gold" />
+                דירוג צבע מקצועי
+              </h4>
+              <p className="font-body text-xs text-muted-foreground">
+                החל סגנון צבע מקצועי על התמונה — כמו פילטרים של קולנוע
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "cinematic", label: "קולנועי", desc: "טונים חמים, ניגודיות עמוקה", icon: "🎬" },
+                  { id: "vintage", label: "וינטג׳", desc: "גוונים דהויים, רך", icon: "📷" },
+                  { id: "moody", label: "דרמטי", desc: "כהה, צללים עמוקים", icon: "🌑" },
+                  { id: "bright-airy", label: "בהיר ואוורירי", desc: "לבנים חשופים, רך", icon: "☀️" },
+                  { id: "warm-gold", label: "זהב חם", desc: "טונים זהובים חמים", icon: "✨" },
+                  { id: "cool-blue", label: "כחול קריר", desc: "טונים כחולים מודרניים", icon: "❄️" },
+                ].map((style) => (
+                  <button
+                    key={style.id}
+                    onClick={() => setColorGradeStyle(style.id)}
+                    className={`rounded-lg border-2 p-2.5 text-center transition-all ${
+                      colorGradeStyle === style.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-lg">{style.icon}</span>
+                    <span className="block font-display text-[10px] font-bold text-foreground mt-1">{style.label}</span>
+                    <span className="block font-body text-[8px] text-muted-foreground">{style.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => runTool("color-grade", { style: colorGradeStyle })}
+                disabled={processing}
+                className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {processing ? "מעבד..." : "החל סגנון צבע"}
+              </button>
+            </div>
+          )}
+
+          {/* Blur Background */}
+          {activeTool === "blur-bg" && (
+            <div className="space-y-3">
+              <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <Aperture className="h-4 w-4 text-gold" />
+                טשטוש רקע — אפקט בוקה
+              </h4>
+              <p className="font-body text-xs text-muted-foreground">
+                טשטש את הרקע כדי להבליט את המוצר — כמו צילום ב-f/1.4
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "light", label: "קל", desc: "f/2.8" },
+                  { id: "medium", label: "בינוני", desc: "f/1.8" },
+                  { id: "heavy", label: "חזק", desc: "f/1.2" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setBlurStrength(opt.id)}
+                    className={`rounded-lg border-2 p-3 text-center transition-all ${
+                      blurStrength === opt.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="block font-display text-xs font-bold text-foreground">{opt.label}</span>
+                    <span className="block font-body text-[10px] text-muted-foreground">{opt.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => runTool("blur-background", { strength: blurStrength })}
+                disabled={processing}
+                className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {processing ? "מעבד..." : "טשטש רקע"}
+              </button>
+            </div>
+          )}
+
+          {/* Style Transfer */}
+          {activeTool === "style-transfer" && (
+            <div className="space-y-3">
+              <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <Brush className="h-4 w-4 text-gold" />
+                העברת סגנון אמנותי
+              </h4>
+              <p className="font-body text-xs text-muted-foreground">
+                הפוך את התמונה לסגנון אמנותי — ציור שמן, אקוורל, פופ ארט ועוד
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "oil-painting", label: "ציור שמן", icon: "🖼️" },
+                  { id: "watercolor", label: "אקוורל", icon: "🎨" },
+                  { id: "pop-art", label: "פופ ארט", icon: "🎭" },
+                  { id: "pencil-sketch", label: "שרטוט עיפרון", icon: "✏️" },
+                  { id: "3d-render", label: "3D רנדר", icon: "🧊" },
+                  { id: "anime", label: "אנימה", icon: "⭐" },
+                ].map((style) => (
+                  <button
+                    key={style.id}
+                    onClick={() => setStyleTransferStyle(style.id)}
+                    className={`rounded-lg border-2 p-2.5 text-center transition-all ${
+                      styleTransferStyle === style.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-lg">{style.icon}</span>
+                    <span className="block font-display text-[10px] font-bold text-foreground mt-1">{style.label}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => runTool("style-transfer", { style: styleTransferStyle })}
+                disabled={processing}
+                className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {processing ? "מעבד..." : "החל סגנון"}
+              </button>
+            </div>
+          )}
+
+          {/* Smart Crop */}
+          {activeTool === "smart-crop" && (
+            <div className="space-y-3">
+              <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <Crop className="h-4 w-4 text-gold" />
+                חיתוך חכם — מרכוז אוטומטי
+              </h4>
+              <p className="font-body text-xs text-muted-foreground">
+                חתוך ומרכז את המוצר אוטומטית ביחס גובה-רוחב מותאם
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "1:1", label: "1:1", desc: "ריבוע" },
+                  { id: "4:5", label: "4:5", desc: "אינסטגרם" },
+                  { id: "9:16", label: "9:16", desc: "סטורי" },
+                  { id: "16:9", label: "16:9", desc: "רחב" },
+                  { id: "3:4", label: "3:4", desc: "פורטרט" },
+                  { id: "2:3", label: "2:3", desc: "פינטרסט" },
+                ].map((ratio) => (
+                  <button
+                    key={ratio.id}
+                    onClick={() => setSmartCropRatio(ratio.id)}
+                    className={`rounded-lg border-2 p-2 text-center transition-all ${
+                      smartCropRatio === ratio.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="block font-display text-xs font-bold text-foreground">{ratio.label}</span>
+                    <span className="block font-body text-[9px] text-muted-foreground">{ratio.desc}</span>
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={() => runTool("smart-crop", { ratio: smartCropRatio })}
+                disabled={processing}
+                className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {processing ? "חותך..." : "חתוך ומרכז"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
