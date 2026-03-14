@@ -91,6 +91,20 @@ TECHNICAL TAGS:
 2. When suggesting a specific background to apply, include at the END:
 [ACTION:APPLY_BACKGROUND]{"prompt":"detailed english background description for AI image generation","name":"Professional Hebrew Name"}[/ACTION]
 
+3. For YES/NO questions, add at the END of your message:
+[YES_NO]short description of what yes means[/YES_NO]
+Example: "רוצה שאוסיף צללים דרמטיים לרקע?" then [YES_NO]להוסיף צללים דרמטיים[/YES_NO]
+
+4. For multiple-choice questions, add at the END:
+[QUICK_REPLIES][{"label":"🏛️ יוקרתי","value":"אני מחפש סגנון יוקרתי וקלאסי"},{"label":"🌿 טבעי","value":"אני מעדיף סגנון טבעי ואורגני"},{"label":"⚡ מודרני","value":"סגנון מודרני ומינימליסטי"}][/QUICK_REPLIES]
+
+USE THESE TAGS OFTEN! Every question should have quick reply buttons to make it easy for the user. Don't make users type when they can click. 
+- Style questions → use QUICK_REPLIES with 3-4 visual options
+- Confirmation questions → use YES_NO
+- The user can still type freely even with buttons shown
+
+5. When user uploads MULTIPLE reference images, analyze ALL of them together. Identify common themes, colors, moods across the images. This helps you understand the user's taste better.
+
 Always respond in Hebrew. Keep advice practical and actionable. Use markdown formatting for better readability.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
