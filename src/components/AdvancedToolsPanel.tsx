@@ -308,6 +308,91 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
               </button>
             </div>
           )}
+
+          {/* Add Elements */}
+          {activeTool === "add-elements" && (
+            <div className="space-y-3">
+              <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                <PackagePlus className="h-4 w-4 text-gold" />
+                הוספת אלמנטים לתמונה
+              </h4>
+              <p className="font-body text-xs text-muted-foreground">
+                בחר אלמנטים להוסיף סביב המוצר — הם יתווספו בצורה טבעית ואלגנטית
+              </p>
+
+              <div className="grid grid-cols-2 gap-1.5">
+                {elementPresets.map((el) => (
+                  <button
+                    key={el.id}
+                    onClick={() => toggleElement(el.id)}
+                    className={`flex items-center gap-2 rounded-lg border-2 p-2 text-right transition-all ${
+                      selectedElements.includes(el.id)
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <span className="text-base shrink-0">{el.icon}</span>
+                    <div className="min-w-0">
+                      <span className="block font-display text-[10px] font-bold text-foreground truncate">{el.label}</span>
+                      <span className="block font-body text-[8px] text-muted-foreground truncate">{el.desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <label className="font-body text-xs text-muted-foreground mb-1 block">
+                  או תאר אלמנטים משלך:
+                </label>
+                <textarea
+                  value={customElementDesc}
+                  onChange={(e) => setCustomElementDesc(e.target.value)}
+                  placeholder="לדוגמה: מגש כסף עם עוגיות, כוס תה עם צלוחית..."
+                  className="w-full rounded-lg border border-input bg-card p-3 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none resize-none"
+                  rows={2}
+                  dir="rtl"
+                />
+              </div>
+
+              {selectedElements.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {selectedElements.map((id) => {
+                    const el = elementPresets.find(e => e.id === id);
+                    return (
+                      <span key={id} className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-body text-[10px] text-primary">
+                        {el?.icon} {el?.label}
+                        <button onClick={() => toggleElement(id)} className="hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+
+              <button
+                onClick={() => {
+                  const chosenLabels = selectedElements
+                    .map(id => elementPresets.find(e => e.id === id))
+                    .filter(Boolean)
+                    .map(e => `${e!.label} (${e!.desc})`);
+                  const allElements = [
+                    ...chosenLabels,
+                    ...(customElementDesc.trim() ? [customElementDesc.trim()] : []),
+                  ];
+                  if (allElements.length === 0) {
+                    toast.error("יש לבחור לפחות אלמנט אחד");
+                    return;
+                  }
+                  runTool("add-elements", { elements: allElements.join(", ") });
+                }}
+                disabled={processing || (selectedElements.length === 0 && !customElementDesc.trim())}
+                className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {processing ? "מעבד..." : `הוסף ${selectedElements.length + (customElementDesc.trim() ? 1 : 0)} אלמנטים`}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
