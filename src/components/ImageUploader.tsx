@@ -1,0 +1,65 @@
+import { useCallback } from "react";
+import { Upload, ImageIcon } from "lucide-react";
+
+interface ImageUploaderProps {
+  onImageSelect: (base64: string) => void;
+}
+
+const ImageUploader = ({ onImageSelect }: ImageUploaderProps) => {
+  const handleFile = useCallback(
+    (file: File) => {
+      if (!file.type.startsWith("image/")) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        onImageSelect(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    },
+    [onImageSelect]
+  );
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) handleFile(file);
+    },
+    [handleFile]
+  );
+
+  return (
+    <label
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+      className="flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-border bg-card p-12 cursor-pointer transition-colors hover:border-primary hover:bg-secondary/50"
+    >
+      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+        <Upload className="h-8 w-8 text-primary" />
+      </div>
+      <div className="text-center">
+        <p className="font-display text-lg font-semibold text-foreground">
+          גרור תמונה לכאן או לחץ להעלאה
+        </p>
+        <p className="mt-1 font-body text-sm text-muted-foreground">
+          PNG, JPG, WEBP — עד 10MB
+        </p>
+      </div>
+      <input
+        type="file"
+        accept="image/*"
+        onChange={handleChange}
+        className="hidden"
+      />
+    </label>
+  );
+};
+
+export default ImageUploader;
