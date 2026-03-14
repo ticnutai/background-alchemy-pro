@@ -1,10 +1,10 @@
 import { useState, useCallback } from "react";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
 import ImageCanvas from "@/components/ImageCanvas";
-import BackgroundPresets, { type Preset } from "@/components/BackgroundPresets";
+import BackgroundPresets, { type Preset, presets } from "@/components/BackgroundPresets";
 import ImageAdjustmentsPanel, {
   type ImageAdjustments,
   defaultAdjustments,
@@ -23,6 +23,9 @@ const Index = () => {
   const [activePrompt, setActivePrompt] = useState("");
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
   const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "export">("backgrounds");
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
+  const [suggestedName, setSuggestedName] = useState<string | null>(null);
+  const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
 
   const handleImageSelect = useCallback((base64: string) => {
     setOriginalImage(base64);
@@ -34,6 +37,9 @@ const Index = () => {
     setSelectedPreset(preset.id);
     setActivePrompt(preset.prompt);
     setCustomPrompt("");
+    setReferenceImages([]);
+    setSelectedPresetName(preset.professionalName);
+    setSuggestedName(null);
   }, []);
 
   const handleProcess = useCallback(async () => {
@@ -43,14 +49,30 @@ const Index = () => {
 
     setIsProcessing(true);
     setResultImage(null);
+    setSuggestedName(null);
     try {
       const { data, error } = await supabase.functions.invoke("replace-background", {
-        body: { imageBase64: originalImage, backgroundPrompt: prompt },
+        body: {
+          imageBase64: originalImage,
+          backgroundPrompt: prompt,
+          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResultImage(data.resultImage);
       toast.success("הרקע הוחלף בהצלחה!");
+
+      // Get professional name suggestion
+      if (customPrompt.trim() && !selectedPresetName) {
+        supabase.functions.invoke("suggest-name", {
+          body: { backgroundDescription: customPrompt.trim() },
+        }).then(({ data: nameData }) => {
+          if (nameData?.name) setSuggestedName(nameData.name);
+        }).catch(() => {});
+      } else if (selectedPresetName) {
+        setSuggestedName(selectedPresetName);
+      }
     } catch (err: any) {
       toast.error(err.message || "שגיאה בעיבוד התמונה");
     } finally {
@@ -163,6 +185,17 @@ const Index = () => {
               <ImageUploader onImageSelect={handleImageSelect} />
             )}
 
+            {/* Suggested name badge */}
+            {suggestedName && resultImage && (
+              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
+                <Tag className="h-4 w-4 text-primary" />
+                <div className="flex flex-col">
+                  <span className="font-body text-xs text-muted-foreground">שם מקצועי מוצע למוצר:</span>
+                  <span className="font-display text-sm font-bold text-primary">{suggestedName}</span>
+                </div>
+              </div>
+            )}
+
             {originalImage && (
               <div className="flex flex-wrap items-center gap-3">
                 <button
@@ -231,8 +264,13 @@ const Index = () => {
                       customPrompt={customPrompt}
                       onCustomPromptChange={(v) => {
                         setCustomPrompt(v);
-                        if (v.trim()) setSelectedPreset(null);
+                        if (v.trim()) {
+                          setSelectedPreset(null);
+                          setSelectedPresetName(null);
+                        }
                       }}
+                      referenceImages={referenceImages}
+                      onReferenceImagesChange={setReferenceImages}
                     />
                   )}
                   {activeTab === "adjust" && (
