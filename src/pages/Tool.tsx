@@ -23,6 +23,7 @@ import ResultsStrip from "@/components/ResultsStrip";
 import SmartSuggestPanel from "@/components/SmartSuggestPanel";
 import ShareDialog from "@/components/ShareDialog";
 import ThemeToggle from "@/components/ThemeToggle";
+import DevSettingsDialog from "@/components/DevSettingsDialog";
 import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
