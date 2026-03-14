@@ -939,9 +939,15 @@ const Gallery = () => {
                 >
                   <Pencil className="h-3.5 w-3.5" /> ערוך בכלי
                 </button>
-                {/* Original/Result toggle */}
+                {/* Duplicate */}
                 <button
-                  onClick={() => setShowOriginal(!showOriginal)}
+                  onClick={() => {
+                    duplicateItem(zoomedItem);
+                  }}
+                  className="rounded-lg border border-border px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                >
+                  <Copy className="h-3.5 w-3.5" /> שכפל
+                </button>
                   className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors ${
                     showOriginal ? "bg-gold text-gold-foreground" : "border border-border text-muted-foreground hover:text-foreground"
                   }`}
