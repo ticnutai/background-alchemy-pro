@@ -37,6 +37,9 @@ const Index = () => {
     setSelectedPreset(preset.id);
     setActivePrompt(preset.prompt);
     setCustomPrompt("");
+    setReferenceImages([]);
+    setSelectedPresetName(preset.professionalName);
+    setSuggestedName(null);
   }, []);
 
   const handleProcess = useCallback(async () => {
