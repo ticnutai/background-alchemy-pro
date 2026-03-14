@@ -525,6 +525,33 @@ const BackgroundPresets = ({
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [customColor, setCustomColor] = useState("#FFFFFF");
   const [selectedColorId, setSelectedColorId] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+
+  const handleAnalyzeImage = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      setAnalyzing(true);
+      try {
+        const { data, error } = await supabase.functions.invoke("analyze-image", {
+          body: { imageBase64: base64 },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        setAnalysisResult(data as AnalysisResult);
+        toast.success("ניתוח הושלם!");
+      } catch (err: any) {
+        toast.error(err.message || "שגיאה בניתוח התמונה");
+      } finally {
+        setAnalyzing(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  }, []);
 
   const handleColorSelect = useCallback((hex: string, label: string, name: string) => {
     setSelectedColorId(hex);
