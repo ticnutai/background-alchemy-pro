@@ -477,6 +477,15 @@ const Index = () => {
         />
       )}
 
+      {/* Share Dialog */}
+      {showShare && resultImage && (
+        <ShareDialog
+          imageUrl={resultImage}
+          title={suggestedName || selectedPresetName || undefined}
+          onClose={() => setShowShare(false)}
+        />
+      )}
+
       <AIChatDialog
         onApplyBackground={(prompt, name) => {
           setCustomPrompt(prompt);
