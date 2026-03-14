@@ -168,6 +168,7 @@ const Gallery = () => {
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [showCompareView, setShowCompareView] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null); // item id or "zoom"
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
