@@ -26,6 +26,7 @@ const fidelityLevels = [
 ];
 
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-chat`;
+const PREVIEW_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat-preview`;
 
 const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps) => {
   const [isOpen, setIsOpen] = useState(false);
