@@ -383,15 +383,14 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   }, [input, isLoading, messages]);
 
   const handleApplyWithFidelity = () => {
-    if (!productImage || !referenceImage) return;
+    if (!productImage || referenceImages.length === 0) return;
 
     const fidelity = fidelityLevels.find((f) => f.id === selectedFidelity);
     const elementsStr = selectedElements.join(", ");
 
-    // Send final instruction to AI
     const instruction = `
 בבקשה צור prompt מפורט להחלפת רקע בהתבסס על:
-- תמונת הייחוס שהעליתי
+- ${referenceImages.length} תמונות ייחוס שהעליתי
 - רמת דיוק: ${fidelity?.label} (${fidelity?.desc})
 ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""}
 תן לי את ה-prompt הטוב ביותר והחל אותו.
@@ -402,10 +401,16 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
     setFlowStep("ready");
 
     if (onEditWithImages) {
-      onEditWithImages(productImage, referenceImage, fidelity?.strength || "0.5", elementsStr);
+      onEditWithImages(productImage, referenceImages[0], fidelity?.strength || "0.5", elementsStr);
     }
 
     sendToAI([...messages, userMsg]);
+  };
+
+  const handleQuickReply = async (value: string) => {
+    const userMsg: Message = { role: "user", content: value };
+    setMessages((prev) => [...prev, userMsg]);
+    await sendToAI([...messages, userMsg]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
