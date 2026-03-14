@@ -549,28 +549,38 @@ const BackgroundPresets = ({
           </h4>
 
           <div className="grid grid-cols-2 gap-2">
-            {activeCatPresets.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => onSelect(preset)}
-                className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
-                  selectedId === preset.id
-                    ? "border-primary bg-primary/5 shadow-md"
-                    : "border-border hover:border-primary/50 hover:shadow-sm"
-                }`}
-              >
-                <div
-                  className="h-10 w-full rounded-md border border-border/50"
-                  style={{ background: preset.preview }}
-                />
-                <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
-                  {preset.label}
-                </span>
-                <span className="font-body text-[9px] text-muted-foreground italic">
-                  {preset.professionalName}
-                </span>
-              </button>
-            ))}
+            {activeCatPresets.map((preset) => {
+              const isSelected = multiSelectMode
+                ? selectedPresets.includes(preset.id)
+                : selectedId === preset.id;
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
+                  className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
+                    isSelected
+                      ? "border-primary bg-primary/5 shadow-md"
+                      : "border-border hover:border-primary/50 hover:shadow-sm"
+                  }`}
+                >
+                  {multiSelectMode && isSelected && (
+                    <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
+                      {selectedPresets.indexOf(preset.id) + 1}
+                    </div>
+                  )}
+                  <div
+                    className="h-10 w-full rounded-md border border-border/50"
+                    style={{ background: preset.preview }}
+                  />
+                  <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
+                    {preset.label}
+                  </span>
+                  <span className="font-body text-[9px] text-muted-foreground italic">
+                    {preset.professionalName}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </>
       )}
