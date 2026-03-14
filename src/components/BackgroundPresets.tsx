@@ -454,6 +454,25 @@ interface BackgroundPresetsProps {
   onReferenceImagesChange: (images: string[]) => void;
 }
 
+const categoryIcons: Record<string, string> = {
+  "שיש": "◆",
+  "עץ": "🪵",
+  "חלק": "○",
+  "טקסטורה": "▤",
+  "בד וריקמה": "🧵",
+  "טבע": "🌿",
+  "גרדיינט": "◐",
+};
+
+interface BackgroundPresetsProps {
+  selectedId: string | null;
+  onSelect: (preset: Preset) => void;
+  customPrompt: string;
+  onCustomPromptChange: (value: string) => void;
+  referenceImages: string[];
+  onReferenceImagesChange: (images: string[]) => void;
+}
+
 const BackgroundPresets = ({
   selectedId,
   onSelect,
@@ -462,6 +481,8 @@ const BackgroundPresets = ({
   referenceImages,
   onReferenceImagesChange,
 }: BackgroundPresetsProps) => {
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+
   const handleRefImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files;
@@ -486,11 +507,76 @@ const BackgroundPresets = ({
     [referenceImages, onReferenceImagesChange]
   );
 
+  const activeCatPresets = activeCategory
+    ? presets.filter((p) => p.category === activeCategory)
+    : [];
+
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <h3 className="font-display text-sm font-semibold text-foreground uppercase tracking-wider">
         בחר רקע
       </h3>
+
+      {/* Category grid */}
+      {!activeCategory ? (
+        <div className="grid grid-cols-2 gap-2">
+          {categories.map((cat) => {
+            const catPresets = presets.filter((p) => p.category === cat);
+            return (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                className="flex flex-col items-center gap-2 rounded-xl border-2 border-border p-4 transition-all hover:border-gold/40 hover:shadow-md hover:bg-secondary/30"
+              >
+                <span className="text-2xl">{categoryIcons[cat] || "◎"}</span>
+                <span className="font-display text-xs font-bold text-foreground">{cat}</span>
+                <span className="font-body text-[10px] text-muted-foreground">{catPresets.length} רקעים</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          {/* Back button */}
+          <button
+            onClick={() => setActiveCategory(null)}
+            className="flex items-center gap-2 font-display text-xs font-semibold text-primary hover:text-primary/80 transition-colors"
+          >
+            <span>→</span>
+            חזרה לקטגוריות
+          </button>
+
+          <h4 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+            <span>{categoryIcons[activeCategory]}</span>
+            {activeCategory}
+          </h4>
+
+          <div className="grid grid-cols-2 gap-2">
+            {activeCatPresets.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => onSelect(preset)}
+                className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
+                  selectedId === preset.id
+                    ? "border-primary bg-primary/5 shadow-md"
+                    : "border-border hover:border-primary/50 hover:shadow-sm"
+                }`}
+              >
+                <div
+                  className="h-10 w-full rounded-md border border-border/50"
+                  style={{ background: preset.preview }}
+                />
+                <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
+                  {preset.label}
+                </span>
+                <span className="font-body text-[9px] text-muted-foreground italic">
+                  {preset.professionalName}
+                </span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {/* Reference image */}
       <div className="rounded-lg overflow-hidden border border-border">
@@ -500,48 +586,12 @@ const BackgroundPresets = ({
         </div>
       </div>
 
-      {categories.map((cat) => {
-        const catPresets = presets.filter((p) => p.category === cat);
-        return (
-          <div key={cat} className="space-y-2">
-            <h4 className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-              {cat}
-            </h4>
-            <div className="grid grid-cols-2 gap-2">
-              {catPresets.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => onSelect(preset)}
-                  className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
-                    selectedId === preset.id
-                      ? "border-primary bg-primary/5 shadow-md"
-                      : "border-border hover:border-primary/50 hover:shadow-sm"
-                  }`}
-                >
-                  <div
-                    className="h-10 w-full rounded-md border border-border/50"
-                    style={{ background: preset.preview }}
-                  />
-                  <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
-                    {preset.label}
-                  </span>
-                  <span className="font-body text-[9px] text-muted-foreground italic">
-                    {preset.professionalName}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
-        );
-      })}
-
       {/* Custom background section */}
       <div className="space-y-3 pt-3 border-t border-border">
         <label className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider">
           רקע מותאם אישית
         </label>
 
-        {/* Text description */}
         <textarea
           value={customPrompt}
           onChange={(e) => onCustomPromptChange(e.target.value)}
@@ -551,13 +601,11 @@ const BackgroundPresets = ({
           dir="rtl"
         />
 
-        {/* Reference image upload */}
         <div className="space-y-2">
           <span className="font-body text-xs text-muted-foreground">
             העלה תמונות להמחשה (אופציונלי)
           </span>
 
-          {/* Uploaded reference images */}
           {referenceImages.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {referenceImages.map((img, i) => (
