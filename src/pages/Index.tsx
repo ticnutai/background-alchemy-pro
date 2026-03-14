@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings } from "lucide-react";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import studioLogo from "@/assets/studio-logo.png";
 import heroImage from "@/assets/hero-image.jpg";
@@ -9,6 +10,7 @@ import gallery2 from "@/assets/gallery-2.jpg";
 import gallery3 from "@/assets/gallery-3.jpg";
 import ProductGallery from "@/components/ProductGallery";
 import AdminProductForm from "@/components/AdminProductForm";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const Index = () => {
   const [isAdmin, setIsAdmin] = useState(false);
@@ -42,13 +44,16 @@ const Index = () => {
             <a href="#services" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">שירותים</a>
             <a href="#contact" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">צור קשר</a>
           </div>
-          <Link
-            to="/tool"
-            className="flex items-center gap-2 rounded-full bg-gold px-5 py-2 font-accent text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            כלי AI לרקעים
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link
+              to="/tool"
+              className="flex items-center gap-2 rounded-full bg-gold px-5 py-2 font-accent text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              כלי AI לרקעים
+            </Link>
+          </div>
         </div>
       </nav>
 

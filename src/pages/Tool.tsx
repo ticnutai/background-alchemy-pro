@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2 } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
 import ImageCanvas from "@/components/ImageCanvas";
@@ -19,6 +20,9 @@ import HistoryPanel from "@/components/HistoryPanel";
 import AdvancedToolsPanel from "@/components/AdvancedToolsPanel";
 import SocialTemplates from "@/components/SocialTemplates";
 import ResultsStrip from "@/components/ResultsStrip";
+import SmartSuggestPanel from "@/components/SmartSuggestPanel";
+import ShareDialog from "@/components/ShareDialog";
+import ThemeToggle from "@/components/ThemeToggle";
 import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
@@ -33,7 +37,7 @@ const Index = () => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [activePrompt, setActivePrompt] = useState("");
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
-  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "tools" | "export">("backgrounds");
+  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "tools" | "export" | "smart">("backgrounds");
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [suggestedName, setSuggestedName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
@@ -41,6 +45,7 @@ const Index = () => {
   const [showBatch, setShowBatch] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -255,6 +260,7 @@ const Index = () => {
                 התחבר לשמירה
               </Link>
             )}
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -331,6 +337,16 @@ const Index = () => {
                   </button>
                 )}
 
+                {resultImage && (
+                  <button
+                    onClick={() => setShowShare(true)}
+                    className="flex items-center gap-2 rounded-lg border border-gold/30 bg-gold/5 px-5 py-3 font-display text-sm font-semibold text-gold transition-all hover:bg-gold/10"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    שתף + QR
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowBatch(true)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
@@ -362,6 +378,7 @@ const Index = () => {
                 <div className="flex border-b border-border">
                   {[
                     { key: "backgrounds" as const, label: "רקעים" },
+                    { key: "smart" as const, label: "🧠 חכם" },
                     { key: "tools" as const, label: "כלים" },
                     { key: "adjust" as const, label: "התאמות" },
                     { key: "export" as const, label: "ייצוא" },
@@ -404,6 +421,19 @@ const Index = () => {
                       onResult={setResultImage}
                     />
                   )}
+                  {activeTab === "smart" && (
+                    <SmartSuggestPanel
+                      imageBase64={originalImage}
+                      onSelectPrompt={(prompt, name) => {
+                        setCustomPrompt(prompt);
+                        setActivePrompt(prompt);
+                        setSelectedPreset(null);
+                        setSelectedPresetName(name);
+                        setSuggestedName(name);
+                        toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
+                      }}
+                    />
+                  )}
                   {activeTab === "adjust" && (
                     <ImageAdjustmentsPanel
                       adjustments={adjustments}
@@ -444,6 +474,15 @@ const Index = () => {
         <SocialTemplates
           imageUrl={resultImage}
           onClose={() => setShowSocial(false)}
+        />
+      )}
+
+      {/* Share Dialog */}
+      {showShare && resultImage && (
+        <ShareDialog
+          imageUrl={resultImage}
+          title={suggestedName || selectedPresetName || undefined}
+          onClose={() => setShowShare(false)}
         />
       )}
 
