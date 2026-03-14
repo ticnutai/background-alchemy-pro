@@ -83,6 +83,7 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
   };
 
   const tools = [
+    { id: "add-elements" as ToolMode, label: "הוספת אלמנטים", icon: PackagePlus, desc: "גביעים, נרות, פרחים..." },
     { id: "remove" as ToolMode, label: "מחיקת אלמנט", icon: Eraser, desc: "מחק חלקים לא רצויים" },
     { id: "shadow" as ToolMode, label: "צל ושיקוף", icon: Sun, desc: "הוסף צל או שיקוף" },
     { id: "text" as ToolMode, label: "טקסט וריקמה", icon: Type, desc: "הוסף כיתוב מוטבע" },
@@ -90,6 +91,12 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
     { id: "multi-bg" as ToolMode, label: "שכפול רקעים", icon: Grid2X2, desc: "4 רקעים שונים" },
     { id: "collage" as ToolMode, label: "קולאז׳", icon: LayoutGrid, desc: "תצוגת קטלוג" },
   ];
+
+  const toggleElement = (id: string) => {
+    setSelectedElements(prev =>
+      prev.includes(id) ? prev.filter(e => e !== id) : [...prev, id]
+    );
+  };
 
   return (
     <div className="space-y-4">
