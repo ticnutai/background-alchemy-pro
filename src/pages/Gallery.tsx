@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Sparkles, FolderPlus, Folder, Heart, Trash2, Download, ZoomIn, X, ArrowRight,
   ChevronLeft, ChevronRight, Maximize2, Minimize2, LogIn, Search, SlidersHorizontal,
-  Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil,
+  Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil, ChevronDown,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import ImageAdjustmentsPanel, { getFilterString, defaultAdjustments, type ImageAdjustments } from "@/components/ImageAdjustmentsPanel";
@@ -28,21 +28,110 @@ interface ImageFolder {
   created_at: string;
 }
 
-async function downloadImage(url: string, filename: string) {
+const EXPORT_FORMATS = [
+  { id: "png", label: "PNG", mime: "image/png", desc: "שקיפות, lossless" },
+  { id: "jpg", label: "JPG", mime: "image/jpeg", desc: "קובץ קטן" },
+  { id: "webp", label: "WebP", mime: "image/webp", desc: "מודרני, קל" },
+  { id: "pdf", label: "PDF", mime: "application/pdf", desc: "מסמך להדפסה" },
+];
+
+async function downloadImage(url: string, filename: string, format: string = "png") {
   try {
+    toast.loading("מוריד...", { id: "dl" });
     const response = await fetch(url);
     const blob = await response.blob();
+    const img = new Image();
+    img.crossOrigin = "anonymous";
     const blobUrl = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = blobUrl;
-    link.download = filename || "image.png";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = reject;
+      img.src = blobUrl;
+    });
+
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
     URL.revokeObjectURL(blobUrl);
+
+    const baseName = (filename || "image").replace(/\.[^.]+$/, "");
+
+    if (format === "pdf") {
+      const dataUrl = canvas.toDataURL("image/png", 1);
+      const pdfBlob = await generateSimplePDF(dataUrl, canvas.width, canvas.height);
+      triggerDownload(pdfBlob, `${baseName}.pdf`);
+    } else {
+      const fmt = EXPORT_FORMATS.find(f => f.id === format) || EXPORT_FORMATS[0];
+      const quality = format === "png" ? 1 : 0.95;
+      const exportBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob(
+          b => b ? resolve(b) : reject(new Error("blob failed")),
+          fmt.mime,
+          quality
+        );
+      });
+      triggerDownload(exportBlob, `${baseName}.${format}`);
+    }
+
+    toast.success("התמונה הורדה בהצלחה!", { id: "dl" });
   } catch {
-    console.error("Download failed");
+    toast.error("שגיאה בהורדת התמונה", { id: "dl" });
   }
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+async function generateSimplePDF(imageDataUrl: string, w: number, h: number): Promise<Blob> {
+  const imgData = imageDataUrl.split(",")[1];
+  const binary = atob(imgData);
+  const imgBytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) imgBytes[i] = binary.charCodeAt(i);
+  const scale = Math.min(575 / w, 822 / h);
+  const pw = Math.round(w * scale);
+  const ph = Math.round(h * scale);
+  const pageW = Math.max(pw + 20, 595);
+  const pageH = Math.max(ph + 20, 842);
+  const xOff = Math.round((pageW - pw) / 2);
+  const yOff = Math.round((pageH - ph) / 2);
+  const stream = `q ${pw} 0 0 ${ph} ${xOff} ${pageH - yOff - ph} cm /Img Do Q`;
+  const streamLen = imgBytes.length;
+  const objs: string[] = [];
+  objs.push(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
+  objs.push(`2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`);
+  objs.push(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Contents 4 0 R /Resources << /XObject << /Img 5 0 R >> >> >>\nendobj\n`);
+  objs.push(`4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`);
+  const header = `%PDF-1.4\n`;
+  const body = objs.join("");
+  const imgObjH = `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${streamLen} >>\nstream\n`;
+  const imgObjF = `\nendstream\nendobj\n`;
+  const enc = new TextEncoder();
+  const p1 = enc.encode(header + body + imgObjH);
+  const p2 = enc.encode(imgObjF);
+  const xrefPos = p1.length + imgBytes.length + p2.length;
+  let xref = `xref\n0 6\n0000000000 65535 f \n`;
+  let offset = header.length;
+  for (const obj of objs) { xref += `${String(offset).padStart(10, "0")} 00000 n \n`; offset += obj.length; }
+  xref += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
+  const p3 = enc.encode(xref + trailer);
+  const final = new Uint8Array(p1.length + imgBytes.length + p2.length + p3.length);
+  final.set(p1, 0);
+  final.set(imgBytes, p1.length);
+  final.set(p2, p1.length + imgBytes.length);
+  final.set(p3, p1.length + imgBytes.length + p2.length);
+  return new Blob([final], { type: "application/pdf" });
 }
 
 type ViewMode = "grid" | "single" | "sideBySide";
@@ -79,6 +168,7 @@ const Gallery = () => {
   const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [showCompareView, setShowCompareView] = useState(false);
+  const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null); // item id or "zoom"
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -700,9 +790,29 @@ const Gallery = () => {
                     >
                       <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
                     </button>
-                    <button onClick={() => downloadImage(item.result_image_url, item.background_name || "image.png")} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                      <Download className="h-4 w-4" />
-                    </button>
+                    <div className="relative">
+                      <button onClick={() => setShowDownloadMenu(showDownloadMenu === item.id ? null : item.id)} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                        <Download className="h-4 w-4" />
+                      </button>
+                      {showDownloadMenu === item.id && (
+                        <div className="absolute bottom-full left-0 mb-1 w-40 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden">
+                          {EXPORT_FORMATS.map(fmt => (
+                            <button
+                              key={fmt.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDownloadMenu(null);
+                                downloadImage(item.result_image_url, item.background_name || "image", fmt.id);
+                              }}
+                              className="flex w-full items-center justify-between px-3 py-2 font-accent text-xs hover:bg-secondary transition-colors"
+                            >
+                              <span className="font-semibold text-foreground">{fmt.label}</span>
+                              <span className="text-muted-foreground">{fmt.desc}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -820,12 +930,32 @@ const Gallery = () => {
                 >
                   <Minimize2 className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  onClick={() => downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image.png")}
-                  className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDownloadMenu(showDownloadMenu === "zoom" ? null : "zoom")}
+                    className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  {showDownloadMenu === "zoom" && (
+                    <div className="absolute top-full left-0 mt-1 w-44 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden">
+                      {EXPORT_FORMATS.map(fmt => (
+                        <button
+                          key={fmt.id}
+                          onClick={() => {
+                            setShowDownloadMenu(null);
+                            downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image", fmt.id);
+                          }}
+                          className="flex w-full items-center justify-between px-3 py-2 font-accent text-xs hover:bg-secondary transition-colors"
+                        >
+                          <span className="font-semibold text-foreground">{fmt.label}</span>
+                          <span className="text-muted-foreground">{fmt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}
                   className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
