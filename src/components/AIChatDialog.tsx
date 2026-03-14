@@ -75,7 +75,6 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           const action = JSON.parse(match[1]);
           if (action.prompt && action.name) {
             setLastSuggestedPrompt({ prompt: action.prompt, name: action.name });
-            // Don't auto-apply - let user preview first
           }
         } catch {}
       }
@@ -92,6 +91,28 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           }
         } catch {}
       }
+
+      // Parse quick replies [QUICK_REPLIES][{"label":"כן","value":"yes"},{"label":"לא","value":"no"}][/QUICK_REPLIES]
+      const qrRegex = /\[QUICK_REPLIES\](.*?)\[\/QUICK_REPLIES\]/g;
+      const qrMatch = qrRegex.exec(content);
+      let quickReplies: QuickReply[] | undefined;
+      if (qrMatch) {
+        try {
+          quickReplies = JSON.parse(qrMatch[1]);
+        } catch {}
+      }
+
+      // Parse yes/no questions [YES_NO]question text[/YES_NO]
+      const ynRegex = /\[YES_NO\](.*?)\[\/YES_NO\]/g;
+      const ynMatch = ynRegex.exec(content);
+      if (ynMatch && !quickReplies) {
+        quickReplies = [
+          { label: "✅ כן", value: `כן, ${ynMatch[1]}` },
+          { label: "❌ לא", value: `לא, ${ynMatch[1]}` },
+        ];
+      }
+
+      return quickReplies;
     },
     []
   );
