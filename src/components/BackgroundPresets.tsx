@@ -474,6 +474,9 @@ const BackgroundPresets = ({
   onCustomPromptChange,
   referenceImages,
   onReferenceImagesChange,
+  multiSelectMode = false,
+  selectedPresets = [],
+  onTogglePreset,
 }: BackgroundPresetsProps) => {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
