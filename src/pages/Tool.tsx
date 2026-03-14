@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -51,6 +51,7 @@ const Index = () => {
   const [batchResults, setBatchResults] = useState<Array<{ name: string; image: string; prompt: string }>>([]);
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  const [preciseMode, setPreciseMode] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -84,7 +85,8 @@ const Index = () => {
     setResultImage(null);
     setSuggestedName(null);
     try {
-      const { data, error } = await supabase.functions.invoke("replace-background", {
+      const functionName = preciseMode ? "replace-bg-pipeline" : "replace-background";
+      const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           imageBase64: originalImage,
           backgroundPrompt: prompt,
@@ -410,10 +412,14 @@ const Index = () => {
                   <button
                     onClick={handleProcess}
                     disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
-                    className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 font-display text-sm font-semibold text-accent-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className={`flex items-center gap-2 rounded-lg px-6 py-3 font-display text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      preciseMode
+                        ? "bg-gradient-to-l from-amber-500 to-accent text-white"
+                        : "bg-accent text-accent-foreground"
+                    }`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    {isProcessing ? "מעבד..." : "החלף רקע"}
+                    {isProcessing ? "מעבד..." : preciseMode ? "החלף רקע (מדויק)" : "החלף רקע"}
                   </button>
                 ) : (
                   <button
@@ -442,6 +448,19 @@ const Index = () => {
                 >
                   <Layers className="h-4 w-4" />
                   {multiSelectMode ? "בחירה מרובה ✓" : "בחירה מרובה"}
+                </button>
+
+                <button
+                  onClick={() => setPreciseMode(!preciseMode)}
+                  className={`flex items-center gap-2 rounded-lg px-5 py-3 font-display text-sm font-semibold transition-all ${
+                    preciseMode
+                      ? "bg-amber-500 text-white ring-2 ring-amber-300"
+                      : "border border-border bg-card text-foreground hover:bg-secondary"
+                  }`}
+                  title="מצב מדויק: Pipeline דו-שלבי שמבטיח שהמוצרים לא ישתנו"
+                >
+                  <FlaskConical className="h-4 w-4" />
+                  {preciseMode ? "מצב מדויק ✓" : "מצב מדויק"}
                 </button>
 
                 <button

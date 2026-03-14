@@ -33,19 +33,34 @@ serve(async (req) => {
     const isColorOnly = backgroundPrompt && backgroundPrompt.includes("Change ONLY the background color");
     
     if (referenceImages && referenceImages.length > 0) {
-      prompt = `CRITICAL INSTRUCTIONS — follow ALL of them precisely:
+      prompt = `YOU ARE A BACKGROUND-ONLY EDITOR. FOLLOW THESE RULES WITH ZERO EXCEPTIONS:
 
-1. The FIRST image is the product photo. You MUST keep EVERY product, object, item, embroidery, text, pattern, design, shape, and detail in the FIRST image COMPLETELY UNCHANGED. Do NOT alter, move, resize, distort, remove, or regenerate any product or element.
+## ABSOLUTE RULE — DO NOT CHANGE THE PRODUCTS
+- The FIRST image contains products/objects. These are SACRED and UNTOUCHABLE.
+- Do NOT regenerate, redraw, alter, modify, move, resize, distort, blur, sharpen, recolor, or change ANY product, object, embroidery, text, pattern, fabric texture, stitching, or design element.
+- Every single pixel of every product must remain IDENTICAL to the original.
+- The Hebrew text, the wreath/branch embroidery patterns, the fabric weave — ALL must be preserved exactly.
 
-2. The SECOND image (and any additional images) are REFERENCE images showing the desired background style.
+## YOUR ONLY TASK
+- Look at the SECOND image — it shows a background texture/surface.
+- Remove ONLY the background area (the surface behind and under the products) from the FIRST image.
+- Replace that background area with the texture, color, veining pattern, and look that matches the SECOND image as closely as possible.
+- The new background should tile/extend naturally to fill the entire background area.
 
-3. Your ONLY task: Remove the existing background from the FIRST image and replace it with a NEW background that matches the texture, color, pattern, veining, and overall look of the REFERENCE image(s) as closely as possible.
+## COMPOSITION RULES
+- Products stay in the EXACT same position, angle, size, perspective, and proportions.
+- Maintain natural shadows under the products (adjust shadow color to match new surface).
+- Lighting direction stays the same, just adapt the surface reflection to match the new background material.
 
-4. The products must remain in the EXACT same position, angle, size, and lighting as in the original.
+## WHAT COUNTS AS "BACKGROUND"
+- The flat surface the products sit on
+- The blurred area behind the products
+- Any visible wall or backdrop
+- NOT the products themselves, NOT their fabric, NOT their embroidery
 
-5. Additional context: ${backgroundPrompt || "Match the reference background exactly"}.
+${backgroundPrompt ? `Additional context: ${backgroundPrompt}` : "Match the reference background as precisely as possible."}
 
-REMEMBER: Products = untouched. Background only = changed to match reference.`;
+OUTPUT: The exact same composition with ONLY the background surface/backdrop changed.`;
     } else if (isColorOnly) {
       prompt = `CRITICAL INSTRUCTIONS:
 
@@ -57,15 +72,29 @@ REMEMBER: Products = untouched. Background only = changed to match reference.`;
 
 ONLY the background area changes. Everything else stays pixel-perfect identical.`;
     } else {
-      prompt = `CRITICAL INSTRUCTIONS:
+      prompt = `YOU ARE A BACKGROUND-ONLY EDITOR. FOLLOW THESE RULES WITH ZERO EXCEPTIONS:
 
-1. Keep EVERY product, object, item, embroidery, text, pattern, design, and detail in this image COMPLETELY UNCHANGED. Do NOT alter, move, resize, or regenerate any product.
+## ABSOLUTE RULE — DO NOT CHANGE THE PRODUCTS
+- This image contains products/objects. These are SACRED and UNTOUCHABLE.
+- Do NOT regenerate, redraw, alter, modify, move, resize, distort, blur, sharpen, recolor, or change ANY product, object, embroidery, text, pattern, fabric texture, stitching, or design element.
+- Every single pixel of every product must remain IDENTICAL to the original.
 
-2. Replace ONLY the background with: ${backgroundPrompt}
+## YOUR ONLY TASK
+- Replace ONLY the background with: ${backgroundPrompt}
+- The new background should look natural and professional.
 
-3. The products must remain in the EXACT same position, angle, size, and lighting as the original.
+## COMPOSITION RULES
+- Products stay in the EXACT same position, angle, size, perspective, and proportions.
+- Maintain natural shadows (adjust to match new surface).
+- Lighting direction stays the same.
 
-ONLY the background behind and around the products should change.`;
+## WHAT COUNTS AS "BACKGROUND"
+- The flat surface the products sit on
+- The blurred area behind the products
+- Any visible wall or backdrop
+- NOT the products themselves
+
+OUTPUT: The exact same products with ONLY the background changed.`;
     }
 
     // Build content array with main image + reference images
