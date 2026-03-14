@@ -73,6 +73,20 @@ serve(async (req) => {
         prompt = `Add the following decorative elements/props around and near the product in this image: ${actionParams?.elements || "elegant decorative items"}. Keep the main product EXACTLY the same — same position, same size, same lighting, same details. The added elements should look natural, realistically placed, and elegantly styled as if in a professional product photography setup. The elements should complement the product, not cover or overlap it. Professional studio lighting.`;
         break;
 
+      case "color-grade": {
+        const styleMap: Record<string, string> = {
+          "warm-gold": "Apply a warm golden color grading to this product photo. Make the tones warmer, add golden highlights, and create a luxurious warm atmosphere. Keep the product details sharp and identical.",
+          "cool-silver": "Apply a cool silver/blue color grading to this product photo. Make the tones cooler, add silvery highlights, and create an elegant cool atmosphere. Keep the product details sharp.",
+          "bright-airy": "Apply a bright and airy color grading to this product photo. Increase brightness, soften shadows, make whites cleaner, and create a fresh light atmosphere. Keep the product details sharp.",
+          "moody-dark": "Apply a moody dark color grading to this product photo. Deepen shadows, add contrast, create dramatic lighting with rich deep tones. Keep the product details sharp.",
+          "vintage": "Apply a vintage film color grading to this product photo. Add slight warm tint, reduce saturation slightly, add subtle grain, create a nostalgic classic feel. Keep the product details sharp.",
+          "high-contrast": "Apply high contrast color grading to this product photo. Make darks darker and lights lighter, increase vibrancy and punch. Keep the product details sharp.",
+        };
+        const style = actionParams?.style || "warm-gold";
+        prompt = styleMap[style] || styleMap["warm-gold"];
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400,
