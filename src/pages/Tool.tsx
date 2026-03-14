@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
@@ -14,8 +15,12 @@ import ExportPanel from "@/components/ExportPanel";
 import MockupPreview from "@/components/MockupPreview";
 import BatchProcessor from "@/components/BatchProcessor";
 import AIChatDialog from "@/components/AIChatDialog";
+import HistoryPanel from "@/components/HistoryPanel";
+import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -31,6 +36,15 @@ const Index = () => {
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
   const [showMockup, setShowMockup] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleImageSelect = useCallback((base64: string) => {
     setOriginalImage(base64);
@@ -68,6 +82,36 @@ const Index = () => {
       setResultImage(data.resultImage);
       toast.success("הרקע הוחלף בהצלחה!");
 
+      // Save to history if user is logged in
+      if (user) {
+        try {
+          // Upload both images to storage
+          const uid = user.id;
+          const ts = Date.now();
+          const origBlob = await fetch(originalImage).then(r => r.blob());
+          const resultBlob = await fetch(data.resultImage).then(r => r.blob());
+
+          const [origUpload, resultUpload] = await Promise.all([
+            supabase.storage.from("processed-images").upload(`${uid}/${ts}_original.png`, origBlob, { contentType: "image/png" }),
+            supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" }),
+          ]);
+
+          if (origUpload.data && resultUpload.data) {
+            const origUrl = supabase.storage.from("processed-images").getPublicUrl(origUpload.data.path).data.publicUrl;
+            const resultUrl = supabase.storage.from("processed-images").getPublicUrl(resultUpload.data.path).data.publicUrl;
+
+            await supabase.from("processing_history").insert({
+              user_id: uid,
+              original_image_url: origUrl,
+              result_image_url: resultUrl,
+              background_prompt: prompt,
+              background_name: selectedPresetName || customPrompt.trim().slice(0, 50) || null,
+            });
+          }
+        } catch (saveErr) {
+          console.error("Failed to save to history:", saveErr);
+        }
+      }
       // Get professional name suggestion
       if (customPrompt.trim() && !selectedPresetName) {
         supabase.functions.invoke("suggest-name", {
@@ -163,14 +207,41 @@ const Index = () => {
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+            <Link to="/" className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
+            </Link>
             <h1 className="font-display text-xl font-bold text-foreground">AI Background Replacer</h1>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1.5">
-            <Shield className="h-4 w-4 text-accent" />
-            <span className="font-display text-xs font-semibold text-accent">Lossless Export</span>
+          <div className="flex items-center gap-3">
+            {user && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                היסטוריה
+              </button>
+            )}
+            {user ? (
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  toast.success("התנתקת בהצלחה");
+                }}
+                className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                התנתק
+              </button>
+            ) : (
+              <Link
+                to="/auth"
+                className="flex items-center gap-2 rounded-full bg-gold px-4 py-2 font-accent text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                התחבר לשמירה
+              </Link>
+            )}
           </div>
         </div>
       </header>
@@ -342,6 +413,17 @@ const Index = () => {
           toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
         }}
       />
+
+      {/* History Panel */}
+      {showHistory && (
+        <HistoryPanel
+          onClose={() => setShowHistory(false)}
+          onSelectImage={(url) => {
+            setResultImage(url);
+            setShowHistory(false);
+          }}
+        />
+      )}
     </div>
   );
 };

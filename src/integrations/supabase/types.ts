@@ -14,7 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      favorite_backgrounds: {
+        Row: {
+          background_name: string
+          created_at: string
+          custom_prompt: string | null
+          id: string
+          preset_id: string | null
+          preview_image_url: string | null
+          user_id: string
+        }
+        Insert: {
+          background_name: string
+          created_at?: string
+          custom_prompt?: string | null
+          id?: string
+          preset_id?: string | null
+          preview_image_url?: string | null
+          user_id: string
+        }
+        Update: {
+          background_name?: string
+          created_at?: string
+          custom_prompt?: string | null
+          id?: string
+          preset_id?: string | null
+          preview_image_url?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      processing_history: {
+        Row: {
+          background_name: string | null
+          background_prompt: string
+          created_at: string
+          id: string
+          is_favorite: boolean
+          original_image_url: string
+          result_image_url: string
+          user_id: string
+        }
+        Insert: {
+          background_name?: string | null
+          background_prompt: string
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          original_image_url: string
+          result_image_url: string
+          user_id: string
+        }
+        Update: {
+          background_name?: string | null
+          background_prompt?: string
+          created_at?: string
+          id?: string
+          is_favorite?: boolean
+          original_image_url?: string
+          result_image_url?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
