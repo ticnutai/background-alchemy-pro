@@ -46,6 +46,11 @@ const Index = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>([]);
+  const [batchResults, setBatchResults] = useState<Array<{ name: string; image: string; prompt: string }>>([]);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
@@ -137,6 +142,58 @@ const Index = () => {
       setIsProcessing(false);
     }
   }, [originalImage, customPrompt, activePrompt]);
+
+  const handleMultiProcess = useCallback(async () => {
+    if (!originalImage || selectedPresetIds.length === 0) {
+      toast.error("יש לבחור לפחות רקע אחד");
+      return;
+    }
+    const selectedBgs = selectedPresetIds.map(id => presets.find(p => p.id === id)!).filter(Boolean);
+    setBatchProcessing(true);
+    setBatchResults([]);
+    setBatchProgress({ current: 0, total: selectedBgs.length });
+
+    const results: Array<{ name: string; image: string; prompt: string }> = [];
+
+    for (let i = 0; i < selectedBgs.length; i++) {
+      const preset = selectedBgs[i];
+      setBatchProgress({ current: i + 1, total: selectedBgs.length });
+      try {
+        const { data, error } = await supabase.functions.invoke("replace-background", {
+          body: { imageBase64: originalImage, backgroundPrompt: preset.prompt },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        results.push({ name: preset.professionalName, image: data.resultImage, prompt: preset.prompt });
+        setBatchResults([...results]);
+
+        // Save to history
+        if (user) {
+          try {
+            const uid = user.id;
+            const ts = Date.now() + i;
+            const resultBlob = await fetch(data.resultImage).then(r => r.blob());
+            const upload = await supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" });
+            if (upload.data) {
+              const resultUrl = supabase.storage.from("processed-images").getPublicUrl(upload.data.path).data.publicUrl;
+              await supabase.from("processing_history").insert({
+                user_id: uid,
+                original_image_url: originalImage.substring(0, 200),
+                result_image_url: resultUrl,
+                background_prompt: preset.prompt,
+                background_name: preset.professionalName,
+              });
+            }
+          } catch {}
+        }
+      } catch (err: any) {
+        toast.error(`שגיאה ב-${preset.label}: ${err.message}`);
+      }
+    }
+
+    setBatchProcessing(false);
+    toast.success(`הושלמו ${results.length}/${selectedBgs.length} רקעים!`);
+  }, [originalImage, selectedPresetIds, user]);
 
   const handleEnhance = useCallback(async () => {
     const img = resultImage || originalImage;
@@ -287,6 +344,42 @@ const Index = () => {
                 currentResultUrl={resultImage}
               />
             )}
+
+            {/* Batch results grid */}
+            {batchResults.length > 0 && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-display text-sm font-bold text-foreground">
+                    תוצאות — {batchResults.length} רקעים
+                  </h3>
+                  <button
+                    onClick={() => setBatchResults([])}
+                    className="font-accent text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    נקה
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {batchResults.map((r, i) => (
+                    <div
+                      key={i}
+                      className="group relative rounded-xl border border-border overflow-hidden bg-card cursor-pointer hover:border-gold/50 hover:shadow-md transition-all"
+                      onClick={() => setResultImage(r.image)}
+                    >
+                      <div className="aspect-square overflow-hidden">
+                        <img src={r.image} alt={r.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
+                      </div>
+                      <div className="p-2 text-center">
+                        <p className="font-display text-xs font-semibold text-foreground truncate">{r.name}</p>
+                      </div>
+                      <div className="absolute top-1.5 right-1.5 rounded-full bg-gold/90 px-2 py-0.5 font-accent text-[10px] font-bold text-gold-foreground">
+                        {i + 1}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             {suggestedName && resultImage && (
               <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
                 <Tag className="h-4 w-4 text-primary" />
@@ -299,13 +392,42 @@ const Index = () => {
 
             {originalImage && (
               <div className="flex flex-wrap items-center gap-3">
+                {!multiSelectMode ? (
+                  <button
+                    onClick={handleProcess}
+                    disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
+                    className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 font-display text-sm font-semibold text-accent-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {isProcessing ? "מעבד..." : "החלף רקע"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleMultiProcess}
+                    disabled={batchProcessing || selectedPresetIds.length === 0}
+                    className="flex items-center gap-2 rounded-lg bg-gradient-to-l from-accent to-primary px-6 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <Layers className="h-4 w-4" />
+                    {batchProcessing
+                      ? `מעבד ${batchProgress.current}/${batchProgress.total}...`
+                      : `החלף ${selectedPresetIds.length} רקעים`}
+                  </button>
+                )}
+
                 <button
-                  onClick={handleProcess}
-                  disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
-                  className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 font-display text-sm font-semibold text-accent-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    setMultiSelectMode(!multiSelectMode);
+                    setSelectedPresetIds([]);
+                    setBatchResults([]);
+                  }}
+                  className={`flex items-center gap-2 rounded-lg px-5 py-3 font-display text-sm font-semibold transition-all ${
+                    multiSelectMode
+                      ? "bg-primary text-primary-foreground"
+                      : "border border-border bg-card text-foreground hover:bg-secondary"
+                  }`}
                 >
-                  <Sparkles className="h-4 w-4" />
-                  {isProcessing ? "מעבד..." : "החלף רקע"}
+                  <Layers className="h-4 w-4" />
+                  {multiSelectMode ? "בחירה מרובה ✓" : "בחירה מרובה"}
                 </button>
 
                 <button
@@ -412,6 +534,15 @@ const Index = () => {
                       }}
                       referenceImages={referenceImages}
                       onReferenceImagesChange={setReferenceImages}
+                      multiSelectMode={multiSelectMode}
+                      selectedPresets={selectedPresetIds}
+                      onTogglePreset={(preset) => {
+                        setSelectedPresetIds(prev =>
+                          prev.includes(preset.id)
+                            ? prev.filter(id => id !== preset.id)
+                            : [...prev, preset.id]
+                        );
+                      }}
                     />
                   )}
                   {activeTab === "tools" && (
