@@ -25,13 +25,28 @@ const frameStyles = [
 ];
 
 const elementPresets = [
+  // שבת
   { id: "shabbat-table", label: "שולחן שבת ערוך", icon: "🕯️", desc: "נרות, חלות, יין, מפה לבנה" },
   { id: "kiddush-cups", label: "גביעי קידוש", icon: "🥂", desc: "גביעי כסף/זהב לקידוש" },
+  { id: "challah-board", label: "קרש חלות", icon: "🍞", desc: "חלה קלועה על קרש עץ" },
+  { id: "candles", label: "פמוטים ונרות שבת", icon: "🕯️", desc: "פמוטים דקורטיביים עם נרות דולקים" },
+  { id: "wine-bottle", label: "בקבוק יין וכוס", icon: "🍷", desc: "בקבוק יין עם כוס קידוש" },
+  { id: "shabbat-cloth", label: "מפת שבת", icon: "🧵", desc: "מפה לבנה/רקומה לשולחן" },
+
+  // פסח
+  { id: "seder-plate", label: "קערת סדר", icon: "🍽️", desc: "קערת סדר עם כל הסימנים" },
+  { id: "matzah-stack", label: "מצות", icon: "🫓", desc: "ערימת מצות מסודרת" },
+  { id: "charoset-bowl", label: "קערת חרוסת", icon: "🥣", desc: "קערית חרוסת מעוצבת" },
+  { id: "maror-herbs", label: "מרור ועשבי תיבול", icon: "🌿", desc: "עלי חסה/עשבי תיבול טריים" },
+  { id: "salt-water", label: "קערית מי מלח", icon: "💧", desc: "קערית זכוכית קטנה" },
+  { id: "afikoman-bag", label: "שקית אפיקומן", icon: "🎁", desc: "שקית בד לאפיקומן" },
+  { id: "haggadah-books", label: "ספרי הגדה", icon: "📚", desc: "הגדות פתוחות לצד המוצר" },
+  { id: "passover-wine-set", label: "סט יין לפסח", icon: "🍷", desc: "בקבוק יין, גביעים וקנקן" },
+
+  // כללי
   { id: "flowers", label: "סידור פרחים", icon: "💐", desc: "זר פרחים אלגנטי" },
-  { id: "candles", label: "נרות", icon: "🕯️", desc: "נרות דקורטיביים" },
   { id: "gold-plate", label: "צלחת זהב", icon: "🍽️", desc: "צלחת הגשה מוזהבת" },
   { id: "greenery", label: "ירוק וצמחים", icon: "🌿", desc: "ענפי ירק, אקליפטוס" },
-  { id: "seder-plate", label: "קערת סדר", icon: "🍷", desc: "קערת סדר עם כל הסימנים" },
   { id: "honey-apple", label: "דבש ותפוח", icon: "🍎", desc: "צנצנת דבש ותפוחים" },
   { id: "pomegranate", label: "רימונים", icon: "🍑", desc: "רימונים דקורטיביים" },
   { id: "linen-napkin", label: "מפית פשתן", icon: "🧵", desc: "מפית מקופלת בסטייל" },
