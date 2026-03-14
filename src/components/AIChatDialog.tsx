@@ -842,6 +842,13 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
           >
             <ImagePlus className="h-4 w-4" />
           </button>
+          <button
+            onClick={() => { setShowGalleryPicker(true); loadGalleryImages(); }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:text-accent-foreground hover:border-accent/50"
+            title="בחר מהגלריה"
+          >
+            <FolderOpen className="h-4 w-4" />
+          </button>
           <textarea
             ref={inputRef}
             value={input}
