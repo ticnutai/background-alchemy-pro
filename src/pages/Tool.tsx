@@ -413,6 +413,17 @@ const Index = () => {
           toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
         }}
       />
+
+      {/* History Panel */}
+      {showHistory && (
+        <HistoryPanel
+          onClose={() => setShowHistory(false)}
+          onSelectImage={(url) => {
+            setResultImage(url);
+            setShowHistory(false);
+          }}
+        />
+      )}
     </div>
   );
 };
