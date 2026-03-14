@@ -61,7 +61,7 @@ const ImageCanvas = ({ originalImage, resultImage, isProcessing, adjustments }: 
             />
           </div>
 
-          <div className="absolute top-0 bottom-0 z-10 w-0.5 bg-card shadow-lg" style={{ left: `${sliderPos}%` }}>
+          <div className="absolute top-0 bottom-0 z-10" style={{ left: `${sliderPos}%` }}>
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-primary shadow-lg">
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                 <path d="M7 4L3 10L7 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-primary-foreground" />
