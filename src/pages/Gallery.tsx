@@ -746,6 +746,13 @@ const Gallery = () => {
                         >
                           <Copy className="h-3.5 w-3.5" />
                         </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); duplicateItem(item, true); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          title="שכפל וערוך"
+                        >
+                          <span className="flex items-center gap-0.5"><Copy className="h-3 w-3" /><Pencil className="h-3 w-3" /></span>
+                        </button>
                         <div className="w-px h-4 bg-border" />
                         <button
                           onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
