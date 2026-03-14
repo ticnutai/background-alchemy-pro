@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import marbleRef from "@/assets/marble-reference.jpeg";
-import { Upload, ImagePlus, X } from "lucide-react";
+import { Upload, ImagePlus, X, Palette } from "lucide-react";
 
 interface Preset {
   id: string;
@@ -443,7 +443,36 @@ const presets: Preset[] = [
   },
 ];
 
-const categories = ["שיש", "עץ", "חלק", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט"];
+const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט"];
+
+const colorOnlySwatches = [
+  { hex: "#FFFFFF", label: "לבן", name: "Pure White" },
+  { hex: "#F5F5F5", label: "לבן שבור", name: "Off White" },
+  { hex: "#F5F0E8", label: "קרם", name: "Cream" },
+  { hex: "#E8DDD0", label: "בז׳", name: "Beige" },
+  { hex: "#D4BC8A", label: "חול", name: "Sand" },
+  { hex: "#F5D5D0", label: "ורוד בהיר", name: "Light Pink" },
+  { hex: "#FFB6C1", label: "ורוד", name: "Pink" },
+  { hex: "#E8B0B8", label: "רוזה", name: "Rose" },
+  { hex: "#FF6B6B", label: "אדום", name: "Red" },
+  { hex: "#FF8C42", label: "כתום", name: "Orange" },
+  { hex: "#FFD93D", label: "צהוב", name: "Yellow" },
+  { hex: "#B2C5A8", label: "ירוק מרווה", name: "Sage Green" },
+  { hex: "#4A7C59", label: "ירוק", name: "Green" },
+  { hex: "#2D4A3E", label: "ירוק כהה", name: "Dark Green" },
+  { hex: "#A8D4F0", label: "תכלת", name: "Light Blue" },
+  { hex: "#4A6A8A", label: "כחול", name: "Blue" },
+  { hex: "#1A2744", label: "כחול כהה", name: "Navy" },
+  { hex: "#C8B4E8", label: "לילך", name: "Lilac" },
+  { hex: "#7B5EA7", label: "סגול", name: "Purple" },
+  { hex: "#E5E5E5", label: "אפור בהיר", name: "Light Gray" },
+  { hex: "#999999", label: "אפור", name: "Gray" },
+  { hex: "#555555", label: "אפור כהה", name: "Dark Gray" },
+  { hex: "#111111", label: "שחור", name: "Black" },
+  { hex: "#C8A868", label: "זהב", name: "Gold" },
+  { hex: "#C0C0C0", label: "כסף", name: "Silver" },
+  { hex: "#B87333", label: "נחושת", name: "Copper" },
+];
 
 interface BackgroundPresetsProps {
   selectedId: string | null;
@@ -461,6 +490,7 @@ const categoryIcons: Record<string, string> = {
   "שיש": "◆",
   "עץ": "🪵",
   "חלק": "○",
+  "צבע בלבד": "🎨",
   "טקסטורה": "▤",
   "בד וריקמה": "🧵",
   "טבע": "🌿",
@@ -479,6 +509,34 @@ const BackgroundPresets = ({
   onTogglePreset,
 }: BackgroundPresetsProps) => {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [customColor, setCustomColor] = useState("#FFFFFF");
+  const [selectedColorId, setSelectedColorId] = useState<string | null>(null);
+
+  const handleColorSelect = useCallback((hex: string, label: string, name: string) => {
+    setSelectedColorId(hex);
+    const colorPreset: Preset = {
+      id: `color-${hex}`,
+      label: `צבע ${label}`,
+      professionalName: `${name} Background`,
+      prompt: `Change ONLY the background color to a solid flat ${name} color (${hex}). Keep the product, object, design, pattern, embroidery, and all other elements EXACTLY the same — same position, same lighting, same details. Only replace the background area with a smooth, even, solid ${hex} color. Do not alter the product in any way.`,
+      preview: hex,
+      category: "צבע בלבד",
+    };
+    onSelect(colorPreset);
+  }, [onSelect]);
+
+  const handleCustomColorSelect = useCallback(() => {
+    const preset: Preset = {
+      id: `color-custom-${customColor}`,
+      label: `צבע מותאם`,
+      professionalName: `Custom ${customColor} Background`,
+      prompt: `Change ONLY the background color to a solid flat color ${customColor}. Keep the product, object, design, pattern, embroidery, and all other elements EXACTLY the same — same position, same lighting, same details. Only replace the background area with a smooth, even, solid ${customColor} color. Do not alter the product in any way.`,
+      preview: customColor,
+      category: "צבע בלבד",
+    };
+    onSelect(preset);
+    setSelectedColorId(customColor);
+  }, [customColor, onSelect]);
 
   const handleRefImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -518,7 +576,7 @@ const BackgroundPresets = ({
       {!activeCategory ? (
         <div className="grid grid-cols-2 gap-2">
           {categories.map((cat) => {
-            const catPresets = presets.filter((p) => p.category === cat);
+            const count = cat === "צבע בלבד" ? colorOnlySwatches.length : presets.filter((p) => p.category === cat).length;
             return (
               <button
                 key={cat}
@@ -527,7 +585,7 @@ const BackgroundPresets = ({
               >
                 <span className="text-2xl">{categoryIcons[cat] || "◎"}</span>
                 <span className="font-display text-xs font-bold text-foreground">{cat}</span>
-                <span className="font-body text-[10px] text-muted-foreground">{catPresets.length} רקעים</span>
+                <span className="font-body text-[10px] text-muted-foreground">{count} רקעים</span>
               </button>
             );
           })}
@@ -548,40 +606,90 @@ const BackgroundPresets = ({
             {activeCategory}
           </h4>
 
-          <div className="grid grid-cols-2 gap-2">
-            {activeCatPresets.map((preset) => {
-              const isSelected = multiSelectMode
-                ? selectedPresets.includes(preset.id)
-                : selectedId === preset.id;
-              return (
+          {activeCategory === "צבע בלבד" ? (
+            <div className="space-y-4">
+              <p className="font-body text-xs text-muted-foreground">
+                שנה רק את צבע הרקע — העיצוב, המוצר והפרטים נשארים זהים
+              </p>
+              <div className="grid grid-cols-5 gap-2">
+                {colorOnlySwatches.map((swatch) => (
+                  <button
+                    key={swatch.hex}
+                    onClick={() => handleColorSelect(swatch.hex, swatch.label, swatch.name)}
+                    className={`group flex flex-col items-center gap-1 rounded-lg border-2 p-1.5 transition-all ${
+                      selectedColorId === swatch.hex
+                        ? "border-primary shadow-md"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div
+                      className="h-8 w-full rounded-md border border-border/50"
+                      style={{ backgroundColor: swatch.hex }}
+                    />
+                    <span className="font-body text-[9px] text-foreground leading-tight text-center">
+                      {swatch.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom color picker */}
+              <div className="flex items-center gap-3 pt-2 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-body text-xs text-muted-foreground">צבע מותאם:</span>
+                </div>
+                <input
+                  type="color"
+                  value={customColor}
+                  onChange={(e) => setCustomColor(e.target.value)}
+                  className="h-8 w-10 rounded border border-border cursor-pointer"
+                />
+                <span className="font-body text-[10px] text-muted-foreground">{customColor}</span>
                 <button
-                  key={preset.id}
-                  onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
-                  className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/5 shadow-md"
-                      : "border-border hover:border-primary/50 hover:shadow-sm"
-                  }`}
+                  onClick={handleCustomColorSelect}
+                  className="rounded-lg bg-primary px-3 py-1.5 font-display text-[10px] font-bold text-primary-foreground hover:brightness-110 transition-all"
                 >
-                  {multiSelectMode && isSelected && (
-                    <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
-                      {selectedPresets.indexOf(preset.id) + 1}
-                    </div>
-                  )}
-                  <div
-                    className="h-10 w-full rounded-md border border-border/50"
-                    style={{ background: preset.preview }}
-                  />
-                  <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
-                    {preset.label}
-                  </span>
-                  <span className="font-body text-[9px] text-muted-foreground italic">
-                    {preset.professionalName}
-                  </span>
+                  בחר
                 </button>
-              );
-            })}
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {activeCatPresets.map((preset) => {
+                const isSelected = multiSelectMode
+                  ? selectedPresets.includes(preset.id)
+                  : selectedId === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
+                    className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/5 shadow-md"
+                        : "border-border hover:border-primary/50 hover:shadow-sm"
+                    }`}
+                  >
+                    {multiSelectMode && isSelected && (
+                      <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
+                        {selectedPresets.indexOf(preset.id) + 1}
+                      </div>
+                    )}
+                    <div
+                      className="h-10 w-full rounded-md border border-border/50"
+                      style={{ background: preset.preview }}
+                    />
+                    <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
+                      {preset.label}
+                    </span>
+                    <span className="font-body text-[9px] text-muted-foreground italic">
+                      {preset.professionalName}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
 
