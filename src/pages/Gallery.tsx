@@ -617,6 +617,62 @@ const Gallery = () => {
         </div>
       </main>
 
+      {/* Full Compare View Modal */}
+      {showCompareView && compareItems.length >= 2 && (
+        <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex flex-col" onClick={() => setShowCompareView(false)}>
+          <div className="flex items-center justify-between bg-card px-6 py-4 border-b border-border" dir="rtl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <SlidersHorizontal className="h-5 w-5 text-gold" />
+              <h2 className="font-display text-lg font-bold text-foreground">השוואת תמונות</h2>
+              <span className="font-accent text-xs text-muted-foreground">{compareItems.length} תמונות</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => { setShowCompareView(false); setCompareMode(false); setCompareItems([]); }}
+                className="rounded-lg border border-border px-4 py-2 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                סיום השוואה
+              </button>
+              <button onClick={() => setShowCompareView(false)} className="rounded-lg p-2 hover:bg-secondary transition-colors">
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+          <div
+            className={`flex-1 p-6 overflow-auto grid gap-4 ${
+              compareItems.length === 2 ? "grid-cols-2" : compareItems.length === 3 ? "grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
+            }`}
+            onClick={e => e.stopPropagation()}
+          >
+            {compareItems.map((item, idx) => (
+              <div key={item.id} className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
+                <div className="flex-1 flex items-center justify-center bg-foreground/5 p-2">
+                  <img src={item.result_image_url} alt="" className="max-h-[65vh] w-full object-contain" />
+                </div>
+                <div className="flex items-center justify-between p-3 border-t border-border">
+                  <div>
+                    <p className="font-display text-sm font-bold text-foreground">{item.background_name || "רקע מותאם"}</p>
+                    <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-accent text-xs text-gold font-bold">{idx + 1}</span>
+                    <button
+                      onClick={() => toggleFavorite(item)}
+                      className={`rounded-full p-1.5 transition-colors ${item.is_favorite ? "text-gold" : "text-muted-foreground hover:text-gold"}`}
+                    >
+                      <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
+                    </button>
+                    <a href={item.result_image_url} download className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <Download className="h-4 w-4" />
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Zoom Modal with editing tools */}
       {zoomedItem && (
         <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}>
