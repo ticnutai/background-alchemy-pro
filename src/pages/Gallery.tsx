@@ -293,7 +293,11 @@ const Gallery = () => {
                   <div key={folder.id} className="group flex items-center gap-1">
                     <button
                       onClick={() => setActiveFolder(folder.id)}
+                      onDragOver={e => { e.preventDefault(); setDragOverFolderId(folder.id); }}
+                      onDragLeave={() => setDragOverFolderId(null)}
+                      onDrop={e => { e.preventDefault(); setDragOverFolderId(null); if (draggedItemId) { moveToFolder(draggedItemId, folder.id); setDraggedItemId(null); } }}
                       className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2 font-accent text-xs transition-colors ${
+                        dragOverFolderId === folder.id ? "bg-gold/20 border-2 border-dashed border-gold" :
                         activeFolder === folder.id ? "bg-gold/10 text-gold font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                       }`}
                     >
