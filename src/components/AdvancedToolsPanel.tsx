@@ -128,6 +128,10 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
     { id: "inpaint" as ToolMode, label: "מחיקה חכמה", icon: Wand2, desc: "LaMa Inpainting" },
     { id: "sdxl-bg" as ToolMode, label: "רקע SDXL", icon: ImagePlus, desc: "Stable Diffusion XL" },
     { id: "segment" as ToolMode, label: "סגמנטציה", icon: Scan, desc: "SAM 2 + DINO" },
+    { id: "color-grade" as ToolMode, label: "דירוג צבע", icon: Palette, desc: "סגנונות צבע מקצועיים" },
+    { id: "blur-bg" as ToolMode, label: "טשטוש רקע", icon: Aperture, desc: "אפקט בוקה / עומק" },
+    { id: "style-transfer" as ToolMode, label: "העברת סגנון", icon: Brush, desc: "סגנון ציורי / וינטג׳" },
+    { id: "smart-crop" as ToolMode, label: "חיתוך חכם", icon: Crop, desc: "מרכוז ומסגור אוטומטי" },
   ];
 
   const toggleElement = (id: string) => {
