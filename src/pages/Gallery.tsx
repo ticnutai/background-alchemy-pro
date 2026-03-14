@@ -790,9 +790,29 @@ const Gallery = () => {
                     >
                       <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
                     </button>
-                    <button onClick={() => downloadImage(item.result_image_url, item.background_name || "image.png")} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
-                      <Download className="h-4 w-4" />
-                    </button>
+                    <div className="relative">
+                      <button onClick={() => setShowDownloadMenu(showDownloadMenu === item.id ? null : item.id)} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                        <Download className="h-4 w-4" />
+                      </button>
+                      {showDownloadMenu === item.id && (
+                        <div className="absolute bottom-full left-0 mb-1 w-40 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden">
+                          {EXPORT_FORMATS.map(fmt => (
+                            <button
+                              key={fmt.id}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDownloadMenu(null);
+                                downloadImage(item.result_image_url, item.background_name || "image", fmt.id);
+                              }}
+                              className="flex w-full items-center justify-between px-3 py-2 font-accent text-xs hover:bg-secondary transition-colors"
+                            >
+                              <span className="font-semibold text-foreground">{fmt.label}</span>
+                              <span className="text-muted-foreground">{fmt.desc}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
