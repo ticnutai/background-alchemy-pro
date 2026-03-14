@@ -805,7 +805,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
       <div className="border-t border-border p-3" dir="rtl">
         {/* Quick action buttons */}
         {flowStep === "idle" && !productImage && (
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <button
               onClick={() => {
                 setFlowStep("upload-product");
@@ -824,6 +824,13 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
             >
               <ImagePlus className="h-3 w-3" />
               העלה תמונה
+            </button>
+            <button
+              onClick={() => { setShowGalleryPicker(true); loadGalleryImages(); }}
+              className="flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 font-accent text-[10px] font-semibold text-accent-foreground transition-colors hover:bg-accent/20"
+            >
+              <FolderOpen className="h-3 w-3" />
+              מהגלריה שלי
             </button>
           </div>
         )}
