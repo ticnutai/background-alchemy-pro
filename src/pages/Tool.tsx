@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings } from "lucide-react";
 import { toast } from "sonner";
@@ -461,9 +462,17 @@ const Index = () => {
             {suggestedName && resultImage && (
               <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
                 <Tag className="h-4 w-4 text-primary" />
-                <div className="flex flex-col">
+                <div className="flex flex-col flex-1">
                   <span className="font-body text-xs text-muted-foreground">שם מקצועי מוצע למוצר:</span>
-                  <span className="font-display text-sm font-bold text-primary">{suggestedName}</span>
+                  <EditableLabel
+                    hebrewName={suggestedName}
+                    englishName={selectedPresetName || suggestedName}
+                    onSave={(he, en) => {
+                      setSuggestedName(he);
+                      setSelectedPresetName(en);
+                    }}
+                    size="md"
+                  />
                 </div>
               </div>
             )}
