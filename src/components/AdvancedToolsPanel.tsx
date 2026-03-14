@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import {
   Eraser, Sun, Type, Frame, Grid2X2, LayoutGrid, X,
-  Trash2, Sparkles, PenTool
+  Trash2, Sparkles, PenTool, PackagePlus
 } from "lucide-react";
 
 interface AdvancedToolsPanelProps {
@@ -12,7 +12,7 @@ interface AdvancedToolsPanelProps {
   onResult: (img: string) => void;
 }
 
-type ToolMode = null | "remove" | "shadow" | "text" | "frame" | "multi-bg" | "collage";
+type ToolMode = null | "remove" | "shadow" | "text" | "frame" | "multi-bg" | "collage" | "add-elements";
 
 const frameStyles = [
   { id: "gold-ornate", label: "מסגרת זהב מפוארת", icon: "✦" },
