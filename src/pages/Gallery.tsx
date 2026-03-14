@@ -948,6 +948,9 @@ const Gallery = () => {
                 >
                   <Copy className="h-3.5 w-3.5" /> שכפל
                 </button>
+                {/* Original/Result toggle */}
+                <button
+                  onClick={() => setShowOriginal(!showOriginal)}
                   className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors ${
                     showOriginal ? "bg-gold text-gold-foreground" : "border border-border text-muted-foreground hover:text-foreground"
                   }`}
