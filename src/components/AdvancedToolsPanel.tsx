@@ -93,6 +93,12 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
   const [sdxlStrength, setSdxlStrength] = useState(0.85);
   const [segmentQuery, setSegmentQuery] = useState("");
 
+  // New tools state
+  const [colorGradeStyle, setColorGradeStyle] = useState("cinematic");
+  const [blurStrength, setBlurStrength] = useState("medium");
+  const [styleTransferStyle, setStyleTransferStyle] = useState("oil-painting");
+  const [smartCropRatio, setSmartCropRatio] = useState("1:1");
+
   const currentImage = resultImage || originalImage;
 
   const runTool = async (action: string, actionParams: Record<string, any>) => {
