@@ -1,453 +1,328 @@
-import { useState, useCallback } from "react";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers } from "lucide-react";
-import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import ImageUploader from "@/components/ImageUploader";
-import ImageCanvas from "@/components/ImageCanvas";
-import BackgroundPresets, { type Preset, presets } from "@/components/BackgroundPresets";
-import ImageAdjustmentsPanel, {
-  type ImageAdjustments,
-  defaultAdjustments,
-  getFilterString,
-} from "@/components/ImageAdjustmentsPanel";
-import ExportPanel from "@/components/ExportPanel";
-import MockupPreview from "@/components/MockupPreview";
-import BatchProcessor from "@/components/BatchProcessor";
-import AIChatDialog from "@/components/AIChatDialog";
+import { Link } from "react-router-dom";
+import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft } from "lucide-react";
+import studioLogo from "@/assets/studio-logo.png";
+import heroImage from "@/assets/hero-image.jpg";
+import gallery1 from "@/assets/gallery-1.jpg";
+import gallery2 from "@/assets/gallery-2.jpg";
+import gallery3 from "@/assets/gallery-3.jpg";
 
 const Index = () => {
-  const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [resultImage, setResultImage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isEnhancing, setIsEnhancing] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [customPrompt, setCustomPrompt] = useState("");
-  const [activePrompt, setActivePrompt] = useState("");
-  const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
-  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "export">("backgrounds");
-  const [referenceImages, setReferenceImages] = useState<string[]>([]);
-  const [suggestedName, setSuggestedName] = useState<string | null>(null);
-  const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
-  const [showMockup, setShowMockup] = useState(false);
-  const [showBatch, setShowBatch] = useState(false);
-
-  const handleImageSelect = useCallback((base64: string) => {
-    setOriginalImage(base64);
-    setResultImage(null);
-    setAdjustments(defaultAdjustments);
-  }, []);
-
-  const handlePresetSelect = useCallback((preset: Preset) => {
-    setSelectedPreset(preset.id);
-    setActivePrompt(preset.prompt);
-    setCustomPrompt("");
-    setReferenceImages([]);
-    setSelectedPresetName(preset.professionalName);
-    setSuggestedName(null);
-  }, []);
-
-  const handleProcess = useCallback(async () => {
-    if (!originalImage) return toast.error("יש להעלות תמונה קודם");
-    const prompt = customPrompt.trim() || activePrompt;
-    if (!prompt) return toast.error("יש לבחור רקע או לכתוב תיאור");
-
-    setIsProcessing(true);
-    setResultImage(null);
-    setSuggestedName(null);
-    try {
-      const { data, error } = await supabase.functions.invoke("replace-background", {
-        body: {
-          imageBase64: originalImage,
-          backgroundPrompt: prompt,
-          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setResultImage(data.resultImage);
-      toast.success("הרקע הוחלף בהצלחה!");
-
-      // Get professional name suggestion
-      if (customPrompt.trim() && !selectedPresetName) {
-        supabase.functions.invoke("suggest-name", {
-          body: { backgroundDescription: customPrompt.trim() },
-        }).then(({ data: nameData }) => {
-          if (nameData?.name) setSuggestedName(nameData.name);
-        }).catch(() => {});
-      } else if (selectedPresetName) {
-        setSuggestedName(selectedPresetName);
-      }
-    } catch (err: any) {
-      toast.error(err.message || "שגיאה בעיבוד התמונה");
-    } finally {
-      setIsProcessing(false);
-    }
-  }, [originalImage, customPrompt, activePrompt]);
-
-  const handleEnhance = useCallback(async () => {
-    const img = resultImage || originalImage;
-    if (!img) return;
-    setIsEnhancing(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("replace-background", {
-        body: {
-          imageBase64: img,
-          backgroundPrompt: "Enhance this image quality. Increase sharpness, improve lighting, fix any artifacts, make colors more vivid. Keep the composition exactly the same. Output the highest quality version possible.",
-        },
-      });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setResultImage(data.resultImage);
-      toast.success("התמונה שופרה!");
-    } catch (err: any) {
-      toast.error(err.message || "שגיאה בשיפור התמונה");
-    } finally {
-      setIsEnhancing(false);
-    }
-  }, [resultImage, originalImage]);
-
-  const handleExport = useCallback(
-    async (format: string, quality: number) => {
-      const img = resultImage || originalImage;
-      if (!img) return;
-      setIsExporting(true);
-
-      try {
-        // Apply adjustments by drawing to canvas
-        const image = new Image();
-        image.crossOrigin = "anonymous";
-        await new Promise<void>((resolve, reject) => {
-          image.onload = () => resolve();
-          image.onerror = reject;
-          image.src = img;
-        });
-
-        const canvas = document.createElement("canvas");
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
-        const ctx = canvas.getContext("2d")!;
-        ctx.filter = getFilterString(adjustments);
-        ctx.drawImage(image, 0, 0);
-
-        if (format === "pdf") {
-          // Simple PDF with embedded image
-          const dataUrl = canvas.toDataURL("image/png", 1);
-          const pdfContent = await generatePDF(dataUrl, canvas.width, canvas.height);
-          downloadBlob(pdfContent, "result.pdf", "application/pdf");
-        } else if (format === "tiff") {
-          // Export as PNG (browser doesn't natively support TIFF, we use max quality PNG)
-          const blob = await canvasToBlob(canvas, "image/png", 1);
-          downloadBlob(blob, "result.tiff", "image/png");
-          toast.info("TIFF ייוצא כ-PNG באיכות מקסימלית (lossless)");
-        } else {
-          const mimeType = format === "jpg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png";
-          const q = (format === "jpg" || format === "webp") ? quality / 100 : 1;
-          const blob = await canvasToBlob(canvas, mimeType, q);
-          downloadBlob(blob, `result.${format}`, mimeType);
-        }
-
-        toast.success("התמונה יוצאה בהצלחה!");
-      } catch (err: any) {
-        toast.error("שגיאה בייצוא");
-      } finally {
-        setIsExporting(false);
-      }
-    },
-    [resultImage, originalImage, adjustments]
-  );
-
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-              <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
-            <h1 className="font-display text-xl font-bold text-foreground">AI Background Replacer</h1>
+      {/* Navigation */}
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-gold/20 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 py-3">
+          <img src={studioLogo} alt="רותי פרל" className="h-14 w-auto" />
+          <div className="hidden md:flex items-center gap-8">
+            <a href="#home" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">דף הבית</a>
+            <a href="#about" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">אודות</a>
+            <a href="#gallery" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">גלריה</a>
+            <a href="#services" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">שירותים</a>
+            <a href="#contact" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">צור קשר</a>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1.5">
-            <Shield className="h-4 w-4 text-accent" />
-            <span className="font-display text-xs font-semibold text-accent">Lossless Export</span>
-          </div>
+          <Link
+            to="/tool"
+            className="flex items-center gap-2 rounded-full bg-gold px-5 py-2 font-accent text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            כלי AI לרקעים
+          </Link>
         </div>
-      </header>
+      </nav>
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="flex gap-8">
-          {/* Canvas */}
-          <div className="flex-1 space-y-6">
-            {originalImage ? (
-              <ImageCanvas
-                originalImage={originalImage}
-                resultImage={resultImage}
-                isProcessing={isProcessing || isEnhancing}
-                adjustments={adjustments}
-              />
-            ) : (
-              <ImageUploader onImageSelect={handleImageSelect} />
-            )}
-
-            {/* Suggested name badge */}
-            {suggestedName && resultImage && (
-              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
-                <Tag className="h-4 w-4 text-primary" />
-                <div className="flex flex-col">
-                  <span className="font-body text-xs text-muted-foreground">שם מקצועי מוצע למוצר:</span>
-                  <span className="font-display text-sm font-bold text-primary">{suggestedName}</span>
+      {/* Hero Section */}
+      <section id="home" className="relative pt-24">
+        <div className="relative h-[85vh] overflow-hidden">
+          <img
+            src={heroImage}
+            alt="מוצרי יוקרה"
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-l from-foreground/70 via-foreground/40 to-transparent" />
+          <div className="absolute inset-0 flex items-center">
+            <div className="mx-auto max-w-7xl w-full px-6">
+              <div className="max-w-xl mr-auto">
+                <div className="mb-6 inline-block rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5">
+                  <span className="font-accent text-xs font-semibold text-gold">עיצוב יוקרתי בעבודת יד</span>
                 </div>
-              </div>
-            )}
-
-            {originalImage && (
-              <div className="flex flex-wrap items-center gap-3">
-                <button
-                  onClick={handleProcess}
-                  disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
-                  className="flex items-center gap-2 rounded-lg bg-accent px-6 py-3 font-display text-sm font-semibold text-accent-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {isProcessing ? "מעבד..." : "החלף רקע"}
-                </button>
-
-                <button
-                  onClick={handleEnhance}
-                  disabled={isEnhancing || isProcessing}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-5 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Wand2 className="h-4 w-4" />
-                  {isEnhancing ? "משפר..." : "שפר איכות"}
-                </button>
-
-                {resultImage && (
-                  <button
-                    onClick={() => setShowMockup(true)}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                <h1 className="font-display text-5xl md:text-7xl font-bold text-card leading-tight">
+                  סטודיו מעצבים
+                  <br />
+                  <span className="text-gold italic">רותי פרל</span>
+                </h1>
+                <p className="mt-6 font-body text-lg text-card/80 max-w-md leading-relaxed">
+                  עיצוב מוצרי יוקרה בעבודת יד, ריקמה אומנותית, וצילום מוצרים מקצועי ברמה הגבוהה ביותר
+                </p>
+                <div className="mt-8 flex gap-4">
+                  <a
+                    href="#contact"
+                    className="rounded-full bg-gold px-8 py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110"
                   >
-                    <Eye className="h-4 w-4" />
-                    מוקאפ
-                  </button>
-                )}
-
-                <button
-                  onClick={() => setShowBatch(true)}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
-                >
-                  <Layers className="h-4 w-4" />
-                  עיבוד מרובה
-                </button>
-
-                <button
-                  onClick={() => {
-                    setOriginalImage(null);
-                    setResultImage(null);
-                    setAdjustments(defaultAdjustments);
-                  }}
-                  className="flex items-center gap-2 font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <UploadIcon className="h-4 w-4" />
-                  תמונה חדשה
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
-          {originalImage && (
-            <div className="w-80 shrink-0">
-              <div className="sticky top-8 space-y-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                {/* Tabs */}
-                <div className="flex border-b border-border">
-                  {[
-                    { key: "backgrounds" as const, label: "רקעים" },
-                    { key: "adjust" as const, label: "התאמות" },
-                    { key: "export" as const, label: "ייצוא" },
-                  ].map((tab) => (
-                    <button
-                      key={tab.key}
-                      onClick={() => setActiveTab(tab.key)}
-                      className={`flex-1 py-3 font-display text-xs font-semibold transition-colors ${
-                        activeTab === tab.key
-                          ? "text-primary border-b-2 border-primary bg-primary/5"
-                          : "text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="p-5 max-h-[70vh] overflow-y-auto">
-                  {activeTab === "backgrounds" && (
-                    <BackgroundPresets
-                      selectedId={selectedPreset}
-                      onSelect={handlePresetSelect}
-                      customPrompt={customPrompt}
-                      onCustomPromptChange={(v) => {
-                        setCustomPrompt(v);
-                        if (v.trim()) {
-                          setSelectedPreset(null);
-                          setSelectedPresetName(null);
-                        }
-                      }}
-                      referenceImages={referenceImages}
-                      onReferenceImagesChange={setReferenceImages}
-                    />
-                  )}
-                  {activeTab === "adjust" && (
-                    <ImageAdjustmentsPanel
-                      adjustments={adjustments}
-                      onChange={setAdjustments}
-                      onReset={() => setAdjustments(defaultAdjustments)}
-                    />
-                  )}
-                  {activeTab === "export" && (
-                    <ExportPanel
-                      resultImage={resultImage}
-                      isExporting={isExporting}
-                      onExport={handleExport}
-                    />
-                  )}
+                    צור קשר
+                  </a>
+                  <a
+                    href="#gallery"
+                    className="rounded-full border border-card/30 bg-card/10 px-8 py-3.5 font-display text-sm font-semibold text-card backdrop-blur-sm transition-all hover:bg-card/20"
+                  >
+                    צפה בעבודות
+                  </a>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
-      </main>
+      </section>
 
-      {/* Mockup Modal */}
-      {showMockup && resultImage && (
-        <MockupPreview imageUrl={resultImage} onClose={() => setShowMockup(false)} />
-      )}
+      {/* About Section */}
+      <section id="about" className="py-24 bg-card">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid md:grid-cols-2 gap-16 items-center">
+            <div>
+              <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">אודות הסטודיו</span>
+              <h2 className="mt-4 font-display text-4xl md:text-5xl font-bold text-foreground leading-tight">
+                יצירה מתוך
+                <br />
+                <span className="text-gold italic">אהבה לפרטים</span>
+              </h2>
+              <div className="mt-6 space-y-4 font-body text-base text-muted-foreground leading-relaxed">
+                <p>
+                  סטודיו רותי פרל מתמחה בעיצוב מוצרי יוקרה ייחודיים בעבודת יד. כל מוצר נוצר מתוך תשומת לב לכל פרט, משילוב חומרים איכותיים וריקמה אומנותית.
+                </p>
+                <p>
+                  הסטודיו מציע גם שירותי צילום מוצרים מקצועי הכולל כלי AI מתקדם להחלפת רקעים — כך שכל מוצר מוצג באור הטוב ביותר, על הרקע המושלם.
+                </p>
+              </div>
+              <div className="mt-10 grid grid-cols-3 gap-6">
+                {[
+                  { num: "15+", label: "שנות ניסיון" },
+                  { num: "500+", label: "מוצרים יוקרתיים" },
+                  { num: "100%", label: "עבודת יד" },
+                ].map((stat) => (
+                  <div key={stat.label} className="text-center">
+                    <div className="font-display text-3xl font-bold text-gold">{stat.num}</div>
+                    <div className="mt-1 font-body text-xs text-muted-foreground">{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="relative">
+              <img
+                src={gallery2}
+                alt="ריקמה"
+                className="rounded-2xl shadow-2xl"
+              />
+              <div className="absolute -bottom-6 -left-6 h-48 w-48 rounded-2xl border-4 border-card overflow-hidden shadow-xl">
+                <img src={gallery1} alt="עבודות" className="h-full w-full object-cover" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      {/* Batch Processing Modal */}
-      {showBatch && (
-        <BatchProcessor
-          backgroundPrompt={customPrompt.trim() || activePrompt}
-          referenceImages={referenceImages}
-          onClose={() => setShowBatch(false)}
-        />
-      )}
+      {/* Gallery Section */}
+      <section id="gallery" className="py-24 bg-background">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="text-center mb-16">
+            <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">גלריה</span>
+            <h2 className="mt-4 font-display text-4xl md:text-5xl font-bold text-foreground">
+              העבודות <span className="text-gold italic">שלנו</span>
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {[
+              { img: heroImage, title: "קולקציית חגים", desc: "מוצרים יוקרתיים לשולחן החג" },
+              { img: gallery1, title: "ריקמה אומנותית", desc: "עבודות ריקמה בעבודת יד" },
+              { img: gallery3, title: "אריזות מתנה", desc: "אריזות יוקרתיות בעיצוב אישי" },
+            ].map((item) => (
+              <div key={item.title} className="group relative overflow-hidden rounded-2xl">
+                <img
+                  src={item.img}
+                  alt={item.title}
+                  className="h-80 w-full object-cover transition-transform duration-700 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                <div className="absolute bottom-0 inset-x-0 p-6 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-500">
+                  <h3 className="font-display text-xl font-bold text-card">{item.title}</h3>
+                  <p className="mt-1 font-body text-sm text-card/70">{item.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      {/* AI Chat */}
-      <AIChatDialog
-        onApplyBackground={(prompt, name) => {
-          setCustomPrompt(prompt);
-          setActivePrompt(prompt);
-          setSelectedPreset(null);
-          setSelectedPresetName(name);
-          setSuggestedName(name);
-          toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
-        }}
-      />
+      {/* Services Section */}
+      <section id="services" className="py-24 bg-card">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="text-center mb-16">
+            <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">שירותים</span>
+            <h2 className="mt-4 font-display text-4xl md:text-5xl font-bold text-foreground">
+              מה אנחנו <span className="text-gold italic">מציעים</span>
+            </h2>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              {
+                icon: "✦",
+                title: "עיצוב מוצרים",
+                desc: "עיצוב מוצרי יוקרה ייחודיים לאירועים, חגים ומתנות — ריקמה בעבודת יד על בדים איכותיים",
+              },
+              {
+                icon: "◈",
+                title: "צילום מוצרים",
+                desc: "צילום מקצועי עם כלי AI מתקדם להחלפת רקעים, כדי שכל מוצר יראה מושלם",
+              },
+              {
+                icon: "❖",
+                title: "עיצוב אישי",
+                desc: "התאמה אישית של כל מוצר — בחירת בד, צבע חוט, טקסט ריקמה ועיצוב ייחודי",
+              },
+            ].map((service) => (
+              <div
+                key={service.title}
+                className="group rounded-2xl border border-border bg-background p-8 transition-all hover:border-gold/40 hover:shadow-xl hover:shadow-gold/5"
+              >
+                <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-gold/10 text-2xl text-gold">
+                  {service.icon}
+                </div>
+                <h3 className="mt-5 font-display text-xl font-bold text-foreground">{service.title}</h3>
+                <p className="mt-3 font-body text-sm text-muted-foreground leading-relaxed">{service.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* CTA to tool */}
+          <div className="mt-16 rounded-2xl bg-gradient-to-l from-gold/20 via-gold/10 to-transparent border border-gold/20 p-10 flex items-center justify-between">
+            <div>
+              <h3 className="font-display text-2xl font-bold text-foreground">
+                נסו את כלי ה-AI להחלפת רקעים
+              </h3>
+              <p className="mt-2 font-body text-sm text-muted-foreground">
+                העלו תמונת מוצר ובחרו מתוך עשרות רקעים מקצועיים — שיש, עץ, בד, ריקמה ועוד
+              </p>
+            </div>
+            <Link
+              to="/tool"
+              className="flex items-center gap-2 rounded-full bg-gold px-8 py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 shrink-0"
+            >
+              <Sparkles className="h-4 w-4" />
+              לכלי AI
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <section id="contact" className="py-24 bg-foreground text-card">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="grid md:grid-cols-2 gap-16">
+            <div>
+              <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">צור קשר</span>
+              <h2 className="mt-4 font-display text-4xl md:text-5xl font-bold leading-tight">
+                נשמח לשמוע
+                <br />
+                <span className="text-gold italic">ממך</span>
+              </h2>
+              <p className="mt-6 font-body text-base text-card/60 leading-relaxed max-w-md">
+                מעוניינים בהזמנה מותאמת אישית? רוצים לשמוע עוד על השירותים שלנו? צרו קשר ונחזור אליכם בהקדם.
+              </p>
+
+              <div className="mt-10 space-y-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold/20">
+                    <Phone className="h-5 w-5 text-gold" />
+                  </div>
+                  <div>
+                    <div className="font-accent text-xs text-card/50">טלפון</div>
+                    <div className="font-body text-base text-card" dir="ltr">+972-50-000-0000</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold/20">
+                    <Mail className="h-5 w-5 text-gold" />
+                  </div>
+                  <div>
+                    <div className="font-accent text-xs text-card/50">דוא״ל</div>
+                    <div className="font-body text-base text-card" dir="ltr">studio@rutipearl.com</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold/20">
+                    <MapPin className="h-5 w-5 text-gold" />
+                  </div>
+                  <div>
+                    <div className="font-accent text-xs text-card/50">כתובת</div>
+                    <div className="font-body text-base text-card">תל אביב, ישראל</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-gold/20">
+                    <Instagram className="h-5 w-5 text-gold" />
+                  </div>
+                  <div>
+                    <div className="font-accent text-xs text-card/50">אינסטגרם</div>
+                    <div className="font-body text-base text-card">@rutipearl.studio</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact form */}
+            <div className="rounded-2xl border border-card/10 bg-card/5 p-8">
+              <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+                <div>
+                  <label className="font-accent text-xs text-card/50 mb-1.5 block">שם מלא</label>
+                  <input
+                    type="text"
+                    className="w-full rounded-lg border border-card/10 bg-card/5 px-4 py-3 font-body text-sm text-card placeholder:text-card/30 focus:border-gold/50 focus:outline-none"
+                    placeholder="הכנס שם מלא"
+                  />
+                </div>
+                <div>
+                  <label className="font-accent text-xs text-card/50 mb-1.5 block">דוא״ל</label>
+                  <input
+                    type="email"
+                    className="w-full rounded-lg border border-card/10 bg-card/5 px-4 py-3 font-body text-sm text-card placeholder:text-card/30 focus:border-gold/50 focus:outline-none"
+                    placeholder="example@email.com"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="font-accent text-xs text-card/50 mb-1.5 block">הודעה</label>
+                  <textarea
+                    className="w-full rounded-lg border border-card/10 bg-card/5 px-4 py-3 font-body text-sm text-card placeholder:text-card/30 focus:border-gold/50 focus:outline-none resize-none"
+                    rows={5}
+                    placeholder="ספרו לנו על מה שאתם מחפשים..."
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-lg bg-gold py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110"
+                >
+                  שלח הודעה
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="border-t border-card/10 bg-foreground py-8">
+        <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+          <img src={studioLogo} alt="רותי פרל" className="h-10 w-auto brightness-0 invert opacity-60" />
+          <p className="font-body text-xs text-card/40">
+            © {new Date().getFullYear()} סטודיו מעצבים רותי פרל. כל הזכויות שמורות.
+          </p>
+          <div className="flex gap-4">
+            <a href="#" className="font-body text-xs text-card/40 hover:text-gold transition-colors">מדיניות פרטיות</a>
+            <a href="#" className="font-body text-xs text-card/40 hover:text-gold transition-colors">תנאי שימוש</a>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
-
-// Helper functions
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Failed to create blob"))),
-      type,
-      quality
-    );
-  });
-}
-
-function downloadBlob(blob: Blob | string, filename: string, mimeType: string) {
-  const url = typeof blob === "string" ? blob : URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  if (typeof blob !== "string") URL.revokeObjectURL(url);
-}
-
-async function generatePDF(imageDataUrl: string, w: number, h: number): Promise<Blob> {
-  // Minimal PDF generator
-  const imgData = imageDataUrl.split(",")[1];
-  const binary = atob(imgData);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-  // Scale to fit A4-ish (595x842 points)
-  const scale = Math.min(575 / w, 822 / h);
-  const pw = Math.round(w * scale);
-  const ph = Math.round(h * scale);
-  const pageW = Math.max(pw + 20, 595);
-  const pageH = Math.max(ph + 20, 842);
-  const xOff = Math.round((pageW - pw) / 2);
-  const yOff = Math.round((pageH - ph) / 2);
-
-  const imgStream = bytes;
-  const streamLen = imgStream.length;
-
-  const objects: string[] = [];
-  const offsets: number[] = [];
-  let content = "%PDF-1.4\n";
-
-  function addObj(s: string) {
-    offsets.push(content.length);
-    objects.push(s);
-    content += s;
-  }
-
-  addObj(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
-  addObj(`2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`);
-  addObj(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Contents 4 0 R /Resources << /XObject << /Img 5 0 R >> >> >>\nendobj\n`);
-
-  const stream = `q ${pw} 0 0 ${ph} ${xOff} ${yOff} cm /Img Do Q`;
-  addObj(`4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`);
-
-  // We'll encode the image as a separate binary section
-  const imgObjHeader = `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${streamLen} >>\nstream\n`;
-  const imgObjFooter = `\nendstream\nendobj\n`;
-
-  const headerBytes = new TextEncoder().encode(content + imgObjHeader);
-  const footerBytes = new TextEncoder().encode(imgObjFooter);
-
-  // Convert imageDataUrl to JPEG blob for DCTDecode
-  const response = await fetch(imageDataUrl);
-  const imgBlob = await response.blob();
-  const jpegBlob = imgBlob; // already PNG, but let's use canvas
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-  const img = new Image();
-  await new Promise<void>((resolve) => {
-    img.onload = () => resolve();
-    img.src = imageDataUrl;
-  });
-  ctx.drawImage(img, 0, 0);
-  const jpegDataUrl = canvas.toDataURL("image/jpeg", 1.0);
-  const jpegBase64 = jpegDataUrl.split(",")[1];
-  const jpegBinary = atob(jpegBase64);
-  const jpegBytes = new Uint8Array(jpegBinary.length);
-  for (let i = 0; i < jpegBinary.length; i++) jpegBytes[i] = jpegBinary.charCodeAt(i);
-
-  // Rebuild with correct length
-  const realImgHeader = `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`;
-  const realHeaderBytes = new TextEncoder().encode(content + realImgHeader);
-
-  const xrefOffset = realHeaderBytes.length + jpegBytes.length + footerBytes.length;
-  const xref = `xref\n0 6\n0000000000 65535 f \n${offsets.map((o) => String(o).padStart(10, "0") + " 00000 n ").join("\n")}\n${String(content.length).padStart(10, "0")} 00000 n \ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  const xrefBytes = new TextEncoder().encode(xref);
-
-  const totalSize = realHeaderBytes.length + jpegBytes.length + footerBytes.length + xrefBytes.length;
-  const pdfArray = new Uint8Array(totalSize);
-  let offset = 0;
-  pdfArray.set(realHeaderBytes, offset); offset += realHeaderBytes.length;
-  pdfArray.set(jpegBytes, offset); offset += jpegBytes.length;
-  pdfArray.set(footerBytes, offset); offset += footerBytes.length;
-  pdfArray.set(xrefBytes, offset);
-
-  return new Blob([pdfArray], { type: "application/pdf" });
-}
 
 export default Index;
