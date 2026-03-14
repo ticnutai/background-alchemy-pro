@@ -498,6 +498,15 @@ const Index = () => {
                       }}
                       referenceImages={referenceImages}
                       onReferenceImagesChange={setReferenceImages}
+                      multiSelectMode={multiSelectMode}
+                      selectedPresets={selectedPresetIds}
+                      onTogglePreset={(preset) => {
+                        setSelectedPresetIds(prev =>
+                          prev.includes(preset.id)
+                            ? prev.filter(id => id !== preset.id)
+                            : [...prev, preset.id]
+                        );
+                      }}
                     />
                   )}
                   {activeTab === "tools" && (
