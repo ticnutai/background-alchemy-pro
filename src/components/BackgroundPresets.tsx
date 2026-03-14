@@ -870,31 +870,39 @@ const BackgroundPresets = ({
                   ? selectedPresets.includes(preset.id)
                   : selectedId === preset.id;
                 return (
-                  <button
-                    key={preset.id}
-                    onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
-                    className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
-                      isSelected
-                        ? "border-primary bg-primary/5 shadow-md"
-                        : "border-border hover:border-primary/50 hover:shadow-sm"
-                    }`}
-                  >
-                    {multiSelectMode && isSelected && (
-                      <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
-                        {selectedPresets.indexOf(preset.id) + 1}
-                      </div>
-                    )}
-                    <div
-                      className="h-10 w-full rounded-md border border-border/50"
-                      style={{ background: preset.preview }}
-                    />
-                    <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
-                      {preset.label}
-                    </span>
-                    <span className="font-body text-[9px] text-muted-foreground italic">
-                      {preset.professionalName}
-                    </span>
-                  </button>
+                  <div key={preset.id} className="relative">
+                    <button
+                      onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
+                      className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all w-full ${
+                        isSelected
+                          ? "border-primary bg-primary/5 shadow-md"
+                          : "border-border hover:border-primary/50 hover:shadow-sm"
+                      }`}
+                    >
+                      {multiSelectMode && isSelected && (
+                        <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
+                          {selectedPresets.indexOf(preset.id) + 1}
+                        </div>
+                      )}
+                      <div
+                        className="h-14 w-full rounded-md border border-border/50"
+                        style={{ background: preset.preview }}
+                      />
+                      <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
+                        {preset.label}
+                      </span>
+                      <span className="font-body text-[9px] text-muted-foreground italic">
+                        {preset.professionalName}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setPreviewPreset(preset)}
+                      className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 border border-border shadow-sm opacity-0 group-hover:opacity-100 hover:!opacity-100 transition-opacity z-10 hover:bg-primary/10"
+                      title="תצוגה מקדימה"
+                    >
+                      <Eye className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
