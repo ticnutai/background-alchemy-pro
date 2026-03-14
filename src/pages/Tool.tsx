@@ -39,6 +39,7 @@ const Index = () => {
   const [showMockup, setShowMockup] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showSocial, setShowSocial] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
