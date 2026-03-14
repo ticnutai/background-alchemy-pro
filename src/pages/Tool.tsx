@@ -143,6 +143,58 @@ const Index = () => {
     }
   }, [originalImage, customPrompt, activePrompt]);
 
+  const handleMultiProcess = useCallback(async () => {
+    if (!originalImage || selectedPresetIds.length === 0) {
+      toast.error("יש לבחור לפחות רקע אחד");
+      return;
+    }
+    const selectedBgs = selectedPresetIds.map(id => presets.find(p => p.id === id)!).filter(Boolean);
+    setBatchProcessing(true);
+    setBatchResults([]);
+    setBatchProgress({ current: 0, total: selectedBgs.length });
+
+    const results: Array<{ name: string; image: string; prompt: string }> = [];
+
+    for (let i = 0; i < selectedBgs.length; i++) {
+      const preset = selectedBgs[i];
+      setBatchProgress({ current: i + 1, total: selectedBgs.length });
+      try {
+        const { data, error } = await supabase.functions.invoke("replace-background", {
+          body: { imageBase64: originalImage, backgroundPrompt: preset.prompt },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+        results.push({ name: preset.professionalName, image: data.resultImage, prompt: preset.prompt });
+        setBatchResults([...results]);
+
+        // Save to history
+        if (user) {
+          try {
+            const uid = user.id;
+            const ts = Date.now() + i;
+            const resultBlob = await fetch(data.resultImage).then(r => r.blob());
+            const upload = await supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" });
+            if (upload.data) {
+              const resultUrl = supabase.storage.from("processed-images").getPublicUrl(upload.data.path).data.publicUrl;
+              await supabase.from("processing_history").insert({
+                user_id: uid,
+                original_image_url: originalImage.substring(0, 200),
+                result_image_url: resultUrl,
+                background_prompt: preset.prompt,
+                background_name: preset.professionalName,
+              });
+            }
+          } catch {}
+        }
+      } catch (err: any) {
+        toast.error(`שגיאה ב-${preset.label}: ${err.message}`);
+      }
+    }
+
+    setBatchProcessing(false);
+    toast.success(`הושלמו ${results.length}/${selectedBgs.length} רקעים!`);
+  }, [originalImage, selectedPresetIds, user]);
+
   const handleEnhance = useCallback(async () => {
     const img = resultImage || originalImage;
     if (!img) return;
