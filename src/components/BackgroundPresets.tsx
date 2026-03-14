@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import marbleRef from "@/assets/marble-reference.jpeg";
+
 import { Upload, ImagePlus, X, Palette, ScanSearch, Loader2, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
