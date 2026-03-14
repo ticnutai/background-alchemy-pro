@@ -19,7 +19,8 @@ interface AdvancedToolsPanelProps {
 }
 
 type ToolMode = null | "remove" | "shadow" | "text" | "frame" | "multi-bg" | "collage" | "add-elements"
-  | "remove-bg-precise" | "upscale" | "relight" | "inpaint" | "segment" | "sdxl-bg";
+  | "remove-bg-precise" | "upscale" | "relight" | "inpaint" | "segment" | "sdxl-bg"
+  | "color-grade" | "blur-bg" | "style-transfer" | "smart-crop";
 
 const frameStyles = [
   { id: "gold-ornate", label: "מסגרת זהב מפוארת", icon: "✦" },
