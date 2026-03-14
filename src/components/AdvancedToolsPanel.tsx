@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import {
   Eraser, Sun, Type, Frame, Grid2X2, LayoutGrid, X,
   Trash2, Sparkles, PenTool, PackagePlus, Scissors,
-  ZoomIn, Lightbulb, ImagePlus, Scan, Wand2
+  ZoomIn, Lightbulb, ImagePlus, Scan, Wand2,
+  Palette, Aperture, Brush, Crop,
 } from "lucide-react";
 import {
   removeBgPrecise, upscaleImage, relightImage,
