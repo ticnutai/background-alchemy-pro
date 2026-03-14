@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
@@ -11,6 +11,8 @@ import ImageAdjustmentsPanel, {
   getFilterString,
 } from "@/components/ImageAdjustmentsPanel";
 import ExportPanel from "@/components/ExportPanel";
+import MockupPreview from "@/components/MockupPreview";
+import BatchProcessor from "@/components/BatchProcessor";
 
 const Index = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
