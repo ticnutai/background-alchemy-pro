@@ -131,11 +131,11 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
 
   const parseActions = useCallback(
     (content: string) => {
-      const actionRegex = /\[ACTION:APPLY_BACKGROUND\](.*?)\[\/ACTION\]/g;
+      const actionRegex = /\[ACTION:APPLY_BACKGROUND\]([\s\S]*?)\[\/ACTION\]/g;
       const match = actionRegex.exec(content);
       if (match) {
         try {
-          const action = JSON.parse(match[1]);
+          const action = JSON.parse(match[1].trim());
           if (action.prompt && action.name) {
             setLastSuggestedPrompt({ prompt: action.prompt, name: action.name });
           }
@@ -143,11 +143,11 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
       }
 
       // Parse element suggestions
-      const elemRegex = /\[ELEMENTS\](.*?)\[\/ELEMENTS\]/g;
+      const elemRegex = /\[ELEMENTS\]([\s\S]*?)\[\/ELEMENTS\]/g;
       const elemMatch = elemRegex.exec(content);
       if (elemMatch) {
         try {
-          const elements = JSON.parse(elemMatch[1]);
+          const elements = JSON.parse(elemMatch[1].trim());
           if (Array.isArray(elements)) {
             setSuggestedElements(elements);
             setFlowStep("choose-elements");
@@ -155,18 +155,18 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         } catch {}
       }
 
-      // Parse quick replies [QUICK_REPLIES][{"label":"כן","value":"yes"},{"label":"לא","value":"no"}][/QUICK_REPLIES]
-      const qrRegex = /\[QUICK_REPLIES\](.*?)\[\/QUICK_REPLIES\]/g;
+      // Parse quick replies
+      const qrRegex = /\[QUICK_REPLIES\]([\s\S]*?)\[\/QUICK_REPLIES\]/g;
       const qrMatch = qrRegex.exec(content);
       let quickReplies: QuickReply[] | undefined;
       if (qrMatch) {
         try {
-          quickReplies = JSON.parse(qrMatch[1]);
+          quickReplies = JSON.parse(qrMatch[1].trim());
         } catch {}
       }
 
-      // Parse yes/no questions [YES_NO]question text[/YES_NO]
-      const ynRegex = /\[YES_NO\](.*?)\[\/YES_NO\]/g;
+      // Parse yes/no questions
+      const ynRegex = /\[YES_NO\]([\s\S]*?)\[\/YES_NO\]/g;
       const ynMatch = ynRegex.exec(content);
       if (ynMatch && !quickReplies) {
         quickReplies = [
