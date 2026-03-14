@@ -452,6 +452,9 @@ interface BackgroundPresetsProps {
   onCustomPromptChange: (value: string) => void;
   referenceImages: string[];
   onReferenceImagesChange: (images: string[]) => void;
+  multiSelectMode?: boolean;
+  selectedPresets?: string[];
+  onTogglePreset?: (preset: Preset) => void;
 }
 
 const categoryIcons: Record<string, string> = {
@@ -463,15 +466,6 @@ const categoryIcons: Record<string, string> = {
   "טבע": "🌿",
   "גרדיינט": "◐",
 };
-
-interface BackgroundPresetsProps {
-  selectedId: string | null;
-  onSelect: (preset: Preset) => void;
-  customPrompt: string;
-  onCustomPromptChange: (value: string) => void;
-  referenceImages: string[];
-  onReferenceImagesChange: (images: string[]) => void;
-}
 
 const BackgroundPresets = ({
   selectedId,
