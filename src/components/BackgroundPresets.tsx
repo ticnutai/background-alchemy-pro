@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import marbleRef from "@/assets/marble-reference.jpeg";
-import { Upload, ImagePlus, X, Palette, ScanSearch, Loader2 } from "lucide-react";
+import { Upload, ImagePlus, X, Palette, ScanSearch, Loader2, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -525,6 +525,7 @@ const BackgroundPresets = ({
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [customColor, setCustomColor] = useState("#FFFFFF");
   const [selectedColorId, setSelectedColorId] = useState<string | null>(null);
+  const [previewPreset, setPreviewPreset] = useState<Preset | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
 
@@ -652,22 +653,22 @@ const BackgroundPresets = ({
               <p className="font-body text-xs text-muted-foreground">
                 שנה רק את צבע הרקע — העיצוב, המוצר והפרטים נשארים זהים
               </p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {colorOnlySwatches.map((swatch) => (
                   <button
                     key={swatch.hex}
                     onClick={() => handleColorSelect(swatch.hex, swatch.label, swatch.name)}
-                    className={`group flex flex-col items-center gap-1 rounded-lg border-2 p-1.5 transition-all ${
+                    className={`group flex flex-col items-center gap-1.5 rounded-lg border-2 p-2 transition-all ${
                       selectedColorId === swatch.hex
                         ? "border-primary shadow-md"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
                     <div
-                      className="h-8 w-full rounded-md border border-border/50"
+                      className="h-12 w-full rounded-md border border-border/50"
                       style={{ backgroundColor: swatch.hex }}
                     />
-                    <span className="font-body text-[9px] text-foreground leading-tight text-center">
+                    <span className="font-body text-[10px] text-foreground leading-tight text-center">
                       {swatch.label}
                     </span>
                   </button>
@@ -869,31 +870,39 @@ const BackgroundPresets = ({
                   ? selectedPresets.includes(preset.id)
                   : selectedId === preset.id;
                 return (
-                  <button
-                    key={preset.id}
-                    onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
-                    className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
-                      isSelected
-                        ? "border-primary bg-primary/5 shadow-md"
-                        : "border-border hover:border-primary/50 hover:shadow-sm"
-                    }`}
-                  >
-                    {multiSelectMode && isSelected && (
-                      <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
-                        {selectedPresets.indexOf(preset.id) + 1}
-                      </div>
-                    )}
-                    <div
-                      className="h-10 w-full rounded-md border border-border/50"
-                      style={{ background: preset.preview }}
-                    />
-                    <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
-                      {preset.label}
-                    </span>
-                    <span className="font-body text-[9px] text-muted-foreground italic">
-                      {preset.professionalName}
-                    </span>
-                  </button>
+                  <div key={preset.id} className="relative">
+                    <button
+                      onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
+                      className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all w-full ${
+                        isSelected
+                          ? "border-primary bg-primary/5 shadow-md"
+                          : "border-border hover:border-primary/50 hover:shadow-sm"
+                      }`}
+                    >
+                      {multiSelectMode && isSelected && (
+                        <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
+                          {selectedPresets.indexOf(preset.id) + 1}
+                        </div>
+                      )}
+                      <div
+                        className="h-14 w-full rounded-md border border-border/50"
+                        style={{ background: preset.preview }}
+                      />
+                      <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
+                        {preset.label}
+                      </span>
+                      <span className="font-body text-[9px] text-muted-foreground italic">
+                        {preset.professionalName}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => setPreviewPreset(preset)}
+                      className="absolute top-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-background/80 border border-border shadow-sm opacity-0 group-hover:opacity-100 hover:!opacity-100 transition-opacity z-10 hover:bg-primary/10"
+                      title="תצוגה מקדימה"
+                    >
+                      <Eye className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -964,6 +973,51 @@ const BackgroundPresets = ({
           </label>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewPreset && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setPreviewPreset(null)}
+        >
+          <div
+            className="relative w-[85vw] max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="w-full h-64 sm:h-80"
+              style={{ background: previewPreset.preview }}
+            />
+            <div className="p-4 text-center space-y-1">
+              <h3 className="font-display text-base font-bold text-foreground">{previewPreset.label}</h3>
+              <p className="font-body text-sm text-muted-foreground italic">{previewPreset.professionalName}</p>
+              <div className="flex gap-2 pt-3 justify-center">
+                <button
+                  onClick={() => {
+                    multiSelectMode && onTogglePreset ? onTogglePreset(previewPreset) : onSelect(previewPreset);
+                    setPreviewPreset(null);
+                  }}
+                  className="rounded-lg bg-gold px-5 py-2 font-display text-sm font-semibold text-gold-foreground hover:brightness-110 transition-all"
+                >
+                  בחר רקע זה
+                </button>
+                <button
+                  onClick={() => setPreviewPreset(null)}
+                  className="rounded-lg border border-border px-4 py-2 font-body text-sm text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  סגור
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => setPreviewPreset(null)}
+              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 border border-border shadow hover:bg-destructive/10 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
