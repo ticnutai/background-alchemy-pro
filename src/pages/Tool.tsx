@@ -698,6 +698,9 @@ const Index = () => {
           }}
         />
       )}
+
+      {/* Dev Settings */}
+      <DevSettingsDialog open={showDevSettings} onClose={() => setShowDevSettings(false)} />
     </div>
   );
 };
