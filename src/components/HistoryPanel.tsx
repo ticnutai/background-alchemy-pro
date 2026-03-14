@@ -73,14 +73,22 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
     }
   };
 
-  const downloadImage = (url: string, name: string) => {
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = name || "image.png";
-    link.target = "_blank";
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const downloadImage = async (url: string, name: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = name || "image.png";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(blobUrl);
+      toast.success("התמונה הורדה בהצלחה!");
+    } catch {
+      toast.error("שגיאה בהורדת התמונה");
+    }
   };
 
   const filtered = filter === "favorites" ? items.filter((i) => i.is_favorite) : items;

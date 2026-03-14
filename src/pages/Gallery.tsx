@@ -28,6 +28,23 @@ interface ImageFolder {
   created_at: string;
 }
 
+async function downloadImage(url: string, filename: string) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    const blobUrl = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = blobUrl;
+    link.download = filename || "image.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(blobUrl);
+  } catch {
+    console.error("Download failed");
+  }
+}
+
 type ViewMode = "grid" | "single" | "sideBySide";
 
 const Gallery = () => {
@@ -683,9 +700,9 @@ const Gallery = () => {
                     >
                       <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
                     </button>
-                    <a href={item.result_image_url} download className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                    <button onClick={() => downloadImage(item.result_image_url, item.background_name || "image.png")} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
                       <Download className="h-4 w-4" />
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -803,14 +820,12 @@ const Gallery = () => {
                 >
                   <Minimize2 className="h-3.5 w-3.5" />
                 </button>
-                <a
-                  href={zoomedItem.result_image_url}
-                  download={zoomedItem.background_name || "image.png"}
-                  target="_blank"
+                <button
+                  onClick={() => downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image.png")}
                   className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
-                </a>
+                </button>
                 <button
                   onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}
                   className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
