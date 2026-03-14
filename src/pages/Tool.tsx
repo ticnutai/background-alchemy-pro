@@ -46,6 +46,11 @@ const Index = () => {
   const [showHistory, setShowHistory] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [multiSelectMode, setMultiSelectMode] = useState(false);
+  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>([]);
+  const [batchResults, setBatchResults] = useState<Array<{ name: string; image: string; prompt: string }>>([]);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
