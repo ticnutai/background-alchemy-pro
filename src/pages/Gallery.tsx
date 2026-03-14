@@ -910,12 +910,32 @@ const Gallery = () => {
                 >
                   <Minimize2 className="h-3.5 w-3.5" />
                 </button>
-                <button
-                  onClick={() => downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image.png")}
-                  className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDownloadMenu(showDownloadMenu === "zoom" ? null : "zoom")}
+                    className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <ChevronDown className="h-3 w-3" />
+                  </button>
+                  {showDownloadMenu === "zoom" && (
+                    <div className="absolute top-full left-0 mt-1 w-44 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden">
+                      {EXPORT_FORMATS.map(fmt => (
+                        <button
+                          key={fmt.id}
+                          onClick={() => {
+                            setShowDownloadMenu(null);
+                            downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image", fmt.id);
+                          }}
+                          className="flex w-full items-center justify-between px-3 py-2 font-accent text-xs hover:bg-secondary transition-colors"
+                        >
+                          <span className="font-semibold text-foreground">{fmt.label}</span>
+                          <span className="text-muted-foreground">{fmt.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}
                   className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
