@@ -13,6 +13,7 @@ import ImageAdjustmentsPanel, {
 import ExportPanel from "@/components/ExportPanel";
 import MockupPreview from "@/components/MockupPreview";
 import BatchProcessor from "@/components/BatchProcessor";
+import AIChatDialog from "@/components/AIChatDialog";
 
 const Index = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
