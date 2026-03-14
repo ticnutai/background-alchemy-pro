@@ -135,7 +135,7 @@ const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
     setEditingId(product.id);
     setTitle(product.title);
     setDescription(product.description || "");
-    setCategory(product.category);
+    setCategory(product.category as ProductCategory);
     setPrice(product.price?.toString() || "");
     setIsFeatured(product.is_featured);
     setImagePreview(product.image_url);
