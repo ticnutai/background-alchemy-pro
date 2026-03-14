@@ -953,6 +953,15 @@ const Gallery = () => {
                 >
                   <Copy className="h-3.5 w-3.5" /> שכפל
                 </button>
+                {/* Duplicate & Edit */}
+                <button
+                  onClick={() => {
+                    duplicateItem(zoomedItem, true);
+                  }}
+                  className="rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 bg-accent text-accent-foreground hover:brightness-110"
+                >
+                  <Copy className="h-3.5 w-3.5" /><Pencil className="h-3.5 w-3.5" /> שכפל וערוך
+                </button>
                 {/* Original/Result toggle */}
                 <button
                   onClick={() => setShowOriginal(!showOriginal)}
