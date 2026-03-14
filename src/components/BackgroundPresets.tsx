@@ -606,40 +606,90 @@ const BackgroundPresets = ({
             {activeCategory}
           </h4>
 
-          <div className="grid grid-cols-2 gap-2">
-            {activeCatPresets.map((preset) => {
-              const isSelected = multiSelectMode
-                ? selectedPresets.includes(preset.id)
-                : selectedId === preset.id;
-              return (
+          {activeCategory === "צבע בלבד" ? (
+            <div className="space-y-4">
+              <p className="font-body text-xs text-muted-foreground">
+                שנה רק את צבע הרקע — העיצוב, המוצר והפרטים נשארים זהים
+              </p>
+              <div className="grid grid-cols-5 gap-2">
+                {colorOnlySwatches.map((swatch) => (
+                  <button
+                    key={swatch.hex}
+                    onClick={() => handleColorSelect(swatch.hex, swatch.label, swatch.name)}
+                    className={`group flex flex-col items-center gap-1 rounded-lg border-2 p-1.5 transition-all ${
+                      selectedColorId === swatch.hex
+                        ? "border-primary shadow-md"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <div
+                      className="h-8 w-full rounded-md border border-border/50"
+                      style={{ backgroundColor: swatch.hex }}
+                    />
+                    <span className="font-body text-[9px] text-foreground leading-tight text-center">
+                      {swatch.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Custom color picker */}
+              <div className="flex items-center gap-3 pt-2 border-t border-border">
+                <div className="flex items-center gap-2">
+                  <Palette className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-body text-xs text-muted-foreground">צבע מותאם:</span>
+                </div>
+                <input
+                  type="color"
+                  value={customColor}
+                  onChange={(e) => setCustomColor(e.target.value)}
+                  className="h-8 w-10 rounded border border-border cursor-pointer"
+                />
+                <span className="font-body text-[10px] text-muted-foreground">{customColor}</span>
                 <button
-                  key={preset.id}
-                  onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
-                  className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
-                    isSelected
-                      ? "border-primary bg-primary/5 shadow-md"
-                      : "border-border hover:border-primary/50 hover:shadow-sm"
-                  }`}
+                  onClick={handleCustomColorSelect}
+                  className="rounded-lg bg-primary px-3 py-1.5 font-display text-[10px] font-bold text-primary-foreground hover:brightness-110 transition-all"
                 >
-                  {multiSelectMode && isSelected && (
-                    <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
-                      {selectedPresets.indexOf(preset.id) + 1}
-                    </div>
-                  )}
-                  <div
-                    className="h-10 w-full rounded-md border border-border/50"
-                    style={{ background: preset.preview }}
-                  />
-                  <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
-                    {preset.label}
-                  </span>
-                  <span className="font-body text-[9px] text-muted-foreground italic">
-                    {preset.professionalName}
-                  </span>
+                  בחר
                 </button>
-              );
-            })}
-          </div>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {activeCatPresets.map((preset) => {
+                const isSelected = multiSelectMode
+                  ? selectedPresets.includes(preset.id)
+                  : selectedId === preset.id;
+                return (
+                  <button
+                    key={preset.id}
+                    onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
+                    className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all ${
+                      isSelected
+                        ? "border-primary bg-primary/5 shadow-md"
+                        : "border-border hover:border-primary/50 hover:shadow-sm"
+                    }`}
+                  >
+                    {multiSelectMode && isSelected && (
+                      <div className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground font-accent text-[10px] font-bold z-10">
+                        {selectedPresets.indexOf(preset.id) + 1}
+                      </div>
+                    )}
+                    <div
+                      className="h-10 w-full rounded-md border border-border/50"
+                      style={{ background: preset.preview }}
+                    />
+                    <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
+                      {preset.label}
+                    </span>
+                    <span className="font-body text-[9px] text-muted-foreground italic">
+                      {preset.professionalName}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </>
       )}
 
