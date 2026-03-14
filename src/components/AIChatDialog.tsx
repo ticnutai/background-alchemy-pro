@@ -542,18 +542,37 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
       }
 
       if (assistantSoFar) {
-        const quickReplies = parseActions(assistantSoFar);
+        const parsed = parseActions(assistantSoFar);
         setAnalysisResult(assistantSoFar);
-        if (quickReplies?.length) {
-          // Add quick replies to the last assistant message
+        const hasInteractive = parsed.quickReplies?.length || parsed.colorPalette?.length || parsed.visualOptions?.length;
+        if (hasInteractive) {
           setMessages((prev) => {
             const updated = [...prev];
             const lastIdx = updated.length - 1;
             if (updated[lastIdx]?.role === "assistant") {
-              updated[lastIdx] = { ...updated[lastIdx], quickReplies };
+              updated[lastIdx] = {
+                ...updated[lastIdx],
+                quickReplies: parsed.quickReplies,
+                colorPalette: parsed.colorPalette,
+                visualOptions: parsed.visualOptions,
+              };
             }
             return updated;
           });
+          // Auto-generate visual option previews
+          if (parsed.visualOptions?.length) {
+            const msgIdx = messages.length; // index of the assistant message we just added
+            // We need the actual index after setMessages completes
+            setTimeout(() => {
+              setMessages((prev) => {
+                const lastAssistantIdx = prev.length - 1;
+                if (prev[lastAssistantIdx]?.visualOptions?.length) {
+                  generateVisualOptionPreviews(prev[lastAssistantIdx].visualOptions!, lastAssistantIdx);
+                }
+                return prev;
+              });
+            }, 100);
+          }
         }
       }
     } catch (err: any) {
