@@ -9,6 +9,13 @@ interface Message {
   images?: string[]; // base64 images attached to the message
   previewImage?: string; // AI-generated preview image
   previewPrompt?: string; // prompt used for preview generation
+  quickReplies?: QuickReply[]; // yes/no or option buttons
+}
+
+interface QuickReply {
+  label: string;
+  value: string;
+  icon?: string;
 }
 
 interface AIChatDialogProps {
