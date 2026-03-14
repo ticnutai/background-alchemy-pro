@@ -507,6 +507,36 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
     sendToAI([...messages, userMsg]);
   };
 
+  const canApplyAnytime =
+    !!lastSuggestedPrompt || (!!onEditWithImages && !!productImage && referenceImages.length > 0);
+
+  const handlePersistentApply = () => {
+    if (lastSuggestedPrompt) {
+      onApplyBackground(lastSuggestedPrompt.prompt, lastSuggestedPrompt.name);
+      toast({
+        title: "הרקע הוגדר לעריכה",
+        description: `השתמשתי בהצעה האחרונה: ${lastSuggestedPrompt.name}`,
+      });
+      return;
+    }
+
+    if (onEditWithImages && productImage && referenceImages.length > 0) {
+      const fidelity = fidelityLevels.find((f) => f.id === selectedFidelity);
+      onEditWithImages(productImage, referenceImages[0], fidelity?.strength || "0.5", selectedElements.join(", "));
+      toast({
+        title: "העריכה הופעלה",
+        description: "הפעלתי עריכה לפי תמונת המוצר ותמונת הייחוס.",
+      });
+      return;
+    }
+
+    toast({
+      title: "עדיין אין רקע מוכן להחלה",
+      description: "בחר הצעת AI או העלה תמונת ייחוס, ואז לחץ שוב.",
+      variant: "destructive",
+    });
+  };
+
   const handleQuickReply = async (value: string) => {
     const userMsg: Message = { role: "user", content: value };
     setMessages((prev) => [...prev, userMsg]);
