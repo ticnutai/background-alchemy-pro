@@ -70,8 +70,8 @@ const ImageCanvas = ({ originalImage, resultImage, isProcessing, adjustments }: 
             </div>
           </div>
 
-          <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
-          <div className="absolute top-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+          <div className="absolute top-3 left-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+          <div className="absolute top-3 right-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
           {hasAdjustments && (
             <div className="absolute bottom-3 right-3 rounded-md bg-accent/90 px-2 py-1 font-display text-xs font-semibold text-accent-foreground">+ התאמות</div>
           )}
