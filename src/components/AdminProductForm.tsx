@@ -97,27 +97,27 @@ const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
       };
 
       if (editingId) {
-        // Only include image_url if we uploaded a new image
-        const updateData = imageFile
-          ? productData
-          : { ...productData, image_url: undefined };
-        
-        // Remove undefined fields
-        const cleanData = Object.fromEntries(
-          Object.entries(imageFile ? productData : { ...productData }).filter(([k, v]) => k !== 'image_url' || imageFile)
-        );
+        const updatePayload: Record<string, any> = {
+          title: productData.title,
+          description: productData.description,
+          category: productData.category,
+          price: productData.price,
+          is_featured: productData.is_featured,
+        };
+        if (imageFile) updatePayload.image_url = imageUrl;
 
         const { error } = await supabase
           .from("products")
-          .update(imageFile ? productData : { title: productData.title, description: productData.description, category: productData.category, price: productData.price, is_featured: productData.is_featured })
+          .update(updatePayload)
           .eq("id", editingId);
         if (error) throw error;
         toast.success("המוצר עודכן!");
       } else {
+        const userId = (await supabase.auth.getUser()).data.user?.id;
         const { error } = await supabase.from("products").insert({
           ...productData,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
-        });
+          created_by: userId,
+        } as any);
         if (error) throw error;
         toast.success("המוצר נוסף בהצלחה!");
       }
