@@ -1250,12 +1250,18 @@ const BackgroundPresets = ({
                         className="h-14 w-full rounded-md border border-border/50"
                         style={{ background: preset.preview }}
                       />
-                      <span className="font-body text-[10px] leading-tight font-medium text-foreground text-center">
-                        {preset.label}
-                      </span>
-                      <span className="font-body text-[9px] text-muted-foreground italic">
-                        {preset.professionalName}
-                      </span>
+                      <EditableLabel
+                        hebrewName={preset.label}
+                        englishName={preset.professionalName}
+                        onSave={(he, en) => {
+                          // Update preset names in-place (runtime only)
+                          preset.label = he;
+                          preset.professionalName = en;
+                          // Re-select to update parent
+                          if (selectedId === preset.id) onSelect({ ...preset, label: he, professionalName: en });
+                        }}
+                        size="sm"
+                      />
                     </button>
                     <button
                       onClick={() => setPreviewPreset(preset)}
