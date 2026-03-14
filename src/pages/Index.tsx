@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings } from "lucide-react";
+import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import studioLogo from "@/assets/studio-logo.png";
 import heroImage from "@/assets/hero-image.jpg";
