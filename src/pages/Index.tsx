@@ -13,6 +13,7 @@ import ImageAdjustmentsPanel, {
 import ExportPanel from "@/components/ExportPanel";
 import MockupPreview from "@/components/MockupPreview";
 import BatchProcessor from "@/components/BatchProcessor";
+import AIChatDialog from "@/components/AIChatDialog";
 
 const Index = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
@@ -329,6 +330,18 @@ const Index = () => {
           onClose={() => setShowBatch(false)}
         />
       )}
+
+      {/* AI Chat */}
+      <AIChatDialog
+        onApplyBackground={(prompt, name) => {
+          setCustomPrompt(prompt);
+          setActivePrompt(prompt);
+          setSelectedPreset(null);
+          setSelectedPresetName(name);
+          setSuggestedName(name);
+          toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
+        }}
+      />
     </div>
   );
 };
