@@ -632,16 +632,19 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
                 </div>
               )}
 
-              {/* Quick reply buttons */}
+              {/* Quick reply buttons - vertical numbered list */}
               {msg.quickReplies && msg.quickReplies.length > 0 && i === messages.length - 1 && !isLoading && (
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-col gap-1.5 mt-1">
                   {msg.quickReplies.map((qr, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleQuickReply(qr.value)}
-                      className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 font-body text-[11px] text-foreground transition-all hover:bg-primary/15 hover:border-primary/50 active:scale-95"
+                      className="flex items-center gap-2.5 rounded-xl border border-border bg-background px-3 py-2.5 text-right font-body text-xs text-foreground transition-all hover:bg-primary/10 hover:border-primary/40 active:scale-[0.98]"
                     >
-                      {qr.label}
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 font-display text-[10px] font-bold text-primary">
+                        {idx + 1}
+                      </span>
+                      <span>{qr.label}</span>
                     </button>
                   ))}
                 </div>
