@@ -433,6 +433,7 @@ const Index = () => {
                         toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
                       }}
                     />
+                  )}
                   {activeTab === "adjust" && (
                     <ImageAdjustmentsPanel
                       adjustments={adjustments}
