@@ -54,6 +54,7 @@ const Index = () => {
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [preciseMode, setPreciseMode] = useState(false);
+  const [selectedPresetType, setSelectedPresetType] = useState<string | null>(null);
   const [showDevSettings, setShowDevSettings] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -120,6 +121,7 @@ const Index = () => {
     setReferenceImages([]);
     setSelectedPresetName(preset.professionalName);
     setSuggestedName(null);
+    setSelectedPresetType(preset.type || "surface");
   }, []);
 
   const handleProcess = useCallback(async () => {
@@ -131,7 +133,12 @@ const Index = () => {
     setResultImage(null);
     setSuggestedName(null);
     try {
-      const functionName = preciseMode ? "replace-bg-pipeline" : "replace-background";
+      const isScene = selectedPresetType === "scene";
+      const functionName = isScene
+        ? "replace-bg-scene"
+        : preciseMode
+          ? "replace-bg-pipeline"
+          : "replace-background";
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
           imageBase64: originalImage,
@@ -468,13 +475,15 @@ const Index = () => {
                     onClick={handleProcess}
                     disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
                     className={`flex items-center gap-2 rounded-lg px-6 py-3 font-display text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed ${
-                      preciseMode
-                        ? "bg-gradient-to-l from-amber-500 to-accent text-white"
-                        : "bg-accent text-accent-foreground"
+                      selectedPresetType === "scene"
+                        ? "bg-gradient-to-l from-emerald-500 to-teal-600 text-white"
+                        : preciseMode
+                          ? "bg-gradient-to-l from-amber-500 to-accent text-white"
+                          : "bg-accent text-accent-foreground"
                     }`}
                   >
                     <Sparkles className="h-4 w-4" />
-                    {isProcessing ? "מעבד..." : preciseMode ? "החלף רקע (מדויק)" : "החלף רקע"}
+                    {isProcessing ? "מעבד..." : selectedPresetType === "scene" ? "הצב בסצנה" : preciseMode ? "החלף רקע (מדויק)" : "החלף רקע"}
                   </button>
                 ) : (
                   <button
@@ -618,6 +627,7 @@ const Index = () => {
                         if (v.trim()) {
                           setSelectedPreset(null);
                           setSelectedPresetName(null);
+                          setSelectedPresetType(null);
                         }
                       }}
                       referenceImages={referenceImages}

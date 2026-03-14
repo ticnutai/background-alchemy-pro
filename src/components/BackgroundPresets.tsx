@@ -23,6 +23,7 @@ interface Preset {
   preview: string;
   category: string;
   professionalName: string;
+  type?: "surface" | "scene" | "color";
 }
 
 const presets: Preset[] = [
@@ -455,9 +456,204 @@ const presets: Preset[] = [
     preview: "linear-gradient(135deg, #3a2a18 0%, #c8a868 30%, #4a3a28 60%, #d0b070 100%)",
     category: "בד וריקמה",
   },
+
+  // ===== סצנות חגים / Holiday Scenes =====
+  {
+    id: "scene-passover-seder",
+    label: "שולחן סדר פסח",
+    professionalName: "Passover Seder Table",
+    prompt: "Place the product on an elegant Passover Seder table scene. The table has a crisp white linen tablecloth, a traditional Seder plate (ke'arah) with symbolic foods, silver wine cups filled with red wine, stacked matzah on a decorative plate, lit candles in silver candlesticks, a Haggadah book, fresh parsley, and scattered spring flowers. Warm golden evening lighting. The product is the hero — prominently displayed as the centerpiece.",
+    preview: "linear-gradient(135deg, #f5f0e8 0%, #e8dcc8 30%, #d4c4a8 60%, #c8b898 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+  {
+    id: "scene-passover-modern",
+    label: "פסח מודרני",
+    professionalName: "Modern Passover Setting",
+    prompt: "Place the product in a modern minimalist Passover table setting. White ceramic plates, geometric matzah holder, contemporary wine glasses, fresh herbs as decoration, clean white tablecloth with subtle texture. Bright natural daylight from a window. Modern and elegant. The product is prominently displayed as the focal point.",
+    preview: "linear-gradient(135deg, #faf8f5 0%, #f0ece5 30%, #e8e0d5 60%, #f5f0e8 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+  {
+    id: "scene-rosh-hashana",
+    label: "ראש השנה",
+    professionalName: "Rosh Hashana Celebration",
+    prompt: "Place the product in a beautiful Rosh Hashana table scene. A festive table with honey jar and dipper, sliced red apples, whole pomegranates and pomegranate seeds, round challah bread, wine glass, lit candles, autumn flowers in warm tones. Rich warm golden lighting. The product is prominently displayed as the centerpiece.",
+    preview: "linear-gradient(135deg, #c8a050 0%, #d4a848 30%, #b08030 60%, #e0c070 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+  {
+    id: "scene-sukkot",
+    label: "סוכות",
+    professionalName: "Sukkot Harvest Scene",
+    prompt: "Place the product in a decorated Sukkah scene. Natural bamboo/wood walls with hanging decorations, string lights, fresh fruits (etrog, pomegranates, grapes, figs), autumn leaves, colorful fabric drapes, tinsel decorations hanging from the ceiling. Warm festive autumn lighting filtering through the schach (roof covering). The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #8a7050 0%, #a08060 30%, #6a8a4a 60%, #b09070 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+  {
+    id: "scene-hanukkah",
+    label: "חנוכה",
+    professionalName: "Hanukkah Festival of Lights",
+    prompt: "Place the product in a Hanukkah scene. A beautiful menorah (hanukkiah) with lit candles, scattered gold foil-wrapped chocolate coins (gelt), wooden dreidels, fresh sufganiyot (donuts) with powdered sugar, blue and silver decorations. Warm candlelight glow against a darker background. The product is prominently displayed as the centerpiece.",
+    preview: "linear-gradient(135deg, #1a2744 0%, #2a3a5a 30%, #c8a868 60%, #1a2744 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+  {
+    id: "scene-shabbat",
+    label: "שולחן שבת",
+    professionalName: "Shabbat Table Setting",
+    prompt: "Place the product on an elegant Shabbat table. White tablecloth, two lit candles in silver candlesticks, braided challah bread on a decorated challah board with embroidered cover, silver Kiddush cup filled with wine, fresh flowers in a vase. Warm intimate golden candlelight. The product is prominently displayed as the focal point.",
+    preview: "linear-gradient(135deg, #f8f4e8 0%, #e8dcc0 30%, #d0c0a0 60%, #f0e8d0 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+  {
+    id: "scene-purim",
+    label: "פורים",
+    professionalName: "Purim Celebration",
+    prompt: "Place the product in a colorful Purim scene. Mishloach manot gift baskets with treats, hamantaschen cookies, carnival masks, confetti sprinkles, colorful ribbons, party decorations in purple, gold and pink. Bright festive and playful atmosphere. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #9b59b6 0%, #e74c8b 30%, #f1c40f 60%, #3498db 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+  {
+    id: "scene-shavuot",
+    label: "שבועות",
+    professionalName: "Shavuot Harvest",
+    prompt: "Place the product in a Shavuot scene. Fresh dairy products — white cheesecake, pitcher of milk, fresh cheese. Wheat sheaves, fresh field flowers (wildflowers, daisies, poppies), green leaves and vines, basket of first fruits. Bright natural spring/summer daylight. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #f8f8f0 0%, #e8f0d8 30%, #d0e0b8 60%, #f0f5e8 100%)",
+    category: "חגים",
+    type: "scene",
+  },
+
+  // ===== סצנות לייפסטייל / Lifestyle Scenes =====
+  {
+    id: "scene-kitchen",
+    label: "מטבח ביתי",
+    professionalName: "Home Kitchen Scene",
+    prompt: "Place the product on a beautiful kitchen counter scene. Marble or wooden countertop, fresh herbs in pots, cutting board, copper utensils, olive oil bottles, fresh vegetables, warm pendant lighting above. Clean, cozy kitchen ambiance. The product is prominently displayed as the hero item.",
+    preview: "linear-gradient(135deg, #e8ddd0 0%, #d0c0a8 30%, #b8a888 60%, #e0d0b8 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+  {
+    id: "scene-spa",
+    label: "ספא ורוגע",
+    professionalName: "Spa & Wellness",
+    prompt: "Place the product in a serene spa scene. Rolled white towels, smooth zen stones stacked, lit candles, eucalyptus branches, small glass bottles with essential oils, bamboo tray, soft fern leaves. Calm diffused soft lighting, peaceful atmosphere. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #e8f0e8 0%, #d0ddd0 30%, #c8d5c8 60%, #dde8dd 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+  {
+    id: "scene-beach",
+    label: "חוף ים",
+    professionalName: "Beach & Summer",
+    prompt: "Place the product in a beach scene. Soft golden sand, seashells scattered around, starfish, gentle turquoise waves in the background, dried driftwood, a straw hat, sunglasses. Bright warm summer daylight with a golden hour feel. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #d4bc8a 0%, #e8d4a8 30%, #6ac0c8 60%, #f0e0c0 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+  {
+    id: "scene-picnic",
+    label: "פיקניק",
+    professionalName: "Garden Picnic",
+    prompt: "Place the product in an outdoor picnic scene. Checkered blanket on green grass, wicker basket, fresh bread, cheese, grapes and fruit, wildflowers, lemonade in a glass jar, natural dappled sunlight through trees. The product is prominently displayed as the centerpiece.",
+    preview: "linear-gradient(135deg, #7cb342 0%, #a5d660 30%, #e8d8b8 60%, #8bc34a 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+  {
+    id: "scene-office",
+    label: "שולחן עבודה",
+    professionalName: "Modern Office Desk",
+    prompt: "Place the product on a clean modern office desk scene. Laptop partially visible, a coffee cup, notebook and pen, small plant succulent, minimalist desk lamp, wireless keyboard. Clean professional setting with natural window light. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #e0ddd8 0%, #c8c4be 30%, #b0aca6 60%, #d8d4ce 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+  {
+    id: "scene-cozy-winter",
+    label: "חורף חמים",
+    professionalName: "Cozy Winter Setting",
+    prompt: "Place the product in a cozy winter scene. Soft knitted blanket, hot cocoa mug with marshmallows, cinnamon sticks, dried orange slices, pinecones, string fairy lights in the background, warm candlelight. Intimate warm hygge atmosphere. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #8b5e3c 0%, #a67050 30%, #c89060 60%, #785038 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+  {
+    id: "scene-breakfast",
+    label: "ארוחת בוקר",
+    professionalName: "Breakfast Table",
+    prompt: "Place the product on a beautiful breakfast table scene. Fresh croissants, coffee cup and saucer, orange juice glass, fresh berries in a bowl, a jar of jam, a small flower vase, white plate and linen napkin. Bright morning natural light from a window. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #f8f0e0 0%, #f0e0c8 30%, #e8d0b0 60%, #f5ead0 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+  {
+    id: "scene-garden",
+    label: "גינה פורחת",
+    professionalName: "Blooming Garden",
+    prompt: "Place the product in a lush garden scene. Colorful blooming flowers (roses, lavender, peonies), green hedges, a weathered wooden garden table, terracotta pots, butterflies, soft natural daylight. Fresh and vibrant outdoor feel. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #7cb342 0%, #e8a0b0 30%, #d0e0a0 60%, #a8d860 100%)",
+    category: "לייפסטייל",
+    type: "scene",
+  },
+
+  // ===== סצנות מקצועיות / Professional Scenes =====
+  {
+    id: "scene-restaurant",
+    label: "מסעדה",
+    professionalName: "Fine Dining Table",
+    prompt: "Place the product on an elegant restaurant table scene. White tablecloth, fine china plates, polished silverware, crystal wine glass, folded linen napkin, a small flower arrangement, ambient warm lighting from above. Upscale fine dining atmosphere. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #2a2a2e 0%, #e8dcc8 30%, #d4c4a8 60%, #1a1a1e 100%)",
+    category: "מקצועי",
+    type: "scene",
+  },
+  {
+    id: "scene-bakery",
+    label: "מאפייה",
+    professionalName: "Artisan Bakery",
+    prompt: "Place the product in an artisan bakery scene. Flour dusted wooden surface, fresh baked bread loaves, rolling pin, wheat stalks, a jar of sourdough starter, rustic baking tools. Warm golden bakery lighting. The product is prominently displayed as the hero item.",
+    preview: "linear-gradient(135deg, #d8c0a0 0%, #c8a880 30%, #e0c8a8 60%, #b89868 100%)",
+    category: "מקצועי",
+    type: "scene",
+  },
+  {
+    id: "scene-gift-shop",
+    label: "חנות מתנות",
+    professionalName: "Gift Shop Display",
+    prompt: "Place the product in a charming gift shop display scene. Wrapped gift boxes with ribbons, tissue paper, a kraft paper bag, dried flowers, ribbon spools, pretty packaging materials scattered around. Warm boutique lighting. The product is prominently displayed as the star item.",
+    preview: "linear-gradient(135deg, #f0d8d0 0%, #e8c8c0 30%, #d8b8b0 60%, #f5e0d8 100%)",
+    category: "מקצועי",
+    type: "scene",
+  },
+  {
+    id: "scene-studio-pro",
+    label: "סטודיו מקצועי",
+    professionalName: "Professional Studio",
+    prompt: "Place the product in a professional photography studio scene. Clean white cyclorama backdrop with smooth curves, professional lighting softboxes visible in background, reflective floor, pristine controlled lighting. Studio look with perfect lighting. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 30%, #f0f0f0 60%, #fafafa 100%)",
+    category: "מקצועי",
+    type: "scene",
+  },
+  {
+    id: "scene-cosmetics",
+    label: "קוסמטיקה",
+    professionalName: "Beauty Counter",
+    prompt: "Place the product on a sleek beauty counter scene. Mirrored surface, fresh flowers (peonies or roses), scattered dried flower petals, makeup brushes in a holder, glass perfume bottles, soft pink and gold accents. Glamorous soft diffused lighting. The product is prominently displayed.",
+    preview: "linear-gradient(135deg, #f5e0e8 0%, #e8c8d0 30%, #f0d0d8 60%, #fbe8f0 100%)",
+    category: "מקצועי",
+    type: "scene",
+  },
 ];
 
-const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט", "לפי תמונה"];
+const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט", "חגים", "לייפסטייל", "מקצועי", "לפי תמונה"];
 
 const colorOnlySwatches = [
   { hex: "#FFFFFF", label: "לבן", name: "Pure White" },
@@ -516,6 +712,9 @@ const categoryIcons: Record<string, string> = {
   "בד וריקמה": "🧵",
   "טבע": "🌿",
   "גרדיינט": "◐",
+  "חגים": "🕎",
+  "לייפסטייל": "🏡",
+  "מקצועי": "📸",
   "לפי תמונה": "🖼️",
 };
 
@@ -1041,6 +1240,11 @@ const BackgroundPresets = ({
                           {selectedPresets.indexOf(preset.id) + 1}
                         </div>
                       )}
+                      {preset.type === "scene" && (
+                        <div className="absolute top-1 right-1 rounded-full bg-emerald-500/90 px-1.5 py-0.5 font-accent text-[8px] font-bold text-white z-10">
+                          סצנה
+                        </div>
+                      )}
                       <div
                         className="h-14 w-full rounded-md border border-border/50"
                         style={{ background: preset.preview }}
@@ -1071,13 +1275,16 @@ const BackgroundPresets = ({
       {activeCategory && activeCategory !== "צבע בלבד" && activeCategory !== "לפי תמונה" && (
         <div className="space-y-3 pt-3 border-t border-border">
           <label className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            רקע מותאם אישית
+            {["חגים", "לייפסטייל", "מקצועי"].includes(activeCategory) ? "תאר סצנה מותאמת אישית" : "רקע מותאם אישית"}
           </label>
 
           <textarea
             value={customPrompt}
             onChange={(e) => onCustomPromptChange(e.target.value)}
-            placeholder="תאר את הרקע שאתה רוצה, לדוגמה: שיש ורוד עם גידים זהובים, עץ טיק כהה..."
+            placeholder={["חגים", "לייפסטייל", "מקצועי"].includes(activeCategory)
+              ? "תאר את הסצנה שאתה רוצה, לדוגמה: שולחן חג מעוצב עם כלי חרסינה, פרחים לבנים, נרות דולקים ומפות פשתן..."
+              : "תאר את הרקע שאתה רוצה, לדוגמה: שיש ורוד עם גידים זהובים, עץ טיק כהה..."
+            }
             className="w-full rounded-lg border border-input bg-card p-3 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
             rows={2}
             dir="rtl"
