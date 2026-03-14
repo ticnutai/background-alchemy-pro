@@ -53,6 +53,8 @@ const Index = () => {
   const [batchProcessing, setBatchProcessing] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [preciseMode, setPreciseMode] = useState(false);
+  const [showDevSettings, setShowDevSettings] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
