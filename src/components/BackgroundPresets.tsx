@@ -457,7 +457,7 @@ const presets: Preset[] = [
   },
 ];
 
-const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט"];
+const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט", "לפי תמונה"];
 
 const colorOnlySwatches = [
   { hex: "#FFFFFF", label: "לבן", name: "Pure White" },
