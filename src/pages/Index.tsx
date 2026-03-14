@@ -1,12 +1,34 @@
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft } from "lucide-react";
+import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import studioLogo from "@/assets/studio-logo.png";
 import heroImage from "@/assets/hero-image.jpg";
 import gallery1 from "@/assets/gallery-1.jpg";
 import gallery2 from "@/assets/gallery-2.jpg";
 import gallery3 from "@/assets/gallery-3.jpg";
+import ProductGallery from "@/components/ProductGallery";
+import AdminProductForm from "@/components/AdminProductForm";
 
 const Index = () => {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [showAdminPanel, setShowAdminPanel] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle();
+        setIsAdmin(!!data);
+      }
+    };
+    checkAdmin();
+  }, []);
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
       {/* Navigation */}
