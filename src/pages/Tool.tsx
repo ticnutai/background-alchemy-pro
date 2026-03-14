@@ -1,5 +1,6 @@
-import { useState, useCallback } from "react";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers } from "lucide-react";
+import { useState, useCallback, useEffect } from "react";
+import { useNavigate, Link } from "react-router-dom";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
@@ -14,8 +15,12 @@ import ExportPanel from "@/components/ExportPanel";
 import MockupPreview from "@/components/MockupPreview";
 import BatchProcessor from "@/components/BatchProcessor";
 import AIChatDialog from "@/components/AIChatDialog";
+import HistoryPanel from "@/components/HistoryPanel";
+import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [user, setUser] = useState<User | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -31,6 +36,15 @@ const Index = () => {
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
   const [showMockup, setShowMockup] = useState(false);
   const [showBatch, setShowBatch] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleImageSelect = useCallback((base64: string) => {
     setOriginalImage(base64);
