@@ -218,13 +218,22 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-3">
             {user && (
-              <button
-                onClick={() => setShowHistory(true)}
-                className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
-              >
-                <Clock className="h-3.5 w-3.5" />
-                היסטוריה
-              </button>
+              <>
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  היסטוריה
+                </button>
+                <Link
+                  to="/gallery"
+                  className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  גלריה
+                </Link>
+              </>
             )}
             {user ? (
               <button
