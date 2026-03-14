@@ -683,9 +683,9 @@ const Gallery = () => {
                     >
                       <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
                     </button>
-                    <a href={item.result_image_url} download className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                    <button onClick={() => downloadImage(item.result_image_url, item.background_name || "image.png")} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
                       <Download className="h-4 w-4" />
-                    </a>
+                    </button>
                   </div>
                 </div>
               </div>
