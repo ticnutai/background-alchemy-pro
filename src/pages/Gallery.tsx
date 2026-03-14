@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Sparkles, FolderPlus, Folder, Heart, Trash2, Download, ZoomIn, X, ArrowRight,
   ChevronLeft, ChevronRight, Maximize2, Minimize2, LogIn, Search, SlidersHorizontal,
-  Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil, ChevronDown,
+  Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil, ChevronDown, Copy,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import ImageAdjustmentsPanel, { getFilterString, defaultAdjustments, type ImageAdjustments } from "@/components/ImageAdjustmentsPanel";
@@ -232,6 +232,29 @@ const Gallery = () => {
     setItems(prev => prev.filter(i => i.id !== id));
     if (zoomedItem?.id === id) setZoomedItem(null);
     toast.success("נמחק");
+  };
+
+  const duplicateItem = async (item: HistoryItem) => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from("processing_history")
+      .insert({
+        user_id: user.id,
+        original_image_url: item.original_image_url,
+        result_image_url: item.result_image_url,
+        background_prompt: item.background_prompt,
+        background_name: item.background_name ? `${item.background_name} (עותק)` : "עותק",
+        is_favorite: false,
+        folder_id: item.folder_id,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error("שגיאה בשכפול");
+    } else if (data) {
+      setItems(prev => [data as HistoryItem, ...prev]);
+      toast.success("התמונה שוכפלה! ערוך את העותק בלי לפגוע במקור ✨");
+    }
   };
 
   const toggleCompareItem = (item: HistoryItem) => {
@@ -712,6 +735,14 @@ const Gallery = () => {
                         </button>
                         <div className="w-px h-4 bg-border" />
                         <button
+                          onClick={e => { e.stopPropagation(); duplicateItem(item); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-accent-foreground hover:bg-accent/10 transition-colors"
+                          title="שכפל תמונה"
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
                           onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
                           className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           title="מחק"
@@ -907,6 +938,15 @@ const Gallery = () => {
                   className="rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 bg-primary text-primary-foreground hover:brightness-110"
                 >
                   <Pencil className="h-3.5 w-3.5" /> ערוך בכלי
+                </button>
+                {/* Duplicate */}
+                <button
+                  onClick={() => {
+                    duplicateItem(zoomedItem);
+                  }}
+                  className="rounded-lg border border-border px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
+                >
+                  <Copy className="h-3.5 w-3.5" /> שכפל
                 </button>
                 {/* Original/Result toggle */}
                 <button
