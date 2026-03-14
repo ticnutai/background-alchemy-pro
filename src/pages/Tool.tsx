@@ -207,14 +207,41 @@ const Index = () => {
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+            <Link to="/" className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
-            </div>
+            </Link>
             <h1 className="font-display text-xl font-bold text-foreground">AI Background Replacer</h1>
           </div>
-          <div className="flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1.5">
-            <Shield className="h-4 w-4 text-accent" />
-            <span className="font-display text-xs font-semibold text-accent">Lossless Export</span>
+          <div className="flex items-center gap-3">
+            {user && (
+              <button
+                onClick={() => setShowHistory(true)}
+                className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                היסטוריה
+              </button>
+            )}
+            {user ? (
+              <button
+                onClick={async () => {
+                  await supabase.auth.signOut();
+                  toast.success("התנתקת בהצלחה");
+                }}
+                className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+                התנתק
+              </button>
+            ) : (
+              <Link
+                to="/auth"
+                className="flex items-center gap-2 rounded-full bg-gold px-4 py-2 font-accent text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+              >
+                <LogIn className="h-3.5 w-3.5" />
+                התחבר לשמירה
+              </Link>
+            )}
           </div>
         </div>
       </header>
