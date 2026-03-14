@@ -40,6 +40,27 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
     setSliderPos(Math.max(0, Math.min(100, x)));
   }, []);
 
+  const navigateZoom = useCallback((direction: "prev" | "next") => {
+    if (!zoomedItem) return;
+    const idx = items.findIndex(i => i.id === zoomedItem.id);
+    const nextIdx = direction === "next" ? idx + 1 : idx - 1;
+    if (nextIdx >= 0 && nextIdx < items.length) {
+      setZoomedItem(items[nextIdx]);
+      setSliderPos(50);
+    }
+  }, [zoomedItem, items]);
+
+  useEffect(() => {
+    if (!zoomedItem) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") navigateZoom("next");
+      else if (e.key === "ArrowRight") navigateZoom("prev");
+      else if (e.key === "Escape") setZoomedItem(null);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [zoomedItem, navigateZoom]);
+
   if (items.length === 0) return null;
 
   return (
