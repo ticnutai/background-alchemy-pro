@@ -753,8 +753,115 @@ const BackgroundPresets = ({
                   />
                 </label>
               </div>
+
+              {/* Image Analyzer */}
+              <div className="space-y-2 pt-3 border-t border-border">
+                <label className="font-display text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <ScanSearch className="h-3.5 w-3.5" />
+                  זיהוי צבעים ואלמנטים מתמונה
+                </label>
+                <p className="font-body text-[10px] text-muted-foreground">
+                  העלה תמונה מוכנה — המערכת תזהה צבעים, אלמנטים וסגנון ותציע רקעים מתאימים
+                </p>
+
+                <label className={`flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary/30 p-3 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors ${analyzing ? 'opacity-60 pointer-events-none' : ''}`}>
+                  {analyzing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                      <span className="font-body text-xs text-primary">מנתח תמונה...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ScanSearch className="h-4 w-4 text-primary" />
+                      <span className="font-body text-xs text-primary font-semibold">העלה תמונה לניתוח</span>
+                    </>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAnalyzeImage}
+                    className="hidden"
+                    disabled={analyzing}
+                  />
+                </label>
+
+                {analysisResult && (
+                  <div className="space-y-3 rounded-lg border border-border bg-secondary/20 p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="font-display text-xs font-bold text-foreground">תוצאות ניתוח</span>
+                      <button onClick={() => setAnalysisResult(null)} className="text-muted-foreground hover:text-destructive">
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Detected colors */}
+                    {analysisResult.colors.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="font-body text-[10px] text-muted-foreground font-semibold">צבעים שזוהו:</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {analysisResult.colors.map((c, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleColorSelect(c.hex, c.name, c.name)}
+                              className="flex items-center gap-1 rounded-full border border-border px-2 py-0.5 hover:border-primary transition-colors"
+                              title={`${c.name} (${c.percentage}%)`}
+                            >
+                              <div className="h-3 w-3 rounded-full border border-border/50" style={{ backgroundColor: c.hex }} />
+                              <span className="font-body text-[9px] text-foreground">{c.name}</span>
+                              <span className="font-body text-[8px] text-muted-foreground">{c.percentage}%</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Elements */}
+                    {analysisResult.elements.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="font-body text-[10px] text-muted-foreground font-semibold">אלמנטים שזוהו:</span>
+                        <div className="flex flex-wrap gap-1">
+                          {analysisResult.elements.map((el, i) => (
+                            <span key={i} className="rounded-full bg-accent/50 px-2 py-0.5 font-body text-[9px] text-accent-foreground">
+                              {el}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Style */}
+                    {analysisResult.style && (
+                      <div className="space-y-1">
+                        <span className="font-body text-[10px] text-muted-foreground font-semibold">סגנון:</span>
+                        <p className="font-body text-[10px] text-foreground">{analysisResult.style}</p>
+                      </div>
+                    )}
+
+                    {/* Suggested backgrounds */}
+                    {analysisResult.suggestedBackgrounds.length > 0 && (
+                      <div className="space-y-1.5">
+                        <span className="font-body text-[10px] text-muted-foreground font-semibold">רקעים מומלצים:</span>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {analysisResult.suggestedBackgrounds.map((bg, i) => (
+                            <button
+                              key={i}
+                              onClick={() => handleColorSelect(bg.hex, bg.name, bg.name)}
+                              className="flex items-center gap-2 rounded-lg border border-border p-2 hover:border-primary transition-colors text-right"
+                            >
+                              <div className="h-6 w-6 rounded-md border border-border/50 shrink-0" style={{ backgroundColor: bg.hex }} />
+                              <div className="min-w-0">
+                                <span className="block font-body text-[9px] font-bold text-foreground truncate">{bg.name}</span>
+                                <span className="block font-body text-[8px] text-muted-foreground truncate">{bg.reason}</span>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
-          ) : (
             <div className="grid grid-cols-2 gap-2">
               {activeCatPresets.map((preset) => {
                 const isSelected = multiSelectMode
