@@ -509,6 +509,34 @@ const BackgroundPresets = ({
   onTogglePreset,
 }: BackgroundPresetsProps) => {
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [customColor, setCustomColor] = useState("#FFFFFF");
+  const [selectedColorId, setSelectedColorId] = useState<string | null>(null);
+
+  const handleColorSelect = useCallback((hex: string, label: string, name: string) => {
+    setSelectedColorId(hex);
+    const colorPreset: Preset = {
+      id: `color-${hex}`,
+      label: `צבע ${label}`,
+      professionalName: `${name} Background`,
+      prompt: `Change ONLY the background color to a solid flat ${name} color (${hex}). Keep the product, object, design, pattern, embroidery, and all other elements EXACTLY the same — same position, same lighting, same details. Only replace the background area with a smooth, even, solid ${hex} color. Do not alter the product in any way.`,
+      preview: hex,
+      category: "צבע בלבד",
+    };
+    onSelect(colorPreset);
+  }, [onSelect]);
+
+  const handleCustomColorSelect = useCallback(() => {
+    const preset: Preset = {
+      id: `color-custom-${customColor}`,
+      label: `צבע מותאם`,
+      professionalName: `Custom ${customColor} Background`,
+      prompt: `Change ONLY the background color to a solid flat color ${customColor}. Keep the product, object, design, pattern, embroidery, and all other elements EXACTLY the same — same position, same lighting, same details. Only replace the background area with a smooth, even, solid ${customColor} color. Do not alter the product in any way.`,
+      preview: customColor,
+      category: "צבע בלבד",
+    };
+    onSelect(preset);
+    setSelectedColorId(customColor);
+  }, [customColor, onSelect]);
 
   const handleRefImageUpload = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
