@@ -16,6 +16,8 @@ import MockupPreview from "@/components/MockupPreview";
 import BatchProcessor from "@/components/BatchProcessor";
 import AIChatDialog from "@/components/AIChatDialog";
 import HistoryPanel from "@/components/HistoryPanel";
+import AdvancedToolsPanel from "@/components/AdvancedToolsPanel";
+import SocialTemplates from "@/components/SocialTemplates";
 import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
