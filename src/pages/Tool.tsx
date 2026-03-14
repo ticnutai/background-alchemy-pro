@@ -337,6 +337,16 @@ const Index = () => {
                   </button>
                 )}
 
+                {resultImage && (
+                  <button
+                    onClick={() => setShowShare(true)}
+                    className="flex items-center gap-2 rounded-lg border border-gold/30 bg-gold/5 px-5 py-3 font-display text-sm font-semibold text-gold transition-all hover:bg-gold/10"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    שתף + QR
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowBatch(true)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
