@@ -69,6 +69,10 @@ serve(async (req) => {
         prompt = `Create a luxurious product display collage with this product. Show it from the main angle on a marble surface, with elegant styling — add a gold plate, some greenery/flowers, and a folded linen napkin as props. Make it look like a high-end catalog layout. Studio lighting.`;
         break;
 
+      case "add-elements":
+        prompt = `Add the following decorative elements/props around and near the product in this image: ${actionParams?.elements || "elegant decorative items"}. Keep the main product EXACTLY the same — same position, same size, same lighting, same details. The added elements should look natural, realistically placed, and elegantly styled as if in a professional product photography setup. The elements should complement the product, not cover or overlap it. Professional studio lighting.`;
+        break;
+
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400,
