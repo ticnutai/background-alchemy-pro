@@ -4,6 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { toast } from "@/hooks/use-toast";
 
+interface ColorSwatch {
+  hex: string;
+  name: string;
+}
+
+interface VisualOption {
+  prompt: string;
+  label: string;
+  previewUrl?: string;
+  isGenerating?: boolean;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -11,6 +23,8 @@ interface Message {
   previewImage?: string; // AI-generated preview image
   previewPrompt?: string; // prompt used for preview generation
   quickReplies?: QuickReply[]; // yes/no or option buttons
+  colorPalette?: ColorSwatch[];
+  visualOptions?: VisualOption[];
 }
 
 interface QuickReply {
