@@ -39,16 +39,16 @@ const ImageUploader = ({ onImageSelect }: ImageUploaderProps) => {
     <label
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
-      className="flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-border bg-card p-12 cursor-pointer transition-colors hover:border-primary hover:bg-secondary/50"
+      className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-card p-8 cursor-pointer transition-colors hover:border-primary hover:bg-secondary/50"
     >
-      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-        <Upload className="h-8 w-8 text-primary" />
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+        <Upload className="h-6 w-6 text-primary" />
       </div>
       <div className="text-center">
-        <p className="font-display text-lg font-semibold text-foreground">
+        <p className="font-display text-base font-semibold text-foreground">
           גרור תמונה לכאן או לחץ להעלאה
         </p>
-        <p className="mt-1 font-body text-sm text-muted-foreground">
+        <p className="mt-0.5 font-body text-xs text-muted-foreground">
           PNG, JPG, WEBP — עד 10MB
         </p>
       </div>

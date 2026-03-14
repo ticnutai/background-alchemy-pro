@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -281,6 +281,13 @@ const Index = () => {
           <div className="flex items-center gap-3">
             {user && (
               <>
+                <Link
+                  to="/"
+                  className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
+                >
+                  <Home className="h-3.5 w-3.5" />
+                  דף הבית
+                </Link>
                 <button
                   onClick={() => setShowHistory(true)}
                   className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
@@ -318,6 +325,13 @@ const Index = () => {
               </Link>
             )}
             <ThemeToggle />
+            <button
+              onClick={() => navigate(-1)}
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground hover:border-gold/40"
+              title="חזור"
+            >
+              <ArrowRight className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </header>
