@@ -37,7 +37,7 @@ const Index = () => {
   const [customPrompt, setCustomPrompt] = useState("");
   const [activePrompt, setActivePrompt] = useState("");
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
-  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "tools" | "export">("backgrounds");
+  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "tools" | "export" | "smart">("backgrounds");
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [suggestedName, setSuggestedName] = useState<string | null>(null);
   const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
@@ -45,6 +45,7 @@ const Index = () => {
   const [showBatch, setShowBatch] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [showSocial, setShowSocial] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user));
