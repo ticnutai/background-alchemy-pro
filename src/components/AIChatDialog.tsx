@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, X, Send, Sparkles, Loader2, ImagePlus, Trash2, Camera, ChevronDown, Eye, Wand2, Check, XCircle, Plus } from "lucide-react";
+import { MessageCircle, X, Send, Sparkles, Loader2, ImagePlus, Trash2, Camera, ChevronDown, Eye, Wand2, Check, XCircle, Plus, FolderOpen } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
 import { toast } from "@/hooks/use-toast";
 
@@ -62,6 +63,68 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [lastSuggestedPrompt, setLastSuggestedPrompt] = useState<{prompt: string; name: string} | null>(null);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const [galleryImages, setGalleryImages] = useState<Array<{id: string; url: string; name: string | null}>>([]);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+
+  const loadGalleryImages = async () => {
+    setGalleryLoading(true);
+    const { data } = await supabase
+      .from("processing_history")
+      .select("id, result_image_url, background_name, original_image_url")
+      .order("created_at", { ascending: false })
+      .limit(30);
+    if (data) {
+      const imgs: Array<{id: string; url: string; name: string | null; type: string}> = [];
+      data.forEach(item => {
+        imgs.push({ id: item.id + "-result", url: item.result_image_url, name: item.background_name, type: "result" });
+        imgs.push({ id: item.id + "-orig", url: item.original_image_url, name: "מקור", type: "original" });
+      });
+      // Deduplicate by url
+      const seen = new Set<string>();
+      setGalleryImages(imgs.filter(i => { if (seen.has(i.url)) return false; seen.add(i.url); return true; }));
+    }
+    setGalleryLoading(false);
+  };
+
+  const handleGallerySelect = async (url: string) => {
+    setShowGalleryPicker(false);
+    // Fetch image and convert to base64
+    try {
+      const resp = await fetch(url);
+      const blob = await resp.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+
+      if (!productImage) {
+        setProductImage(base64);
+        setFlowStep("upload-reference");
+        const userMsg: Message = {
+          role: "user",
+          content: "בחרתי תמונת מוצר מהגלריה. נתח אותה ותציע רקעים מתאימים.",
+          images: [base64],
+        };
+        setMessages((prev) => [...prev, userMsg]);
+        await sendToAI([...messages, userMsg], true);
+      } else {
+        setReferenceImages(prev => [...prev, base64]);
+        setPreviewUrl(base64);
+        setFlowStep("choose-fidelity");
+        const userMsg: Message = {
+          role: "user",
+          content: "בחרתי תמונת ייחוס מהגלריה. נתח מה הרקע ותציע אלמנטים.",
+          images: [base64],
+        };
+        setMessages((prev) => [...prev, userMsg]);
+        await sendToAI([...messages, userMsg], true);
+      }
+    } catch {
+      toast({ title: "שגיאה", description: "לא הצלחתי לטעון את התמונה", variant: "destructive" });
+    }
+  };
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
@@ -742,7 +805,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
       <div className="border-t border-border p-3" dir="rtl">
         {/* Quick action buttons */}
         {flowStep === "idle" && !productImage && (
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
             <button
               onClick={() => {
                 setFlowStep("upload-product");
@@ -762,6 +825,13 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
               <ImagePlus className="h-3 w-3" />
               העלה תמונה
             </button>
+            <button
+              onClick={() => { setShowGalleryPicker(true); loadGalleryImages(); }}
+              className="flex items-center gap-1.5 rounded-lg bg-accent/10 px-3 py-1.5 font-accent text-[10px] font-semibold text-accent-foreground transition-colors hover:bg-accent/20"
+            >
+              <FolderOpen className="h-3 w-3" />
+              מהגלריה שלי
+            </button>
           </div>
         )}
 
@@ -771,6 +841,13 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:text-primary hover:border-primary/50"
           >
             <ImagePlus className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => { setShowGalleryPicker(true); loadGalleryImages(); }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-background text-muted-foreground transition-colors hover:text-accent-foreground hover:border-accent/50"
+            title="בחר מהגלריה"
+          >
+            <FolderOpen className="h-4 w-4" />
           </button>
           <textarea
             ref={inputRef}
@@ -808,6 +885,49 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
         onChange={handleReferenceUpload}
         className="hidden"
       />
+
+      {/* Gallery Picker Modal */}
+      {showGalleryPicker && (
+        <div className="absolute inset-0 z-50 flex flex-col bg-card rounded-2xl overflow-hidden">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4 text-primary" />
+              <span className="font-display text-sm font-bold text-foreground">בחר מהגלריה</span>
+            </div>
+            <button onClick={() => setShowGalleryPicker(false)} className="rounded-lg p-1 hover:bg-secondary transition-colors">
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3" dir="rtl">
+            {galleryLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : galleryImages.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="font-body text-sm text-muted-foreground">אין תמונות בגלריה עדיין</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-2">
+                {galleryImages.map((img) => (
+                  <button
+                    key={img.id}
+                    onClick={() => handleGallerySelect(img.url)}
+                    className="group relative aspect-square rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all"
+                  >
+                    <img src={img.url} alt={img.name || ""} className="h-full w-full object-cover transition-transform group-hover:scale-105" />
+                    {img.name && (
+                      <span className="absolute bottom-0 inset-x-0 bg-foreground/60 backdrop-blur-sm px-1.5 py-0.5 font-accent text-[8px] text-card truncate">
+                        {img.name}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
