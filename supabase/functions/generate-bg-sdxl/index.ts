@@ -1,0 +1,90 @@
+import "https://deno.land/x/xhr@0.1.0/mod.ts";
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { imageBase64, backgroundPrompt, negativePrompt, strength } = await req.json();
+
+    if (!imageBase64) {
+      return new Response(JSON.stringify({ error: "No image provided" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const REPLICATE_API_TOKEN = Deno.env.get("REPLICATE_API_TOKEN");
+    if (!REPLICATE_API_TOKEN) {
+      return new Response(JSON.stringify({ error: "Replicate API key not configured" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const base64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
+    const dataUri = `data:image/png;base64,${base64Data}`;
+
+    // Stable Diffusion XL Inpainting for high-quality background generation
+    const createRes = await fetch("https://api.replicate.com/v1/predictions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        version: "c11bac58203367db93a3c552bd49a25a5c839ced1b0a39ed1f1a5e1c5c4a1f6e",
+        input: {
+          image: dataUri,
+          prompt: `${backgroundPrompt || "Professional product photography background, studio lighting"}, high quality, detailed, 8k`,
+          negative_prompt: negativePrompt || "blurry, low quality, distorted, text, watermark, deformed product",
+          num_inference_steps: 30,
+          guidance_scale: 7.5,
+          strength: strength || 0.85,
+          scheduler: "K_EULER_ANCESTRAL",
+        },
+      }),
+    });
+
+    if (!createRes.ok) {
+      const errText = await createRes.text();
+      throw new Error(`Replicate API error: ${errText}`);
+    }
+
+    const prediction = await createRes.json();
+    let result = prediction;
+
+    // Poll for completion
+    while (result.status !== "succeeded" && result.status !== "failed") {
+      await new Promise((r) => setTimeout(r, 3000));
+      const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+        headers: { Authorization: `Bearer ${REPLICATE_API_TOKEN}` },
+      });
+      result = await pollRes.json();
+    }
+
+    if (result.status === "failed") {
+      throw new Error(result.error || "Background generation failed");
+    }
+
+    const outputUrl = Array.isArray(result.output) ? result.output[0] : result.output;
+
+    return new Response(
+      JSON.stringify({ resultImage: outputUrl, method: "sdxl-inpainting" }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err: any) {
+    console.error("generate-bg-sdxl error:", err);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});

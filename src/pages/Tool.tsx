@@ -591,6 +591,7 @@ const Index = () => {
                       resultImage={resultImage}
                       isExporting={isExporting}
                       onExport={handleExport}
+                      onResult={setResultImage}
                     />
                   )}
                 </div>
