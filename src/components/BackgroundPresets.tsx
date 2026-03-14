@@ -653,22 +653,22 @@ const BackgroundPresets = ({
               <p className="font-body text-xs text-muted-foreground">
                 שנה רק את צבע הרקע — העיצוב, המוצר והפרטים נשארים זהים
               </p>
-              <div className="grid grid-cols-5 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 {colorOnlySwatches.map((swatch) => (
                   <button
                     key={swatch.hex}
                     onClick={() => handleColorSelect(swatch.hex, swatch.label, swatch.name)}
-                    className={`group flex flex-col items-center gap-1 rounded-lg border-2 p-1.5 transition-all ${
+                    className={`group flex flex-col items-center gap-1.5 rounded-lg border-2 p-2 transition-all ${
                       selectedColorId === swatch.hex
                         ? "border-primary shadow-md"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
                     <div
-                      className="h-8 w-full rounded-md border border-border/50"
+                      className="h-12 w-full rounded-md border border-border/50"
                       style={{ backgroundColor: swatch.hex }}
                     />
-                    <span className="font-body text-[9px] text-foreground leading-tight text-center">
+                    <span className="font-body text-[10px] text-foreground leading-tight text-center">
                       {swatch.label}
                     </span>
                   </button>
