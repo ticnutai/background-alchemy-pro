@@ -58,6 +58,10 @@ const Gallery = () => {
   const [showAdjustments, setShowAdjustments] = useState(false);
   const [pinnedItem, setPinnedItem] = useState<HistoryItem | null>(null);
   const [sideBySideIndex, setSideBySideIndex] = useState(0);
+  const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
+  const [dragOverFolderId, setDragOverFolderId] = useState<string | null>(null);
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
+  const [showCompareView, setShowCompareView] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
