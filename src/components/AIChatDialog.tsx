@@ -423,12 +423,13 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
   const resetFlow = () => {
     setFlowStep("idle");
     setProductImage(null);
-    setReferenceImage(null);
+    setReferenceImages([]);
     setSelectedFidelity("similar");
     setSuggestedElements([]);
     setSelectedElements([]);
     setPreviewUrl(null);
     setAnalysisResult("");
+    setLastSuggestedPrompt(null);
   };
 
   if (!isOpen) {
