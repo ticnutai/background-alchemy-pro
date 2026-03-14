@@ -467,10 +467,10 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
       </div>
 
       {/* Image preview strip */}
-      {(productImage || referenceImage) && (
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-secondary/30" dir="rtl">
+      {(productImage || referenceImages.length > 0) && (
+        <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-secondary/30 overflow-x-auto" dir="rtl">
           {productImage && (
-            <div className="relative group">
+            <div className="relative group shrink-0">
               <img src={productImage} alt="מוצר" className="h-12 w-12 rounded-lg object-cover border border-border" />
               <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-primary px-1 py-0.5 font-accent text-[7px] text-primary-foreground whitespace-nowrap">מוצר</span>
               <button
@@ -481,20 +481,31 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
               </button>
             </div>
           )}
-          {referenceImage && (
-            <div className="relative group">
-              <img src={referenceImage} alt="ייחוס" className="h-12 w-12 rounded-lg object-cover border border-gold/50" />
-              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-gold px-1 py-0.5 font-accent text-[7px] text-gold-foreground whitespace-nowrap">ייחוס</span>
+          {referenceImages.map((img, idx) => (
+            <div key={idx} className="relative group shrink-0">
+              <img src={img} alt={`ייחוס ${idx + 1}`} className="h-12 w-12 rounded-lg object-cover border border-gold/50" />
+              <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 rounded bg-gold px-1 py-0.5 font-accent text-[7px] text-gold-foreground whitespace-nowrap">ייחוס {idx + 1}</span>
               <button
-                onClick={() => { setReferenceImage(null); setPreviewUrl(null); setFlowStep("upload-reference"); }}
+                onClick={() => {
+                  setReferenceImages(prev => prev.filter((_, i) => i !== idx));
+                  if (referenceImages.length <= 1) { setPreviewUrl(null); setFlowStep("upload-reference"); }
+                }}
                 className="absolute -top-1 -right-1 rounded-full bg-destructive p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
               >
                 <X className="h-2.5 w-2.5 text-destructive-foreground" />
               </button>
             </div>
+          ))}
+          {referenceImages.length > 0 && (
+            <button
+              onClick={() => refFileInputRef.current?.click()}
+              className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border-2 border-dashed border-gold/30 text-gold/50 hover:border-gold hover:text-gold transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           )}
-          {selectedFidelity && referenceImage && (
-            <span className="mr-auto rounded-full bg-accent/10 px-2 py-0.5 font-accent text-[10px] text-accent-foreground">
+          {selectedFidelity && referenceImages.length > 0 && (
+            <span className="mr-auto rounded-full bg-accent/10 px-2 py-0.5 font-accent text-[10px] text-accent-foreground shrink-0">
               {fidelityLevels.find((f) => f.id === selectedFidelity)?.icon} {fidelityLevels.find((f) => f.id === selectedFidelity)?.label}
             </span>
           )}
