@@ -160,9 +160,21 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
                     />
                   </div>
                   <div className="p-3">
-                    <p className="font-display text-sm font-semibold text-foreground truncate">
-                      {item.background_name || "רקע מותאם"}
-                    </p>
+                    <EditableLabel
+                      hebrewName={item.background_name || "רקע מותאם"}
+                      englishName={item.background_prompt?.slice(0, 30) || "Custom background"}
+                      onSave={async (he) => {
+                        const { error } = await supabase
+                          .from("processing_history")
+                          .update({ background_name: he })
+                          .eq("id", item.id);
+                        if (!error) {
+                          setItems(prev => prev.map(it => it.id === item.id ? { ...it, background_name: he } : it));
+                          toast.success("השם עודכן");
+                        }
+                      }}
+                      size="sm"
+                    />
                     <p className="font-body text-xs text-muted-foreground mt-0.5">
                       {new Date(item.created_at).toLocaleDateString("he-IL")}
                     </p>
