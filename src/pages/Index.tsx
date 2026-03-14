@@ -38,36 +38,34 @@ const Index = () => {
             alt="מוצרי יוקרה"
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-l from-foreground/70 via-foreground/40 to-transparent" />
-          <div className="absolute inset-0 flex items-center">
-            <div className="mx-auto max-w-7xl w-full px-6">
-              <div className="max-w-xl mr-auto">
-                <div className="mb-6 inline-block rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5">
-                  <span className="font-accent text-xs font-semibold text-gold">עיצוב יוקרתי בעבודת יד</span>
-                </div>
-                <h1 className="font-display text-5xl md:text-7xl font-bold text-card leading-tight">
-                  סטודיו מעצבים
-                  <br />
-                  <span className="text-gold italic">רותי פרל</span>
-                </h1>
-                <p className="mt-6 font-body text-lg text-card/80 max-w-md leading-relaxed">
-                  עיצוב מוצרי יוקרה בעבודת יד, ריקמה אומנותית, וצילום מוצרים מקצועי ברמה הגבוהה ביותר
-                </p>
-                <div className="mt-8 flex gap-4">
-                  <a
-                    href="#contact"
-                    className="rounded-full bg-gold px-8 py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110"
-                  >
-                    צור קשר
-                  </a>
-                  <a
-                    href="#gallery"
-                    className="rounded-full border border-card/30 bg-card/10 px-8 py-3.5 font-display text-sm font-semibold text-card backdrop-blur-sm transition-all hover:bg-card/20"
-                  >
-                    צפה בעבודות
-                  </a>
-                </div>
-              </div>
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent" />
+        </div>
+        <div className="bg-background py-16">
+          <div className="mx-auto max-w-7xl px-6 text-center">
+            <div className="mb-6 inline-block rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5">
+              <span className="font-accent text-xs font-semibold text-gold">עיצוב יוקרתי בעבודת יד</span>
+            </div>
+            <h1 className="font-display text-5xl md:text-7xl font-bold text-foreground leading-tight">
+              סטודיו מעצבים
+              <br />
+              <span className="text-gold italic">רותי פרל</span>
+            </h1>
+            <p className="mt-6 mx-auto font-body text-lg text-muted-foreground max-w-lg leading-relaxed">
+              עיצוב מוצרי יוקרה בעבודת יד, ריקמה אומנותית, וצילום מוצרים מקצועי ברמה הגבוהה ביותר
+            </p>
+            <div className="mt-8 flex justify-center gap-4">
+              <a
+                href="#contact"
+                className="rounded-full bg-gold px-8 py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110"
+              >
+                צור קשר
+              </a>
+              <a
+                href="#gallery"
+                className="rounded-full border border-border bg-card px-8 py-3.5 font-display text-sm font-semibold text-foreground transition-all hover:border-gold/40"
+              >
+                צפה בעבודות
+              </a>
             </div>
           </div>
         </div>
