@@ -363,17 +363,28 @@ const Gallery = () => {
               <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
                 <div className="flex items-center justify-between mb-3">
                   <span className="font-display text-sm font-bold text-foreground">השוואה ({compareItems.length}/4)</span>
-                  <button onClick={() => setCompareItems([])} className="font-accent text-xs text-muted-foreground hover:text-foreground">נקה</button>
+                  <div className="flex items-center gap-2">
+                    {compareItems.length >= 2 && (
+                      <button
+                        onClick={() => setShowCompareView(true)}
+                        className="rounded-lg bg-gold px-4 py-1.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+                      >
+                        צור השוואה
+                      </button>
+                    )}
+                    <button onClick={() => setCompareItems([])} className="font-accent text-xs text-muted-foreground hover:text-foreground">נקה</button>
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   {compareItems.map(item => (
                     <div key={item.id} className="relative w-40 aspect-square rounded-lg overflow-hidden border border-border group">
                       <img src={item.result_image_url} alt="" className="h-full w-full object-cover" />
-                      <div className="absolute inset-0 bg-foreground/0 group-hover:bg-foreground/30 transition-colors flex items-center justify-center">
-                        <button onClick={() => setZoomedItem(item)} className="opacity-0 group-hover:opacity-100 rounded-full bg-card p-2 transition-opacity">
-                          <ZoomIn className="h-4 w-4 text-foreground" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => toggleCompareItem(item)}
+                        className="absolute top-1 right-1 rounded-full bg-foreground/60 p-1 text-card opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
                       <p className="absolute bottom-1 left-1 right-1 rounded bg-foreground/70 px-1.5 py-0.5 font-accent text-[10px] text-card truncate text-center">
                         {item.background_name || "רקע מותאם"}
                       </p>
