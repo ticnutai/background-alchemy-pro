@@ -68,6 +68,36 @@ export type Database = {
         }
         Relationships: []
       }
+      migration_logs: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+          executed_at: string | null
+          id: string
+          name: string
+          sql_content: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          name: string
+          sql_content?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+          executed_at?: string | null
+          id?: string
+          name?: string
+          sql_content?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       processing_history: {
         Row: {
           background_name: string | null
@@ -175,6 +205,10 @@ export type Database = {
     }
     Functions: {
       exec_sql: { Args: { query: string }; Returns: Json }
+      execute_safe_migration: {
+        Args: { p_migration_name: string; p_migration_sql: string }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
