@@ -54,7 +54,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   // Guided flow state
   const [flowStep, setFlowStep] = useState<FlowStep>("idle");
   const [productImage, setProductImage] = useState<string | null>(null);
-  const [referenceImage, setReferenceImage] = useState<string | null>(null);
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [selectedFidelity, setSelectedFidelity] = useState("similar");
   const [suggestedElements, setSuggestedElements] = useState<string[]>([]);
   const [selectedElements, setSelectedElements] = useState<string[]>([]);
