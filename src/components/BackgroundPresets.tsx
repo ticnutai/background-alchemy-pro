@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 
 import { Upload, ImagePlus, X, Palette, ScanSearch, Loader2, Eye } from "lucide-react";
+import EditableLabel from "@/components/EditableLabel";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
