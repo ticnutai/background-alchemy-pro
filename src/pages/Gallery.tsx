@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import {
   Sparkles, FolderPlus, Folder, Heart, Trash2, Download, ZoomIn, X, ArrowRight,
   ChevronLeft, ChevronRight, Maximize2, Minimize2, LogIn, Search, SlidersHorizontal,
-  Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home,
+  Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil,
 } from "lucide-react";
 import type { User } from "@supabase/supabase-js";
 import ImageAdjustmentsPanel, { getFilterString, defaultAdjustments, type ImageAdjustments } from "@/components/ImageAdjustmentsPanel";
@@ -585,12 +585,23 @@ const Gallery = () => {
                           <Pin className="h-3.5 w-3.5" />
                         </button>
                         <div className="w-px h-4 bg-border" />
-                        <button
+                         <button
                           onClick={e => { e.stopPropagation(); setZoomedItem(item); }}
                           className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                           title="הגדל"
                         >
                           <ZoomIn className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`);
+                          }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          title="ערוך בכלי העריכה"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <div className="w-px h-4 bg-border" />
                         <button
@@ -760,6 +771,15 @@ const Gallery = () => {
                   }`}
                 >
                   <Wand2 className="h-3.5 w-3.5" /> כלי עריכה
+                </button>
+                {/* Edit in tool */}
+                <button
+                  onClick={() => {
+                    navigate(`/tool?editImage=${encodeURIComponent(zoomedItem.result_image_url)}`);
+                  }}
+                  className="rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 bg-primary text-primary-foreground hover:brightness-110"
+                >
+                  <Pencil className="h-3.5 w-3.5" /> ערוך בכלי
                 </button>
                 {/* Original/Result toggle */}
                 <button

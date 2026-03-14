@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -28,6 +28,7 @@ import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [user, setUser] = useState<User | null>(null);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
@@ -77,6 +78,34 @@ const Index = () => {
     });
     return () => subscription.unsubscribe();
   }, []);
+
+  // Load image from query param (e.g. from gallery "edit" button)
+  useEffect(() => {
+    const editImageUrl = searchParams.get("editImage");
+    if (editImageUrl && !originalImage) {
+      // Fetch the URL and convert to base64
+      fetch(editImageUrl)
+        .then(res => res.blob())
+        .then(blob => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            setOriginalImage(reader.result as string);
+            // If there's also a result image
+            const resultUrl = searchParams.get("resultImage");
+            if (resultUrl) {
+              setResultImage(resultUrl);
+            }
+          };
+          reader.readAsDataURL(blob);
+        })
+        .catch(() => {
+          // If CORS fails, use the URL directly as result
+          setResultImage(editImageUrl);
+          // Create a placeholder original
+          setOriginalImage(editImageUrl);
+        });
+    }
+  }, [searchParams]);
 
   const handleImageSelect = useCallback((base64: string) => {
     setOriginalImage(base64);
