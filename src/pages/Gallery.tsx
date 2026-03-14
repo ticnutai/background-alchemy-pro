@@ -64,6 +64,10 @@ async function downloadImage(url: string, filename: string, format: string = "pn
       const dataUrl = canvas.toDataURL("image/png", 1);
       const pdfBlob = await generateSimplePDF(dataUrl, canvas.width, canvas.height);
       triggerDownload(pdfBlob, `${baseName}.pdf`);
+    } else if (format === "tiff") {
+      // Generate uncompressed TIFF from canvas pixel data
+      const tiffBlob = generateTIFF(canvas);
+      triggerDownload(tiffBlob, `${baseName}.tiff`);
     } else {
       const fmt = EXPORT_FORMATS.find(f => f.id === format) || EXPORT_FORMATS[0];
       const quality = format === "png" ? 1 : 0.95;
