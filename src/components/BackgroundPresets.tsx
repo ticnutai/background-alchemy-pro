@@ -536,6 +536,7 @@ const BackgroundPresets = ({
   const [previewPreset, setPreviewPreset] = useState<Preset | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [selectedFidelity, setSelectedFidelity] = useState("medium");
 
   const handleAnalyzeImage = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
