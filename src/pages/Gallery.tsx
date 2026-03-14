@@ -234,7 +234,7 @@ const Gallery = () => {
     toast.success("נמחק");
   };
 
-  const duplicateItem = async (item: HistoryItem) => {
+  const duplicateItem = async (item: HistoryItem, openInEditor = false) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("processing_history")
@@ -253,7 +253,12 @@ const Gallery = () => {
       toast.error("שגיאה בשכפול");
     } else if (data) {
       setItems(prev => [data as HistoryItem, ...prev]);
-      toast.success("התמונה שוכפלה! ערוך את העותק בלי לפגוע במקור ✨");
+      if (openInEditor) {
+        toast.success("העותק נוצר! פותח בעורך... ✨");
+        navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`);
+      } else {
+        toast.success("התמונה שוכפלה! ערוך את העותק בלי לפגוע במקור ✨");
+      }
     }
   };
 
@@ -947,6 +952,15 @@ const Gallery = () => {
                   className="rounded-lg border border-border px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
                 >
                   <Copy className="h-3.5 w-3.5" /> שכפל
+                </button>
+                {/* Duplicate & Edit */}
+                <button
+                  onClick={() => {
+                    duplicateItem(zoomedItem, true);
+                  }}
+                  className="rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 bg-accent text-accent-foreground hover:brightness-110"
+                >
+                  <Copy className="h-3.5 w-3.5" /><Pencil className="h-3.5 w-3.5" /> שכפל וערוך
                 </button>
                 {/* Original/Result toggle */}
                 <button
