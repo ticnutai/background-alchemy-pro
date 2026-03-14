@@ -234,7 +234,7 @@ const Gallery = () => {
     toast.success("נמחק");
   };
 
-  const duplicateItem = async (item: HistoryItem) => {
+  const duplicateItem = async (item: HistoryItem, openInEditor = false) => {
     if (!user) return;
     const { data, error } = await supabase
       .from("processing_history")
@@ -253,7 +253,12 @@ const Gallery = () => {
       toast.error("שגיאה בשכפול");
     } else if (data) {
       setItems(prev => [data as HistoryItem, ...prev]);
-      toast.success("התמונה שוכפלה! ערוך את העותק בלי לפגוע במקור ✨");
+      if (openInEditor) {
+        toast.success("העותק נוצר! פותח בעורך... ✨");
+        navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`);
+      } else {
+        toast.success("התמונה שוכפלה! ערוך את העותק בלי לפגוע במקור ✨");
+      }
     }
   };
 
