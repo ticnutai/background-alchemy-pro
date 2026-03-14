@@ -803,14 +803,12 @@ const Gallery = () => {
                 >
                   <Minimize2 className="h-3.5 w-3.5" />
                 </button>
-                <a
-                  href={zoomedItem.result_image_url}
-                  download={zoomedItem.background_name || "image.png"}
-                  target="_blank"
+                <button
+                  onClick={() => downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image.png")}
                   className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors"
                 >
                   <Download className="h-3.5 w-3.5" />
-                </a>
+                </button>
                 <button
                   onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}
                   className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
