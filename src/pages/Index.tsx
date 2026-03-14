@@ -315,6 +315,20 @@ const Index = () => {
           )}
         </div>
       </main>
+
+      {/* Mockup Modal */}
+      {showMockup && resultImage && (
+        <MockupPreview imageUrl={resultImage} onClose={() => setShowMockup(false)} />
+      )}
+
+      {/* Batch Processing Modal */}
+      {showBatch && (
+        <BatchProcessor
+          backgroundPrompt={customPrompt.trim() || activePrompt}
+          referenceImages={referenceImages}
+          onClose={() => setShowBatch(false)}
+        />
+      )}
     </div>
   );
 };
