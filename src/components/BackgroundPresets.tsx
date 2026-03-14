@@ -457,7 +457,7 @@ const presets: Preset[] = [
   },
 ];
 
-const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט"];
+const categories = ["שיש", "עץ", "חלק", "צבע בלבד", "טקסטורה", "בד וריקמה", "טבע", "גרדיינט", "לפי תמונה"];
 
 const colorOnlySwatches = [
   { hex: "#FFFFFF", label: "לבן", name: "Pure White" },
@@ -500,6 +500,13 @@ interface BackgroundPresetsProps {
   onTogglePreset?: (preset: Preset) => void;
 }
 
+const fidelityLevels = [
+  { id: "low", label: "השראה חופשית", description: "לוקח את הרעיון הכללי מהתמונה", value: "Use the reference image as loose inspiration. Take the general color palette and mood but create a fresh, creative interpretation of the background." },
+  { id: "medium", label: "דומה", description: "שומר על סגנון וצבעים דומים", value: "Match the reference image closely — use the same colors, material type, and general texture. The result should look like the same type of surface/background." },
+  { id: "high", label: "מדויק", description: "העתק כמעט זהה של הרקע", value: "Replicate this reference background as precisely as possible. Match the exact colors, texture, veining/grain patterns, material, and overall look. The result should be nearly identical to the reference." },
+  { id: "exact", label: "העתק מדויק", description: "שחזור מלא — פיקסל לפיקסל", value: "Create a PIXEL-PERFECT reproduction of this reference background. Every detail — color, pattern, texture, grain, veining, lighting — must be an exact copy. This is a replication task, not creative generation." },
+];
+
 const categoryIcons: Record<string, string> = {
   "שיש": "◆",
   "עץ": "🪵",
@@ -509,6 +516,7 @@ const categoryIcons: Record<string, string> = {
   "בד וריקמה": "🧵",
   "טבע": "🌿",
   "גרדיינט": "◐",
+  "לפי תמונה": "🖼️",
 };
 
 const BackgroundPresets = ({
@@ -528,6 +536,7 @@ const BackgroundPresets = ({
   const [previewPreset, setPreviewPreset] = useState<Preset | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const [selectedFidelity, setSelectedFidelity] = useState("medium");
 
   const handleAnalyzeImage = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -863,6 +872,154 @@ const BackgroundPresets = ({
                 )}
               </div>
             </div>
+          ) : activeCategory === "לפי תמונה" ? (
+            <div className="space-y-4">
+              <p className="font-body text-xs text-muted-foreground">
+                העלה תמונת רקע לדוגמה ובחר כמה מדויק תרצה שהתוצאה תהיה
+              </p>
+
+              {/* Reference image upload */}
+              <div className="space-y-2">
+                <label className="font-display text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  🖼️ תמונת רקע לדוגמה
+                </label>
+
+                {referenceImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {referenceImages.map((img, i) => (
+                      <div key={i} className="relative group">
+                        <img
+                          src={img}
+                          alt={`דוגמה ${i + 1}`}
+                          className="h-20 w-20 rounded-lg object-cover border-2 border-primary/30 shadow-sm"
+                        />
+                        <button
+                          onClick={() => removeRefImage(i)}
+                          className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-destructive-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <label className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-primary/30 p-4 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors">
+                  <Upload className="h-6 w-6 text-primary/60" />
+                  <span className="font-body text-xs text-primary font-semibold">
+                    {referenceImages.length > 0 ? "הוסף תמונה נוספת" : "העלה תמונת רקע"}
+                  </span>
+                  <span className="font-body text-[10px] text-muted-foreground">
+                    שיש, עץ, בד, משטח — כל דוגמה שתרצה
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleRefImageUpload}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <label className="font-display text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  ✏️ תיאור (אופציונלי)
+                </label>
+                <textarea
+                  value={customPrompt}
+                  onChange={(e) => onCustomPromptChange(e.target.value)}
+                  placeholder="לדוגמה: שיש לבן עם גידים אפורים, עץ אלון בהיר, בטון חלק..."
+                  className="w-full rounded-lg border border-input bg-card p-2.5 font-body text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                  rows={2}
+                  dir="rtl"
+                />
+              </div>
+
+              {/* Fidelity levels */}
+              <div className="space-y-2 pt-2 border-t border-border">
+                <label className="font-display text-xs font-semibold text-foreground flex items-center gap-1.5">
+                  🎯 רמת דיוק לתמונת הדוגמה
+                </label>
+                <div className="grid grid-cols-1 gap-2">
+                  {fidelityLevels.map((level) => (
+                    <button
+                      key={level.id}
+                      onClick={() => {
+                        setSelectedFidelity(level.id);
+                        // Build a prompt combining fidelity + custom text
+                        const fidelityPrompt = level.value;
+                        const desc = customPrompt.trim();
+                        const fullPrompt = desc
+                          ? `${fidelityPrompt}\n\nAdditional description from user: ${desc}`
+                          : fidelityPrompt;
+                        const preset: Preset = {
+                          id: `ref-${level.id}`,
+                          label: `לפי תמונה — ${level.label}`,
+                          professionalName: `Reference — ${level.label}`,
+                          prompt: fullPrompt,
+                          preview: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                          category: "לפי תמונה",
+                        };
+                        onSelect(preset);
+                      }}
+                      className={`flex items-start gap-3 rounded-xl border-2 p-3 text-right transition-all ${
+                        selectedFidelity === level.id
+                          ? "border-primary bg-primary/5 shadow-md"
+                          : "border-border hover:border-primary/40 hover:bg-secondary/30"
+                      }`}
+                    >
+                      <div className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition-colors ${
+                        selectedFidelity === level.id
+                          ? "border-primary bg-primary"
+                          : "border-muted-foreground/40"
+                      }`}>
+                        {selectedFidelity === level.id && (
+                          <div className="h-2 w-2 rounded-full bg-primary-foreground" />
+                        )}
+                      </div>
+                      <div className="min-w-0">
+                        <span className="block font-display text-xs font-bold text-foreground">
+                          {level.label}
+                        </span>
+                        <span className="block font-body text-[10px] text-muted-foreground mt-0.5">
+                          {level.description}
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Quick apply button */}
+              {referenceImages.length > 0 && (
+                <div className="pt-2">
+                  <button
+                    onClick={() => {
+                      const level = fidelityLevels.find(l => l.id === selectedFidelity)!;
+                      const desc = customPrompt.trim();
+                      const fullPrompt = desc
+                        ? `${level.value}\n\nAdditional description from user: ${desc}`
+                        : level.value;
+                      const preset: Preset = {
+                        id: `ref-${level.id}`,
+                        label: `לפי תמונה — ${level.label}`,
+                        professionalName: `Reference — ${level.label}`,
+                        prompt: fullPrompt,
+                        preview: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        category: "לפי תמונה",
+                      };
+                      onSelect(preset);
+                      toast.success(`נבחר מצב "${level.label}" — לחץ "החלף רקע" להחיל`);
+                    }}
+                    className="w-full rounded-xl bg-primary px-4 py-3 font-display text-sm font-bold text-primary-foreground hover:brightness-110 transition-all"
+                  >
+                    ✨ החל רקע לפי תמונה — {fidelityLevels.find(l => l.id === selectedFidelity)?.label}
+                  </button>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {activeCatPresets.map((preset) => {
@@ -910,8 +1067,8 @@ const BackgroundPresets = ({
         </>
       )}
 
-      {/* Custom background section - only show when NOT in color-only category */}
-      {activeCategory && activeCategory !== "צבע בלבד" && (
+      {/* Custom background section - only show when NOT in color-only or ref-image category */}
+      {activeCategory && activeCategory !== "צבע בלבד" && activeCategory !== "לפי תמונה" && (
         <div className="space-y-3 pt-3 border-t border-border">
           <label className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider">
             רקע מותאם אישית
