@@ -24,6 +24,21 @@ const frameStyles = [
   { id: "holiday-rosh", label: "מסגרת ראש השנה", icon: "🍎" },
 ];
 
+const elementPresets = [
+  { id: "shabbat-table", label: "שולחן שבת ערוך", icon: "🕯️", desc: "נרות, חלות, יין, מפה לבנה" },
+  { id: "kiddush-cups", label: "גביעי קידוש", icon: "🥂", desc: "גביעי כסף/זהב לקידוש" },
+  { id: "flowers", label: "סידור פרחים", icon: "💐", desc: "זר פרחים אלגנטי" },
+  { id: "candles", label: "נרות", icon: "🕯️", desc: "נרות דקורטיביים" },
+  { id: "gold-plate", label: "צלחת זהב", icon: "🍽️", desc: "צלחת הגשה מוזהבת" },
+  { id: "greenery", label: "ירוק וצמחים", icon: "🌿", desc: "ענפי ירק, אקליפטוס" },
+  { id: "seder-plate", label: "קערת סדר", icon: "🍷", desc: "קערת סדר עם כל הסימנים" },
+  { id: "honey-apple", label: "דבש ותפוח", icon: "🍎", desc: "צנצנת דבש ותפוחים" },
+  { id: "pomegranate", label: "רימונים", icon: "🍑", desc: "רימונים דקורטיביים" },
+  { id: "linen-napkin", label: "מפית פשתן", icon: "🧵", desc: "מפית מקופלת בסטייל" },
+  { id: "books", label: "ספרים", icon: "📚", desc: "ספרים דקורטיביים" },
+  { id: "wooden-tray", label: "מגש עץ", icon: "🪵", desc: "מגש הגשה מעץ" },
+];
+
 const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedToolsPanelProps) => {
   const [activeTool, setActiveTool] = useState<ToolMode>(null);
   const [processing, setProcessing] = useState(false);
@@ -41,6 +56,10 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
 
   // Frame
   const [frameStyle, setFrameStyle] = useState("gold-ornate");
+
+  // Add elements
+  const [selectedElements, setSelectedElements] = useState<string[]>([]);
+  const [customElementDesc, setCustomElementDesc] = useState("");
 
   const currentImage = resultImage || originalImage;
 
