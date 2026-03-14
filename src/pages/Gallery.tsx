@@ -701,7 +701,7 @@ const Gallery = () => {
                 <img
                   src={showOriginal ? zoomedItem.original_image_url : zoomedItem.result_image_url}
                   alt=""
-                  className="max-h-[75vh] object-contain transition-transform duration-200 select-none"
+                  className="w-full h-full max-h-[75vh] object-contain transition-transform duration-200 select-none"
                   style={{
                     transform: `scale(${zoomLevel}) translate(${panPos.x / zoomLevel}px, ${panPos.y / zoomLevel}px)`,
                     filter: showOriginal ? undefined : filterStyle,
