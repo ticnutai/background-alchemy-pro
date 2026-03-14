@@ -973,6 +973,51 @@ const BackgroundPresets = ({
           </label>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewPreset && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+          onClick={() => setPreviewPreset(null)}
+        >
+          <div
+            className="relative w-[85vw] max-w-md rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              className="w-full h-64 sm:h-80"
+              style={{ background: previewPreset.preview }}
+            />
+            <div className="p-4 text-center space-y-1">
+              <h3 className="font-display text-base font-bold text-foreground">{previewPreset.label}</h3>
+              <p className="font-body text-sm text-muted-foreground italic">{previewPreset.professionalName}</p>
+              <div className="flex gap-2 pt-3 justify-center">
+                <button
+                  onClick={() => {
+                    multiSelectMode && onTogglePreset ? onTogglePreset(previewPreset) : onSelect(previewPreset);
+                    setPreviewPreset(null);
+                  }}
+                  className="rounded-lg bg-gold px-5 py-2 font-display text-sm font-semibold text-gold-foreground hover:brightness-110 transition-all"
+                >
+                  בחר רקע זה
+                </button>
+                <button
+                  onClick={() => setPreviewPreset(null)}
+                  className="rounded-lg border border-border px-4 py-2 font-body text-sm text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  סגור
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => setPreviewPreset(null)}
+              className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-background/80 border border-border shadow hover:bg-destructive/10 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
