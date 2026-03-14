@@ -61,6 +61,20 @@ serve(async (req) => {
       }),
     });
 
+    if (response.status === 402) {
+      return new Response(JSON.stringify({ error: "נגמרו הקרדיטים. יש להוסיף קרדיטים בהגדרות Workspace." }), {
+        status: 402,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (response.status === 429) {
+      return new Response(JSON.stringify({ error: "יותר מדי בקשות, נסה שוב בעוד רגע" }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const data = await response.json();
     const resultImage = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     const textResponse = data.choices?.[0]?.message?.content || "";
