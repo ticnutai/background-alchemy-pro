@@ -576,7 +576,7 @@ const BackgroundPresets = ({
       {!activeCategory ? (
         <div className="grid grid-cols-2 gap-2">
           {categories.map((cat) => {
-            const catPresets = presets.filter((p) => p.category === cat);
+            const count = cat === "צבע בלבד" ? colorOnlySwatches.length : presets.filter((p) => p.category === cat).length;
             return (
               <button
                 key={cat}
@@ -585,7 +585,7 @@ const BackgroundPresets = ({
               >
                 <span className="text-2xl">{categoryIcons[cat] || "◎"}</span>
                 <span className="font-display text-xs font-bold text-foreground">{cat}</span>
-                <span className="font-body text-[10px] text-muted-foreground">{catPresets.length} רקעים</span>
+                <span className="font-body text-[10px] text-muted-foreground">{count} רקעים</span>
               </button>
             );
           })}
