@@ -32,6 +32,7 @@ const EXPORT_FORMATS = [
   { id: "png", label: "PNG", mime: "image/png", desc: "שקיפות, lossless" },
   { id: "jpg", label: "JPG", mime: "image/jpeg", desc: "קובץ קטן" },
   { id: "webp", label: "WebP", mime: "image/webp", desc: "מודרני, קל" },
+  { id: "tiff", label: "TIFF", mime: "image/tiff", desc: "איכות מקסימלית, הדפסה" },
   { id: "pdf", label: "PDF", mime: "application/pdf", desc: "מסמך להדפסה" },
 ];
 
@@ -63,6 +64,10 @@ async function downloadImage(url: string, filename: string, format: string = "pn
       const dataUrl = canvas.toDataURL("image/png", 1);
       const pdfBlob = await generateSimplePDF(dataUrl, canvas.width, canvas.height);
       triggerDownload(pdfBlob, `${baseName}.pdf`);
+    } else if (format === "tiff") {
+      // Generate uncompressed TIFF from canvas pixel data
+      const tiffBlob = generateTIFF(canvas);
+      triggerDownload(tiffBlob, `${baseName}.tiff`);
     } else {
       const fmt = EXPORT_FORMATS.find(f => f.id === format) || EXPORT_FORMATS[0];
       const quality = format === "png" ? 1 : 0.95;
@@ -132,6 +137,65 @@ async function generateSimplePDF(imageDataUrl: string, w: number, h: number): Pr
   final.set(p2, p1.length + imgBytes.length);
   final.set(p3, p1.length + imgBytes.length + p2.length);
   return new Blob([final], { type: "application/pdf" });
+}
+
+function generateTIFF(canvas: HTMLCanvasElement): Blob {
+  const w = canvas.width;
+  const h = canvas.height;
+  const ctx = canvas.getContext("2d")!;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const rgba = imageData.data;
+  // Convert RGBA to RGB
+  const rgb = new Uint8Array(w * h * 3);
+  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
+    rgb[j] = rgba[i];
+    rgb[j + 1] = rgba[i + 1];
+    rgb[j + 2] = rgba[i + 2];
+  }
+  const stripSize = rgb.length;
+  const headerSize = 8;
+  const ifdEntryCount = 10;
+  const ifdSize = 2 + ifdEntryCount * 12 + 4;
+  const dataOffset = headerSize + ifdSize;
+
+  const buf = new ArrayBuffer(dataOffset + stripSize);
+  const view = new DataView(buf);
+  const arr = new Uint8Array(buf);
+
+  // Header: little-endian TIFF
+  view.setUint16(0, 0x4949, false); // 'II'
+  view.setUint16(2, 42, true);
+  view.setUint32(4, headerSize, true); // IFD offset
+
+  let off = headerSize;
+  // IFD entry count
+  view.setUint16(off, ifdEntryCount, true); off += 2;
+
+  const writeIFD = (tag: number, type: number, count: number, value: number) => {
+    view.setUint16(off, tag, true); off += 2;
+    view.setUint16(off, type, true); off += 2;
+    view.setUint32(off, count, true); off += 4;
+    view.setUint32(off, value, true); off += 4;
+  };
+
+  writeIFD(256, 3, 1, w);            // ImageWidth
+  writeIFD(257, 3, 1, h);            // ImageLength
+  writeIFD(258, 3, 3, 8 | (8 << 16)); // BitsPerSample (8,8,8 packed)
+  writeIFD(259, 3, 1, 1);            // Compression: None
+  writeIFD(262, 3, 1, 2);            // PhotometricInterpretation: RGB
+  writeIFD(273, 4, 1, dataOffset);   // StripOffsets
+  writeIFD(277, 3, 1, 3);            // SamplesPerPixel
+  writeIFD(278, 4, 1, h);            // RowsPerStrip
+  writeIFD(279, 4, 1, stripSize);    // StripByteCounts
+  writeIFD(282, 5, 1, 0);            // XResolution (simplified)
+
+  // Next IFD = 0
+  view.setUint32(off, 0, true);
+
+  // Write RGB data
+  arr.set(rgb, dataOffset);
+
+  return new Blob([buf], { type: "image/tiff" });
 }
 
 type ViewMode = "grid" | "single" | "sideBySide";
