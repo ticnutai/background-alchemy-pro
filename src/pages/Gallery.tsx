@@ -585,12 +585,23 @@ const Gallery = () => {
                           <Pin className="h-3.5 w-3.5" />
                         </button>
                         <div className="w-px h-4 bg-border" />
-                        <button
+                         <button
                           onClick={e => { e.stopPropagation(); setZoomedItem(item); }}
                           className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                           title="הגדל"
                         >
                           <ZoomIn className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
+                        <button
+                          onClick={e => {
+                            e.stopPropagation();
+                            navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`);
+                          }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          title="ערוך בכלי העריכה"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <div className="w-px h-4 bg-border" />
                         <button
