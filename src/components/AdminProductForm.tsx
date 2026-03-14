@@ -15,7 +15,8 @@ interface Product {
   is_featured: boolean;
 }
 
-const categories = ["פסח", "שבועות", "סוכות", "ראש השנה", "חנוכה", "פורים", "שבת", "מתנות", "אחר"] as const;
+type ProductCategory = Database["public"]["Enums"]["product_category"];
+const categories: ProductCategory[] = ["פסח", "שבועות", "סוכות", "ראש השנה", "חנוכה", "פורים", "שבת", "מתנות", "אחר"];
 
 const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
   const [products, setProducts] = useState<Product[]>([]);
