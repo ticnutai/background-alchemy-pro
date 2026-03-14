@@ -30,10 +30,42 @@ serve(async (req) => {
     }
 
     let prompt: string;
+    const isColorOnly = backgroundPrompt && backgroundPrompt.includes("Change ONLY the background color");
+    
     if (referenceImages && referenceImages.length > 0) {
-      prompt = `Replace ONLY the background of the FIRST image (the product photo). Keep the product/object completely intact, untouched, and in the exact same position with the same lighting on it. Use the OTHER image(s) as reference for what the new background should look like — match their texture, color, pattern, and style as closely as possible. Additional instructions: ${backgroundPrompt || "Match the reference background exactly"}. The product must remain pixel-perfect and unchanged. Only the background behind and around the product should change.`;
+      prompt = `CRITICAL INSTRUCTIONS — follow ALL of them precisely:
+
+1. The FIRST image is the product photo. You MUST keep EVERY product, object, item, embroidery, text, pattern, design, shape, and detail in the FIRST image COMPLETELY UNCHANGED. Do NOT alter, move, resize, distort, remove, or regenerate any product or element.
+
+2. The SECOND image (and any additional images) are REFERENCE images showing the desired background style.
+
+3. Your ONLY task: Remove the existing background from the FIRST image and replace it with a NEW background that matches the texture, color, pattern, veining, and overall look of the REFERENCE image(s) as closely as possible.
+
+4. The products must remain in the EXACT same position, angle, size, and lighting as in the original.
+
+5. Additional context: ${backgroundPrompt || "Match the reference background exactly"}.
+
+REMEMBER: Products = untouched. Background only = changed to match reference.`;
+    } else if (isColorOnly) {
+      prompt = `CRITICAL INSTRUCTIONS:
+
+1. Keep EVERY product, object, item, embroidery, text, pattern, design, and detail in this image COMPLETELY UNCHANGED. Do NOT alter any product in any way.
+
+2. ${backgroundPrompt}
+
+3. The products must stay in the EXACT same position, angle, size, and lighting.
+
+ONLY the background area changes. Everything else stays pixel-perfect identical.`;
     } else {
-      prompt = `Replace ONLY the background of this product image. Keep the product/object completely intact, untouched, and in the exact same position with the same lighting on it. The new background should be: ${backgroundPrompt}. The product must remain pixel-perfect and unchanged. Only the background behind and around the product should change.`;
+      prompt = `CRITICAL INSTRUCTIONS:
+
+1. Keep EVERY product, object, item, embroidery, text, pattern, design, and detail in this image COMPLETELY UNCHANGED. Do NOT alter, move, resize, or regenerate any product.
+
+2. Replace ONLY the background with: ${backgroundPrompt}
+
+3. The products must remain in the EXACT same position, angle, size, and lighting as the original.
+
+ONLY the background behind and around the products should change.`;
     }
 
     // Build content array with main image + reference images
@@ -55,7 +87,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3.1-flash-image-preview",
+        model: "google/gemini-3-pro-image-preview",
         messages: [{ role: "user", content }],
         modalities: ["image", "text"],
       }),
