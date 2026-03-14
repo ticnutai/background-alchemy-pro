@@ -49,14 +49,30 @@ const Index = () => {
 
     setIsProcessing(true);
     setResultImage(null);
+    setSuggestedName(null);
     try {
       const { data, error } = await supabase.functions.invoke("replace-background", {
-        body: { imageBase64: originalImage, backgroundPrompt: prompt },
+        body: {
+          imageBase64: originalImage,
+          backgroundPrompt: prompt,
+          referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+        },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResultImage(data.resultImage);
       toast.success("הרקע הוחלף בהצלחה!");
+
+      // Get professional name suggestion
+      if (customPrompt.trim() && !selectedPresetName) {
+        supabase.functions.invoke("suggest-name", {
+          body: { backgroundDescription: customPrompt.trim() },
+        }).then(({ data: nameData }) => {
+          if (nameData?.name) setSuggestedName(nameData.name);
+        }).catch(() => {});
+      } else if (selectedPresetName) {
+        setSuggestedName(selectedPresetName);
+      }
     } catch (err: any) {
       toast.error(err.message || "שגיאה בעיבוד התמונה");
     } finally {
