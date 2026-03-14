@@ -276,7 +276,11 @@ const Gallery = () => {
 
               <button
                 onClick={() => setActiveFolder(null)}
+                onDragOver={e => { e.preventDefault(); setDragOverFolderId("__all__"); }}
+                onDragLeave={() => setDragOverFolderId(null)}
+                onDrop={e => { e.preventDefault(); setDragOverFolderId(null); if (draggedItemId) { moveToFolder(draggedItemId, null); setDraggedItemId(null); } }}
                 className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 font-accent text-xs transition-colors ${
+                  dragOverFolderId === "__all__" ? "bg-gold/20 border-2 border-dashed border-gold" :
                   !activeFolder ? "bg-gold/10 text-gold font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 }`}
               >
