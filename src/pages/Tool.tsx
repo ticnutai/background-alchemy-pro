@@ -343,6 +343,15 @@ const Index = () => {
                 התחבר לשמירה
               </Link>
             )}
+            {isAdmin && (
+              <button
+                onClick={() => setShowDevSettings(true)}
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-500 transition-colors hover:bg-amber-500/10 hover:border-amber-500/50"
+                title="הגדרות פיתוח"
+              >
+                <Settings className="h-4 w-4" />
+              </button>
+            )}
             <ThemeToggle />
             <button
               onClick={() => navigate(-1)}
