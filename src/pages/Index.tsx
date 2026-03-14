@@ -128,9 +128,9 @@ const Index = () => {
           </div>
           <div className="grid md:grid-cols-3 gap-6">
             {[
-              { img: heroImage, title: "קולקציית חגים", desc: "מוצרים יוקרתיים לשולחן החג" },
-              { img: gallery1, title: "ריקמה אומנותית", desc: "עבודות ריקמה בעבודת יד" },
-              { img: gallery3, title: "אריזות מתנה", desc: "אריזות יוקרתיות בעיצוב אישי" },
+              { img: heroImage, title: "פסח", desc: "מוצרים יוקרתיים לשולחן החג" },
+              { img: gallery1, title: "שבועות", desc: "עבודות ריקמה בעבודת יד" },
+              { img: gallery3, title: "סוכות", desc: "אריזות יוקרתיות בעיצוב אישי" },
             ].map((item) => (
               <div key={item.title} className="group relative overflow-hidden rounded-2xl">
                 <img
