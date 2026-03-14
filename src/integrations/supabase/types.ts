@@ -44,11 +44,36 @@ export type Database = {
         }
         Relationships: []
       }
+      image_folders: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          user_id: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          user_id: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       processing_history: {
         Row: {
           background_name: string | null
           background_prompt: string
           created_at: string
+          folder_id: string | null
           id: string
           is_favorite: boolean
           original_image_url: string
@@ -59,6 +84,7 @@ export type Database = {
           background_name?: string | null
           background_prompt: string
           created_at?: string
+          folder_id?: string | null
           id?: string
           is_favorite?: boolean
           original_image_url: string
@@ -69,13 +95,22 @@ export type Database = {
           background_name?: string | null
           background_prompt?: string
           created_at?: string
+          folder_id?: string | null
           id?: string
           is_favorite?: boolean
           original_image_url?: string
           result_image_url?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "processing_history_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "image_folders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
