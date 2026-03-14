@@ -67,7 +67,8 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         try {
           const action = JSON.parse(match[1]);
           if (action.prompt && action.name) {
-            onApplyBackground(action.prompt, action.name);
+            setLastSuggestedPrompt({ prompt: action.prompt, name: action.name });
+            // Don't auto-apply - let user preview first
           }
         } catch {}
       }
@@ -85,8 +86,60 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         } catch {}
       }
     },
-    [onApplyBackground]
+    []
   );
+
+  const generatePreview = async (prompt: string, msgIndex?: number) => {
+    setIsGeneratingPreview(true);
+    try {
+      const resp = await fetch(PREVIEW_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          prompt,
+          productImage: productImage || undefined,
+        }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || "שגיאה ביצירת תצוגה מקדימה");
+      }
+
+      const data = await resp.json();
+      
+      if (data.image) {
+        // Add preview as a message with the generated image
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: "🖼️ **תצוגה מקדימה של הרקע:**",
+            previewImage: data.image,
+            previewPrompt: prompt,
+          },
+        ]);
+        setPreviewUrl(data.image);
+      } else {
+        toast({
+          title: "לא הצלחתי ליצור תצוגה מקדימה",
+          description: data.text || "נסה שוב עם תיאור אחר",
+          variant: "destructive",
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: "שגיאה",
+        description: err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingPreview(false);
+    }
+  };
 
   const cleanContent = (content: string) => {
     return content
