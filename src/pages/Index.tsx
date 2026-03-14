@@ -330,6 +330,18 @@ const Index = () => {
           onClose={() => setShowBatch(false)}
         />
       )}
+
+      {/* AI Chat */}
+      <AIChatDialog
+        onApplyBackground={(prompt, name) => {
+          setCustomPrompt(prompt);
+          setActivePrompt(prompt);
+          setSelectedPreset(null);
+          setSelectedPresetName(name);
+          setSuggestedName(name);
+          toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
+        }}
+      />
     </div>
   );
 };
