@@ -500,6 +500,13 @@ interface BackgroundPresetsProps {
   onTogglePreset?: (preset: Preset) => void;
 }
 
+const fidelityLevels = [
+  { id: "low", label: "השראה חופשית", description: "לוקח את הרעיון הכללי מהתמונה", value: "Use the reference image as loose inspiration. Take the general color palette and mood but create a fresh, creative interpretation of the background." },
+  { id: "medium", label: "דומה", description: "שומר על סגנון וצבעים דומים", value: "Match the reference image closely — use the same colors, material type, and general texture. The result should look like the same type of surface/background." },
+  { id: "high", label: "מדויק", description: "העתק כמעט זהה של הרקע", value: "Replicate this reference background as precisely as possible. Match the exact colors, texture, veining/grain patterns, material, and overall look. The result should be nearly identical to the reference." },
+  { id: "exact", label: "העתק מדויק", description: "שחזור מלא — פיקסל לפיקסל", value: "Create a PIXEL-PERFECT reproduction of this reference background. Every detail — color, pattern, texture, grain, veining, lighting — must be an exact copy. This is a replication task, not creative generation." },
+];
+
 const categoryIcons: Record<string, string> = {
   "שיש": "◆",
   "עץ": "🪵",
@@ -509,6 +516,7 @@ const categoryIcons: Record<string, string> = {
   "בד וריקמה": "🧵",
   "טבע": "🌿",
   "גרדיינט": "◐",
+  "לפי תמונה": "🖼️",
 };
 
 const BackgroundPresets = ({
