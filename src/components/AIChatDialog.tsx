@@ -316,11 +316,61 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
 
   const cleanContent = (content: string) => {
     let cleaned = content;
-    ["ACTION:APPLY_BACKGROUND", "ELEMENTS", "QUICK_REPLIES", "YES_NO"].forEach((tag) => {
+    ["ACTION:APPLY_BACKGROUND", "ELEMENTS", "QUICK_REPLIES", "YES_NO", "COLOR_PALETTE", "VISUAL_OPTIONS"].forEach((tag) => {
       cleaned = stripTaggedContent(cleaned, tag);
     });
     return cleaned.trim();
   };
+
+  const VISUAL_PREVIEW_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat-preview`;
+
+  const generateVisualOptionPreviews = useCallback(async (options: VisualOption[], msgIdx: number) => {
+    for (let i = 0; i < options.length; i++) {
+      if (options[i].previewUrl) continue;
+      // Mark as generating
+      setMessages((prev) => {
+        const updated = [...prev];
+        if (updated[msgIdx]?.visualOptions) {
+          const vo = [...updated[msgIdx].visualOptions!];
+          vo[i] = { ...vo[i], isGenerating: true };
+          updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
+        }
+        return updated;
+      });
+      try {
+        const resp = await fetch(VISUAL_PREVIEW_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ prompt: options[i].prompt }),
+        });
+        const data = await resp.json();
+        if (data.image) {
+          setMessages((prev) => {
+            const updated = [...prev];
+            if (updated[msgIdx]?.visualOptions) {
+              const vo = [...updated[msgIdx].visualOptions!];
+              vo[i] = { ...vo[i], previewUrl: data.image, isGenerating: false };
+              updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
+            }
+            return updated;
+          });
+        }
+      } catch {
+        setMessages((prev) => {
+          const updated = [...prev];
+          if (updated[msgIdx]?.visualOptions) {
+            const vo = [...updated[msgIdx].visualOptions!];
+            vo[i] = { ...vo[i], isGenerating: false };
+            updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
+          }
+          return updated;
+        });
+      }
+    }
+  }, []);
 
   const toBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
