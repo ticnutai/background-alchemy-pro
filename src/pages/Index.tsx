@@ -253,8 +253,13 @@ const Index = () => {
                       customPrompt={customPrompt}
                       onCustomPromptChange={(v) => {
                         setCustomPrompt(v);
-                        if (v.trim()) setSelectedPreset(null);
+                        if (v.trim()) {
+                          setSelectedPreset(null);
+                          setSelectedPresetName(null);
+                        }
                       }}
+                      referenceImages={referenceImages}
+                      onReferenceImagesChange={setReferenceImages}
                     />
                   )}
                   {activeTab === "adjust" && (
