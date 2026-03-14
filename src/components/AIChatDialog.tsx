@@ -324,53 +324,61 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
 
   const VISUAL_PREVIEW_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-chat-preview`;
 
-  const generateVisualOptionPreviews = useCallback(async (options: VisualOption[], msgIdx: number) => {
-    for (let i = 0; i < options.length; i++) {
-      if (options[i].previewUrl) continue;
-      // Mark as generating
-      setMessages((prev) => {
-        const updated = [...prev];
-        if (updated[msgIdx]?.visualOptions) {
-          const vo = [...updated[msgIdx].visualOptions!];
-          vo[i] = { ...vo[i], isGenerating: true };
-          updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
-        }
-        return updated;
-      });
-      try {
-        const resp = await fetch(VISUAL_PREVIEW_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ prompt: options[i].prompt }),
-        });
-        const data = await resp.json();
+  const generateSingleVisualPreview = useCallback((option: VisualOption, optionIdx: number, msgIdx: number) => {
+    if (option.previewUrl) return;
+    // Mark as generating
+    setMessages((prev) => {
+      const updated = [...prev];
+      if (updated[msgIdx]?.visualOptions) {
+        const vo = [...updated[msgIdx].visualOptions!];
+        vo[optionIdx] = { ...vo[optionIdx], isGenerating: true };
+        updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
+      }
+      return updated;
+    });
+
+    // Fire-and-forget — runs in background, doesn't block anything
+    fetch(VISUAL_PREVIEW_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({ prompt: option.prompt }),
+    })
+      .then((resp) => resp.json())
+      .then((data) => {
         if (data.image) {
           setMessages((prev) => {
             const updated = [...prev];
             if (updated[msgIdx]?.visualOptions) {
               const vo = [...updated[msgIdx].visualOptions!];
-              vo[i] = { ...vo[i], previewUrl: data.image, isGenerating: false };
+              vo[optionIdx] = { ...vo[optionIdx], previewUrl: data.image, isGenerating: false };
               updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
             }
             return updated;
           });
         }
-      } catch {
+      })
+      .catch(() => {
         setMessages((prev) => {
           const updated = [...prev];
           if (updated[msgIdx]?.visualOptions) {
             const vo = [...updated[msgIdx].visualOptions!];
-            vo[i] = { ...vo[i], isGenerating: false };
+            vo[optionIdx] = { ...vo[optionIdx], isGenerating: false };
             updated[msgIdx] = { ...updated[msgIdx], visualOptions: vo };
           }
           return updated;
         });
-      }
-    }
+      });
   }, []);
+
+  const generateVisualOptionPreviews = useCallback((options: VisualOption[], msgIdx: number) => {
+    // Launch ALL previews in parallel — completely non-blocking
+    options.forEach((option, idx) => {
+      generateSingleVisualPreview(option, idx, msgIdx);
+    });
+  }, [generateSingleVisualPreview]);
 
   const toBase64 = (file: File): Promise<string> =>
     new Promise((resolve, reject) => {
