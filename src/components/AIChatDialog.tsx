@@ -227,7 +227,37 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         ];
       }
 
-      return quickReplies;
+      // Parse color palette
+      let colorPalette: ColorSwatch[] | undefined;
+      const colorRaw = extractTaggedContent(content, "COLOR_PALETTE");
+      if (colorRaw) {
+        try {
+          const colorJson = colorRaw.match(/\[[\s\S]*\]/)?.[0] ?? colorRaw;
+          const parsed = JSON.parse(colorJson);
+          if (Array.isArray(parsed)) {
+            colorPalette = parsed.filter(
+              (c): c is ColorSwatch => c && typeof c.hex === "string" && typeof c.name === "string"
+            );
+          }
+        } catch {}
+      }
+
+      // Parse visual options
+      let visualOptions: VisualOption[] | undefined;
+      const visualRaw = extractTaggedContent(content, "VISUAL_OPTIONS");
+      if (visualRaw) {
+        try {
+          const visualJson = visualRaw.match(/\[[\s\S]*\]/)?.[0] ?? visualRaw;
+          const parsed = JSON.parse(visualJson);
+          if (Array.isArray(parsed)) {
+            visualOptions = parsed.filter(
+              (v): v is VisualOption => v && typeof v.prompt === "string" && typeof v.label === "string"
+            );
+          }
+        } catch {}
+      }
+
+      return { quickReplies, colorPalette, visualOptions };
     },
     [extractTaggedContent, parseQuickReplies]
   );
