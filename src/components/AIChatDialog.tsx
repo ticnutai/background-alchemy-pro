@@ -204,45 +204,55 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   };
 
   const handleReferenceUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await toBase64(file);
-    setReferenceImage(base64);
-    setPreviewUrl(base64);
+    const files = e.target.files;
+    if (!files?.length) return;
+    
+    const newImages: string[] = [];
+    for (let i = 0; i < Math.min(files.length, 5); i++) {
+      newImages.push(await toBase64(files[i]));
+    }
+    
+    setReferenceImages(prev => [...prev, ...newImages]);
+    setPreviewUrl(newImages[0]);
     setFlowStep("choose-fidelity");
 
     const userMsg: Message = {
       role: "user",
-      content: "העליתי תמונת ייחוס לרקע. נתח מה הרקע בתמונה הזו ותציע אילו אלמנטים אפשר להוסיף.",
-      images: [base64],
+      content: `העליתי ${newImages.length} תמונות ייחוס לרקע. נתח מה הרקע בתמונות ותציע אילו אלמנטים אפשר להוסיף.`,
+      images: newImages,
     };
     setMessages((prev) => [...prev, userMsg]);
     await sendToAI([...messages, userMsg], true);
   };
 
   const handleInlineImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const base64 = await toBase64(file);
+    const files = e.target.files;
+    if (!files?.length) return;
+    
+    const newImages: string[] = [];
+    for (let i = 0; i < Math.min(files.length, 5); i++) {
+      newImages.push(await toBase64(files[i]));
+    }
 
     if (!productImage) {
-      setProductImage(base64);
+      setProductImage(newImages[0]);
       setFlowStep("upload-reference");
       const userMsg: Message = {
         role: "user",
         content: "העליתי תמונת מוצר. נתח אותה ותציע רקעים מתאימים.",
-        images: [base64],
+        images: [newImages[0]],
       };
       setMessages((prev) => [...prev, userMsg]);
       await sendToAI([...messages, userMsg], true);
-    } else if (!referenceImage) {
-      setReferenceImage(base64);
-      setPreviewUrl(base64);
+    } else {
+      // Additional images go to reference
+      setReferenceImages(prev => [...prev, ...newImages]);
+      setPreviewUrl(newImages[0]);
       setFlowStep("choose-fidelity");
       const userMsg: Message = {
         role: "user",
-        content: "העליתי תמונת ייחוס לרקע. נתח מה הרקע בתמונה ותציע אלמנטים.",
-        images: [base64],
+        content: `העליתי ${newImages.length} תמונות ייחוס לרקע. נתח מה הרקע בתמונות ותציע אלמנטים.`,
+        images: newImages,
       };
       setMessages((prev) => [...prev, userMsg]);
       await sendToAI([...messages, userMsg], true);
