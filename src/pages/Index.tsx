@@ -220,6 +220,24 @@ const Index = () => {
                   {isEnhancing ? "משפר..." : "שפר איכות"}
                 </button>
 
+                {resultImage && (
+                  <button
+                    onClick={() => setShowMockup(true)}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                  >
+                    <Eye className="h-4 w-4" />
+                    מוקאפ
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowBatch(true)}
+                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                >
+                  <Layers className="h-4 w-4" />
+                  עיבוד מרובה
+                </button>
+
                 <button
                   onClick={() => {
                     setOriginalImage(null);
