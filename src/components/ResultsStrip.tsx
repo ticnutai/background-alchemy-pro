@@ -53,10 +53,10 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-2">
           {items.map(item => (
-            <div key={item.id} className="relative shrink-0 w-20 h-20">
+            <div key={item.id} className="group/thumb relative shrink-0 w-20 h-20">
               <button
                 onClick={() => onSelectImage?.(item.result_image_url)}
-                className="group w-full h-full rounded-lg overflow-hidden border border-border hover:border-gold/50 transition-all"
+                className="w-full h-full rounded-lg overflow-hidden border border-border hover:border-gold/50 transition-all"
               >
                 <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover" />
                 <p className="absolute bottom-0 inset-x-0 bg-foreground/60 px-1 py-0.5 font-accent text-[8px] text-card truncate text-center">
@@ -65,10 +65,7 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setZoomedItem(item); setSliderPos(50); }}
-                className="absolute top-1 left-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/60 text-card opacity-0 hover:opacity-100 transition-opacity backdrop-blur-sm hover:bg-primary"
-                style={{ opacity: undefined }}
-                onMouseEnter={e => (e.currentTarget.style.opacity = "1")}
-                onMouseLeave={e => (e.currentTarget.style.opacity = "0")}
+                className="absolute top-1 left-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/60 text-card opacity-0 group-hover/thumb:opacity-100 transition-opacity backdrop-blur-sm hover:bg-primary"
               >
                 <ZoomIn className="h-3 w-3" />
               </button>
