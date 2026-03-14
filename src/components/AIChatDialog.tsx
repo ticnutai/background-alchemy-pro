@@ -568,6 +568,21 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
                   </div>
                 </div>
               )}
+
+              {/* Quick reply buttons */}
+              {msg.quickReplies && msg.quickReplies.length > 0 && i === messages.length - 1 && !isLoading && (
+                <div className="flex flex-wrap gap-1.5">
+                  {msg.quickReplies.map((qr, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => handleQuickReply(qr.value)}
+                      className="rounded-full border border-primary/30 bg-primary/5 px-3 py-1.5 font-body text-[11px] text-foreground transition-all hover:bg-primary/15 hover:border-primary/50 active:scale-95"
+                    >
+                      {qr.label}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         ))}
