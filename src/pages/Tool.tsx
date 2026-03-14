@@ -715,6 +715,19 @@ const Index = () => {
           setSuggestedName(name);
           toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
         }}
+        onEditWithImages={(productImg, refImg, fidelity, elements) => {
+          // Load product image into editor
+          setOriginalImage(productImg);
+          setReferenceImages([refImg]);
+          setCustomPrompt(
+            `Replace background to match reference image exactly. Fidelity: ${fidelity}. ${elements ? `Include elements: ${elements}` : ""}`
+          );
+          setActivePrompt(
+            `Replace background to match reference image exactly. Fidelity: ${fidelity}. ${elements ? `Include elements: ${elements}` : ""}`
+          );
+          setPreciseMode(true);
+          toast.success("התמונות נטענו — לחץ 'החלף רקע' להחיל!");
+        }}
       />
 
       {/* History Panel */}
