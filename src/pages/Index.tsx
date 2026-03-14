@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import ImageUploader from "@/components/ImageUploader";
 import ImageCanvas from "@/components/ImageCanvas";
-import BackgroundPresets, { type Preset } from "@/components/BackgroundPresets";
+import BackgroundPresets, { type Preset, presets } from "@/components/BackgroundPresets";
 import ImageAdjustmentsPanel, {
   type ImageAdjustments,
   defaultAdjustments,
