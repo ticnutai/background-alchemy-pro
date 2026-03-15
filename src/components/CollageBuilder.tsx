@@ -177,9 +177,11 @@ export default function CollageBuilder() {
   });
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // Result
-  const [result, setResult] = useState<string | null>(null);
+  // Result — multi-page
+  const [pages, setPages] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const result = pages[currentPage] || null;
 
   // Gallery import
   const [galleryOpen, setGalleryOpen] = useState(false);
