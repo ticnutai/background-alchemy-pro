@@ -31,6 +31,8 @@ import RegionalMaskPanel from "@/components/RegionalMaskPanel";
 import LiveHistogram from "@/components/LiveHistogram";
 import CropTransformPanel from "@/components/CropTransformPanel";
 import FloatingSaveAction from "@/components/FloatingSaveAction";
+import AdvancedFiltersPanel from "@/components/AdvancedFiltersPanel";
+import TooltipHelpButton from "@/components/TooltipHelpSystem";
 import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
 import type { User } from "@supabase/supabase-js";
@@ -963,6 +965,7 @@ const ToolInner = () => {
                     { key: "backgrounds" as const, label: "רקעים" },
                     { key: "smart" as const, label: "🧠 חכם" },
                     { key: "filters" as const, label: "⚡ פילטרים" },
+                    { key: "advanced" as const, label: "🎛️ מתקדם" },
                     { key: "crop" as const, label: "✂️ חיתוך" },
                     { key: "tools" as const, label: "כלים" },
                     { key: "adjust" as const, label: "התאמות" },
@@ -983,6 +986,11 @@ const ToolInner = () => {
                 </div>
 
                 <div className="p-5 max-h-[70vh] overflow-y-auto">
+                  {/* Tooltip Help Button */}
+                  <div className="flex justify-end mb-2">
+                    <TooltipHelpButton page={activeTab} />
+                  </div>
+
                   {activeTab === "backgrounds" && (
                     <BackgroundPresets
                       selectedId={selectedPreset}
@@ -1161,6 +1169,12 @@ const ToolInner = () => {
                         />
                       </div>
                     </div>
+                  )}
+                  {activeTab === "advanced" && (
+                    <AdvancedFiltersPanel
+                      currentImage={resultImage || originalImage}
+                      onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                    />
                   )}
                   {activeTab === "crop" && (
                     <CropTransformPanel
