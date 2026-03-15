@@ -795,7 +795,7 @@ const Gallery = () => {
                     folders={folders}
                     currentFolderId={item.folder_id}
                     hoverDelay={800}
-                    className={`group rounded-xl border overflow-hidden bg-card transition-all hover:shadow-lg cursor-pointer ${
+                    className={`group rounded-xl border bg-card transition-all hover:shadow-lg cursor-pointer ${
                       draggedItemId === item.id ? "opacity-50 scale-95" :
                       compareMode && compareItems.find(c => c.id === item.id)
                         ? "border-primary ring-2 ring-primary/30"
