@@ -508,6 +508,20 @@ export interface CollageTextOverlay {
 
 export type FrameStyle = 'none' | 'thin-gold' | 'double-gold' | 'luxury-dark' | 'ornate-corners' | 'shadow-float' | 'neon-glow' | 'vintage-border' | 'marble-edge';
 
+export interface CollageWatermark {
+  type: 'text' | 'image';
+  text?: string;
+  imageSrc?: string;
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+  opacity: number;
+  scale: number; // 0.05 - 0.5
+  fontFamily?: string;
+  fontSize?: number;
+  color?: string;
+  rotation?: number;
+  repeat?: boolean;
+}
+
 export interface CollageOptions {
   layout: CollageLayout;
   width: number;
@@ -520,6 +534,7 @@ export interface CollageOptions {
   textOverlays?: CollageTextOverlay[];
   bgGradient?: { from: string; to: string; angle: number };
   cellBgColors?: (string | null)[];
+  watermark?: CollageWatermark;
 }
 
 const COLLAGE_FONT_MAP: Record<string, string> = {
