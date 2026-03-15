@@ -23,6 +23,7 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     loadHistory();
