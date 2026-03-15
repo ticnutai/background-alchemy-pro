@@ -111,6 +111,7 @@ const CATEGORY_COLORS = [
 
 // ─── Component ───────────────────────────────────────────────
 export default function CatalogBuilder() {
+  const navigate = useNavigate();
   // Products & Categories
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);

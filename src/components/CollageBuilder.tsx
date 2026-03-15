@@ -274,6 +274,7 @@ let _tid = 0;
 const newTextId = () => `txt_${Date.now()}_${++_tid}`;
 
 export default function CollageBuilder() {
+  const navigate = useNavigate();
   // Images
   const [images, setImages] = useState<CollageImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
