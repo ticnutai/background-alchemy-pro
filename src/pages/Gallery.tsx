@@ -753,97 +753,98 @@ const Gallery = () => {
                       <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
                     </div>
 
-                    {/* Hover action popup - centered popover */}
+                    {/* Hover action popup - floating above the card */}
                     {hoveredItemId === item.id && !compareMode && (
-                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-foreground/40 backdrop-blur-[2px] animate-in fade-in duration-200 rounded-xl">
-                        <div
-                          className="grid grid-cols-4 gap-1 rounded-xl bg-card/95 backdrop-blur-md shadow-xl border border-border p-2 animate-in zoom-in-90 duration-200"
-                          onClick={e => e.stopPropagation()}
-                        >
+                      <div
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-20 animate-in fade-in slide-in-from-bottom-2 duration-200"
+                        onMouseEnter={() => setHoveredItemId(item.id)}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="grid grid-cols-5 gap-1 rounded-xl bg-card shadow-xl border border-border p-2">
                           <button
                             onClick={() => toggleFavorite(item)}
-                            className={`flex flex-col items-center gap-0.5 rounded-lg p-2 transition-colors ${
+                            className={`flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors ${
                               item.is_favorite ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
                             }`}
                             title={item.is_favorite ? "הסר ממועדפים" : "הוסף למועדפים"}
                           >
-                            <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
-                            <span className="text-[9px] font-accent">מועדף</span>
+                            <Heart className={`h-3.5 w-3.5 ${item.is_favorite ? "fill-current" : ""}`} />
+                            <span className="text-[8px] font-accent">מועדף</span>
                           </button>
                           <button
                             onClick={() => setZoomedItem(item)}
-                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
                             title="הגדל"
                           >
-                            <ZoomIn className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">הגדל</span>
+                            <ZoomIn className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">הגדל</span>
                           </button>
                           <button
                             onClick={() => navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`)}
-                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            title="ערוך בכלי העריכה"
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="ערוך"
                           >
-                            <Pencil className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">ערוך</span>
+                            <Pencil className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">ערוך</span>
                           </button>
                           <button
                             onClick={() => duplicateItem(item)}
-                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                            title="שכפל תמונה"
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="שכפל"
                           >
-                            <Copy className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">שכפל</span>
+                            <Copy className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">שכפל</span>
                           </button>
                           <button
                             onClick={() => {
                               if (!compareMode) setCompareMode(true);
                               toggleCompareItem(item);
                             }}
-                            className={`flex flex-col items-center gap-0.5 rounded-lg p-2 transition-colors ${
+                            className={`flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors ${
                               compareItems.find(c => c.id === item.id) ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
                             }`}
-                            title="הוסף להשוואה"
+                            title="השוואה"
                           >
-                            <SlidersHorizontal className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">השוואה</span>
+                            <SlidersHorizontal className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">השוואה</span>
                           </button>
                           <button
                             onClick={() => { setPinnedItem(item); setSideBySideIndex(0); setViewMode("sideBySide"); }}
-                            className={`flex flex-col items-center gap-0.5 rounded-lg p-2 transition-colors ${
+                            className={`flex flex-col items-center gap-0.5 rounded-lg p-1.5 transition-colors ${
                               pinnedItem?.id === item.id ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
                             }`}
-                            title="נעץ להשוואה"
+                            title="נעץ"
                           >
-                            <Pin className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">נעץ</span>
+                            <Pin className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">נעץ</span>
                           </button>
                           <button
                             onClick={() => navigate(`/collage?importImage=${encodeURIComponent(item.result_image_url)}`)}
-                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            title="פתח בקולאז׳"
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="קולאז׳"
                           >
-                            <LayoutGrid className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">קולאז׳</span>
+                            <LayoutGrid className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">קולאז׳</span>
                           </button>
                           <button
                             onClick={() => navigate(`/catalog?importImage=${encodeURIComponent(item.result_image_url)}`)}
-                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                            title="פתח בקטלוג"
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="קטלוג"
                           >
-                            <BookOpen className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">קטלוג</span>
+                            <BookOpen className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">קטלוג</span>
                           </button>
-                          <div className="relative col-span-2">
+                          <div className="relative">
                             <button
                               onClick={() => setFolderMenuItemId(folderMenuItemId === item.id ? null : item.id)}
-                              className="flex w-full items-center justify-center gap-1 rounded-lg p-2 text-muted-foreground hover:text-gold hover:bg-gold/10 transition-colors"
-                              title="העבר לתיקייה"
+                              className="flex w-full flex-col items-center gap-0.5 rounded-lg p-1.5 text-muted-foreground hover:text-gold hover:bg-gold/10 transition-colors"
+                              title="תיקייה"
                             >
-                              <FolderInput className="h-4 w-4" />
-                              <span className="text-[9px] font-accent">תיקייה</span>
+                              <FolderInput className="h-3.5 w-3.5" />
+                              <span className="text-[8px] font-accent">תיקייה</span>
                             </button>
                             {folderMenuItemId === item.id && (
-                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-20 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[120px] animate-in fade-in slide-in-from-bottom-1 duration-150">
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-30 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[120px] animate-in fade-in slide-in-from-bottom-1 duration-150">
                                 <button
                                   onClick={() => { moveToFolder(item.id, null); setFolderMenuItemId(null); }}
                                   className="w-full text-right px-3 py-1.5 text-xs hover:bg-secondary transition-colors text-muted-foreground"
@@ -863,12 +864,16 @@ const Gallery = () => {
                           </div>
                           <button
                             onClick={() => confirmDeleteItem(item.id)}
-                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors col-span-2"
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                             title="מחק"
                           >
-                            <Trash2 className="h-4 w-4" />
-                            <span className="text-[9px] font-accent">מחק</span>
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span className="text-[8px] font-accent">מחק</span>
                           </button>
+                        </div>
+                        {/* Arrow pointing down to the card */}
+                        <div className="flex justify-center">
+                          <div className="w-3 h-3 bg-card border-b border-r border-border rotate-45 -mt-1.5" />
                         </div>
                       </div>
                     )}
