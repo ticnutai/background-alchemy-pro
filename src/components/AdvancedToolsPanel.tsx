@@ -729,36 +729,85 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                 דירוג צבע מקצועי
               </h4>
               <p className="font-body text-xs text-muted-foreground">
-                החל סגנון צבע מקצועי על התמונה — כמו פילטרים של קולנוע
+                החל סגנון צבע מקצועי על התמונה — כווין את העוצמה עם הסליידר
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: "cinematic", label: "קולנועי", desc: "טונים חמים, ניגודיות עמוקה", icon: "🎬" },
-                  { id: "vintage", label: "וינטג׳", desc: "גוונים דהויים, רך", icon: "📷" },
-                  { id: "moody", label: "דרמטי", desc: "כהה, צללים עמוקים", icon: "🌑" },
-                  { id: "bright-airy", label: "בהיר ואוורירי", desc: "לבנים חשופים, רך", icon: "☀️" },
-                  { id: "warm-gold", label: "זהב חם", desc: "טונים זהובים חמים", icon: "✨" },
-                  { id: "cool-blue", label: "כחול קריר", desc: "טונים כחולים מודרניים", icon: "❄️" },
+                  { id: "cinematic", label: "קולנועי", desc: "teal + orange", icon: "🎬" },
+                  { id: "vintage", label: "וינטג׳", desc: "גוונים דהויים", icon: "📷" },
+                  { id: "moody", label: "דרמטי", desc: "צללים עמוקים", icon: "🌑" },
+                  { id: "bright-airy", label: "בהיר", desc: "אוורירי ורך", icon: "☀️" },
+                  { id: "warm-gold", label: "זהב חם", desc: "טונים זהובים", icon: "✨" },
+                  { id: "cool-blue", label: "כחול קריר", desc: "מודרני ונקי", icon: "❄️" },
+                  { id: "pastel", label: "פסטל", desc: "רך וחלומי", icon: "🌸" },
+                  { id: "dramatic-red", label: "אדום דרמטי", desc: "בורדו עמוק", icon: "🔴" },
+                  { id: "earthy-natural", label: "ארצי טבעי", desc: "חום וזית", icon: "🍂" },
+                  { id: "high-contrast", label: "ניגודיות גבוהה", desc: "חד ועוצמתי", icon: "⚡" },
+                  { id: "cool-silver", label: "כסף קריר", desc: "מתכתי אלגנטי", icon: "🪞" },
+                  { id: "moody-dark", label: "כהה עמוק", desc: "לילי עשיר", icon: "🌙" },
                 ].map((style) => (
                   <button
                     key={style.id}
                     onClick={() => setColorGradeStyle(style.id)}
-                    className={`rounded-lg border-2 p-2.5 text-center transition-all ${
+                    className={`rounded-lg border-2 p-2 text-center transition-all ${
                       colorGradeStyle === style.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
                     }`}
                   >
-                    <span className="text-lg">{style.icon}</span>
-                    <span className="block font-display text-[10px] font-bold text-foreground mt-1">{style.label}</span>
-                    <span className="block font-body text-[8px] text-muted-foreground">{style.desc}</span>
+                    <span className="text-base">{style.icon}</span>
+                    <span className="block font-display text-[9px] font-bold text-foreground mt-0.5">{style.label}</span>
+                    <span className="block font-body text-[7px] text-muted-foreground">{style.desc}</span>
                   </button>
                 ))}
               </div>
+
+              {/* Intensity slider */}
+              <div className="space-y-1.5 rounded-lg border border-border bg-card p-3">
+                <div className="flex items-center justify-between">
+                  <label className="font-display text-xs font-semibold text-foreground">עוצמת האפקט</label>
+                  <span className="font-accent text-xs font-bold text-primary">{colorIntensity}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="20"
+                  max="100"
+                  step="5"
+                  value={colorIntensity}
+                  onChange={(e) => setColorIntensity(parseInt(e.target.value))}
+                  className="w-full accent-gold"
+                />
+                <div className="flex justify-between font-body text-[9px] text-muted-foreground">
+                  <span>עדין</span>
+                  <span>בינוני</span>
+                  <span>מלא</span>
+                </div>
+              </div>
+
+              {/* CSS Preview */}
+              {currentImage && (
+                <div className="space-y-1.5">
+                  <label className="font-display text-[10px] font-semibold text-muted-foreground">תצוגה מקדימה:</label>
+                  <div className="relative rounded-lg overflow-hidden border border-border aspect-video">
+                    <img
+                      src={currentImage}
+                      alt="preview"
+                      className="w-full h-full object-cover transition-all duration-300"
+                      style={{
+                        filter: getColorPreviewFilter(colorGradeStyle, colorIntensity),
+                      }}
+                    />
+                    <div className="absolute bottom-1 right-1 rounded bg-black/60 px-1.5 py-0.5 font-accent text-[8px] text-white">
+                      תצוגה מקדימה (CSS) — התוצאה הסופית תהיה מדויקת יותר
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <button
-                onClick={() => runTool("color-grade", { style: colorGradeStyle })}
+                onClick={() => runTool("color-grade", { style: colorGradeStyle, intensity: colorIntensity })}
                 disabled={processing}
                 className="w-full rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
               >
-                {processing ? "מעבד..." : "החל סגנון צבע"}
+                {processing ? "מעבד..." : "החל סגנון צבע (AI)"}
               </button>
             </div>
           )}
