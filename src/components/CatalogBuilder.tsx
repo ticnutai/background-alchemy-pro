@@ -1147,8 +1147,7 @@ export default function CatalogBuilder() {
                         { id: "sans" as const, label: "Sans" },
                         { id: "serif" as const, label: "Serif" },
                         { id: "mono" as const, label: "Mono" },
-                        { id: "decorative" as const, label: "דקורטיבי" },
-                      ]).map(f => (
+                      ] as const).map(f => (
                         <Button
                           key={f.id}
                           size="sm"
