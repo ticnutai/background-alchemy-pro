@@ -519,6 +519,7 @@ export interface CollageOptions {
   frameStyle?: FrameStyle;
   textOverlays?: CollageTextOverlay[];
   bgGradient?: { from: string; to: string; angle: number };
+  cellBgColors?: (string | null)[];
 }
 
 const COLLAGE_FONT_MAP: Record<string, string> = {
