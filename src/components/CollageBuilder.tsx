@@ -588,12 +588,9 @@ export default function CollageBuilder() {
                       <Button variant="outline" className="w-full" onClick={() => openGalleryImport('collage')}>
                         <Database className="h-4 w-4 ml-2" />ייבוא מהגלריה / מהענן
                       </Button>
-                      <label className="cursor-pointer">
-                        <Button variant="outline" className="w-full" asChild>
-                          <span><SplitSquareVertical className="h-4 w-4 ml-2" />פיצול תמונה לחלקים</span>
-                        </Button>
-                        <input type="file" accept="image/*" className="hidden" ref={splitFileRef} onChange={handleSplitUpload} />
-                      </label>
+                      <Button variant="outline" className="w-full" onClick={() => { setSplitSource(null); setSplitDialogOpen(true); }}>
+                        <SplitSquareVertical className="h-4 w-4 ml-2" />פיצול תמונה לחלקים
+                      </Button>
                     </div>
                     {images.length > 0 && <div className="text-xs text-muted-foreground">{images.length} תמונות נטענו</div>}
                   </CardContent>
