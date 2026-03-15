@@ -405,11 +405,12 @@ export default function CollageBuilder() {
         <ScrollArea className="max-h-[calc(100vh-120px)]">
           <div className="space-y-3 pr-1">
             <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-              <TabsList className="w-full grid grid-cols-4">
+              <TabsList className="w-full grid grid-cols-5">
                 <TabsTrigger value="images" className="text-xs gap-1"><ImageIcon className="h-3.5 w-3.5" />תמונות</TabsTrigger>
                 <TabsTrigger value="design" className="text-xs gap-1"><Palette className="h-3.5 w-3.5" />עיצוב</TabsTrigger>
                 <TabsTrigger value="frames" className="text-xs gap-1"><Frame className="h-3.5 w-3.5" />מסגרות</TabsTrigger>
                 <TabsTrigger value="text" className="text-xs gap-1"><Type className="h-3.5 w-3.5" />טקסט</TabsTrigger>
+                <TabsTrigger value="templates" className="text-xs gap-1"><BookmarkPlus className="h-3.5 w-3.5" />תבניות</TabsTrigger>
               </TabsList>
 
               {/* ─── Images Tab ─── */}
