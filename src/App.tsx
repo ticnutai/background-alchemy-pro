@@ -11,6 +11,7 @@ const Gallery = lazy(() => import("./pages/Gallery.tsx"));
 const Auth = lazy(() => import("./pages/Auth.tsx"));
 const Catalog = lazy(() => import("./pages/Catalog.tsx"));
 const Collage = lazy(() => import("./pages/Collage.tsx"));
+const Workspace = lazy(() => import("./pages/Workspace.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const PageLoader = () => (
