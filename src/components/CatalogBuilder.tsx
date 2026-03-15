@@ -7,6 +7,7 @@ import {
   Sparkles, FileDown, LayoutGrid, Home, Brain, Wand2,
   FolderOpen, ArrowUpCircle, Eraser, Zap, CheckCircle2,
   ChevronDown, ChevronUp, Frame, EyeOff, ALargeSmall, PenLine,
+  Database, CloudDownload, Check, Star,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   generateCatalog,
   catalogToPDF,
@@ -114,6 +124,12 @@ export default function CatalogBuilder() {
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
   // Text overlay editing
   const [editingOverlay, setEditingOverlay] = useState<string | null>(null);
+  // Gallery import
+  const [galleryOpen, setGalleryOpen] = useState(false);
+  const [galleryTab, setGalleryTab] = useState<"history" | "products">("history");
+  const [galleryItems, setGalleryItems] = useState<{ id: string; image: string; name: string; description?: string; price?: string; source: "history" | "products" }[]>([]);
+  const [gallerySelected, setGallerySelected] = useState<Set<string>>(new Set());
+  const [galleryLoading, setGalleryLoading] = useState(false);
   // Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -201,6 +217,88 @@ export default function CatalogBuilder() {
     setCategories(prev => prev.filter(c => c.id !== id));
     setProducts(prev => prev.map(p => p.category === id ? { ...p, category: undefined } : p));
   }, []);
+
+  // ─── Gallery Import ────────────────────────────────────────
+  const loadGalleryItems = useCallback(async (tab: "history" | "products") => {
+    setGalleryLoading(true);
+    setGalleryItems([]);
+    setGallerySelected(new Set());
+    try {
+      if (tab === "history") {
+        const { data, error } = await supabase
+          .from("processing_history")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        setGalleryItems((data || []).map(item => ({
+          id: item.id,
+          image: item.result_image_url || item.original_image_url || "",
+          name: item.background_name || item.background_prompt?.slice(0, 40) || "תמונה מעובדת",
+          description: item.background_prompt || "",
+          source: "history" as const,
+        })));
+      } else {
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (error) throw error;
+        setGalleryItems((data || []).map(item => ({
+          id: item.id,
+          image: item.image_url || "",
+          name: item.title || "מוצר",
+          description: item.description || "",
+          price: item.price ? `₪${item.price}` : undefined,
+          source: "products" as const,
+        })));
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error("שגיאה בטעינת גלריה");
+    } finally {
+      setGalleryLoading(false);
+    }
+  }, []);
+
+  const openGalleryImport = useCallback(() => {
+    setGalleryOpen(true);
+    loadGalleryItems(galleryTab);
+  }, [galleryTab, loadGalleryItems]);
+
+  const toggleGalleryItem = useCallback((id: string) => {
+    setGallerySelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAllGallery = useCallback(() => {
+    if (gallerySelected.size === galleryItems.length) {
+      setGallerySelected(new Set());
+    } else {
+      setGallerySelected(new Set(galleryItems.map(i => i.id)));
+    }
+  }, [galleryItems, gallerySelected.size]);
+
+  const importSelectedGallery = useCallback(() => {
+    const selected = galleryItems.filter(i => gallerySelected.has(i.id));
+    if (selected.length === 0) return;
+    const newProducts: CatalogProduct[] = selected.map(item => ({
+      id: newId(),
+      image: item.image,
+      name: item.name,
+      description: item.description || "",
+      price: item.price || "",
+      sku: "",
+      badge: "",
+      category: categories.length > 0 ? categories[0].id : undefined,
+    }));
+    setProducts(prev => [...prev, ...newProducts]);
+    toast.success(`${newProducts.length} פריטים יובאו מהגלריה`);
+    setGalleryOpen(false);
+    setGallerySelected(new Set());
+  }, [galleryItems, gallerySelected, categories]);
 
   // ─── Logo upload ──────────────────────────────────────────
   const handleLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -448,6 +546,7 @@ export default function CatalogBuilder() {
 
   // ─── Render ────────────────────────────────────────────────
   return (
+    <>
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -535,6 +634,16 @@ export default function CatalogBuilder() {
                       onChange={e => e.target.files && handleAddImages(e.target.files)}
                     />
                   </div>
+
+                  {/* Import from gallery */}
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2 h-9"
+                    onClick={openGalleryImport}
+                  >
+                    <Database className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-medium">ייבוא מהגלריה / מהענן</span>
+                  </Button>
 
                   {products.length > 0 && (
                     <div className="flex items-center justify-between">
@@ -1609,5 +1718,119 @@ export default function CatalogBuilder() {
         </main>
       </div>
     </div>
+
+      {/* ── Gallery Import Dialog ───────────────────────── */}
+      <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
+      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col" dir="rtl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <CloudDownload className="h-5 w-5 text-primary" />
+            ייבוא תמונות מהגלריה
+          </DialogTitle>
+        </DialogHeader>
+
+        {/* Source tabs */}
+        <div className="flex gap-1 border-b pb-2">
+          <Button
+            size="sm"
+            variant={galleryTab === "history" ? "default" : "outline"}
+            onClick={() => { setGalleryTab("history"); loadGalleryItems("history"); }}
+            className="gap-1.5"
+          >
+            <ImageIcon className="h-3.5 w-3.5" />
+            תמונות מעובדות
+          </Button>
+          <Button
+            size="sm"
+            variant={galleryTab === "products" ? "default" : "outline"}
+            onClick={() => { setGalleryTab("products"); loadGalleryItems("products"); }}
+            className="gap-1.5"
+          >
+            <Star className="h-3.5 w-3.5" />
+            גלריית מוצרים
+          </Button>
+        </div>
+
+        {/* Select all */}
+        {galleryItems.length > 0 && (
+          <div className="flex items-center justify-between px-1">
+            <button onClick={selectAllGallery} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <Checkbox checked={gallerySelected.size === galleryItems.length && galleryItems.length > 0} />
+              {gallerySelected.size === galleryItems.length ? "בטל הכל" : `בחר הכל (${galleryItems.length})`}
+            </button>
+            <Badge variant="secondary" className="text-xs">
+              {gallerySelected.size} נבחרו
+            </Badge>
+          </div>
+        )}
+
+        {/* Grid */}
+        <ScrollArea className="flex-1 min-h-0">
+          {galleryLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground mr-3">טוען גלריה...</span>
+            </div>
+          ) : galleryItems.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground">
+              <Database className="h-10 w-10 mx-auto mb-3 opacity-40" />
+              <p className="text-sm">אין תמונות בגלריה זו</p>
+              <p className="text-xs mt-1">עבד תמונות בכלי העריכה כדי שיופיעו כאן</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2 p-1">
+              {galleryItems.map(item => {
+                const isSelected = gallerySelected.has(item.id);
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => toggleGalleryItem(item.id)}
+                    className={`relative rounded-lg border-2 overflow-hidden transition-all group ${
+                      isSelected
+                        ? "border-primary ring-2 ring-primary/30"
+                        : "border-transparent hover:border-primary/30"
+                    }`}
+                  >
+                    <div className="aspect-square bg-muted">
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                    <div className="p-1.5 bg-background">
+                      <p className="text-[10px] font-medium truncate">{item.name}</p>
+                      {item.price && <p className="text-[10px] text-primary font-bold">{item.price}</p>}
+                    </div>
+                    {/* Selection indicator */}
+                    <div className={`absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                      isSelected
+                        ? "bg-primary text-white"
+                        : "bg-black/40 text-white opacity-0 group-hover:opacity-100"
+                    }`}>
+                      <Check className="h-3 w-3" />
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </ScrollArea>
+
+        <DialogFooter className="flex gap-2 pt-2 border-t">
+          <Button variant="outline" onClick={() => setGalleryOpen(false)}>ביטול</Button>
+          <Button
+            onClick={importSelectedGallery}
+            disabled={gallerySelected.size === 0}
+            className="gap-1.5"
+          >
+            <CloudDownload className="h-4 w-4" />
+            ייבא {gallerySelected.size > 0 ? `${gallerySelected.size} פריטים` : ""}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
