@@ -382,6 +382,27 @@ export default function CollageBuilder() {
                   className="w-full h-8 rounded border cursor-pointer"
                 />
               </div>
+              <div className="space-y-2">
+                <Label className="text-xs">התאמת תמונה</Label>
+                <div className="flex gap-1">
+                  <Button
+                    size="sm"
+                    variant={fitMode === "contain" ? "default" : "outline"}
+                    onClick={() => setFitMode("contain")}
+                    className="flex-1 text-xs"
+                  >
+                    התאם (מלא)
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={fitMode === "cover" ? "default" : "outline"}
+                    onClick={() => setFitMode("cover")}
+                    className="flex-1 text-xs"
+                  >
+                    חיתוך למילוי
+                  </Button>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
