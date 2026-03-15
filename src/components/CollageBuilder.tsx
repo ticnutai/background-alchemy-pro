@@ -30,6 +30,22 @@ import {
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
 
+// ─── Page Size Presets ───────────────────────────────────────
+type CollagePageSize = "custom" | "A4" | "A3" | "A5" | "ig-post" | "ig-story" | "ig-reel" | "fb-post" | "fb-cover" | "square-hd";
+
+const COLLAGE_PAGE_SIZES: { id: CollagePageSize; label: string; w: number; h: number; category: string }[] = [
+  { id: "custom", label: "מותאם אישית", w: 1200, h: 1200, category: "אחר" },
+  { id: "A4", label: "A4 עמוד", w: 2480, h: 3508, category: "הדפסה" },
+  { id: "A3", label: "A3 פוסטר", w: 3508, h: 4961, category: "הדפסה" },
+  { id: "A5", label: "A5 פלייר", w: 1748, h: 2480, category: "הדפסה" },
+  { id: "ig-post", label: "IG פוסט", w: 1080, h: 1080, category: "סושיאל" },
+  { id: "ig-story", label: "IG סטורי", w: 1080, h: 1920, category: "סושיאל" },
+  { id: "ig-reel", label: "IG ריל", w: 1080, h: 1350, category: "סושיאל" },
+  { id: "fb-post", label: "FB פוסט", w: 1200, h: 630, category: "סושיאל" },
+  { id: "fb-cover", label: "FB כיסוי", w: 1640, h: 624, category: "סושיאל" },
+  { id: "square-hd", label: "ריבוע HD", w: 2000, h: 2000, category: "אחר" },
+];
+
 // ─── Constants ──────────────────────────────────────────────────
 const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number }[] = [
   { id: "grid-2x2", label: "רשת 2×2", icon: <Grid2X2 className="h-5 w-5" />, maxImages: 4 },
@@ -265,8 +281,9 @@ export default function CollageBuilder() {
   const [gap, setGap] = useState(12);
   const [borderRadius, setBorderRadius] = useState(8);
   const [bgColor, setBgColor] = useState("#ffffff");
-  const [canvasWidth] = useState(1200);
+  const [canvasWidth, setCanvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
+  const [selectedPageSize, setSelectedPageSize] = useState<CollagePageSize>("custom");
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
@@ -926,9 +943,50 @@ export default function CollageBuilder() {
                       <Label className="text-xs">רדיוס פינות: {borderRadius}px</Label>
                       <Slider value={[borderRadius]} onValueChange={([v]) => setBorderRadius(v)} min={0} max={30} step={2} />
                     </div>
+                    {/* Page size selector */}
                     <div className="space-y-2">
-                      <Label className="text-xs">גובה: {canvasHeight}px</Label>
-                      <Slider value={[canvasHeight]} onValueChange={([v]) => setCanvasHeight(v)} min={600} max={2400} step={100} />
+                      <Label className="text-xs font-semibold">📐 גודל דף / קנבס</Label>
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {COLLAGE_PAGE_SIZES.filter(p => p.category === "הדפסה").map(p => (
+                            <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
+                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); }}
+                              className="text-[10px] px-2 h-7"
+                            >{p.label}</Button>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {COLLAGE_PAGE_SIZES.filter(p => p.category === "סושיאל").map(p => (
+                            <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
+                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); }}
+                              className="text-[10px] px-2 h-7"
+                            >{p.label}</Button>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {COLLAGE_PAGE_SIZES.filter(p => p.category === "אחר").map(p => (
+                            <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
+                              onClick={() => { if (p.id === "custom") { setSelectedPageSize("custom"); } else { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); } }}
+                              className="text-[10px] px-2 h-7"
+                            >{p.label}</Button>
+                          ))}
+                        </div>
+                      </div>
+                      {selectedPageSize === "custom" && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[10px]">רוחב: {canvasWidth}px</Label>
+                            <Slider value={[canvasWidth]} onValueChange={([v]) => setCanvasWidth(v)} min={600} max={4000} step={100} />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">גובה: {canvasHeight}px</Label>
+                            <Slider value={[canvasHeight]} onValueChange={([v]) => setCanvasHeight(v)} min={600} max={5000} step={100} />
+                          </div>
+                        </div>
+                      )}
+                      {selectedPageSize !== "custom" && (
+                        <p className="text-[10px] text-muted-foreground">{canvasWidth}×{canvasHeight}px</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">התאמת תמונה</Label>
