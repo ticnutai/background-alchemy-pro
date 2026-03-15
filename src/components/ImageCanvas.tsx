@@ -51,7 +51,7 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
   const renderModeSelector = () => {
     if (!resultImage) return null;
     return (
-      <div className="absolute bottom-3 left-3 z-10 flex gap-1 rounded-lg bg-background/80 p-1 backdrop-blur-sm border border-border/50">
+      <div className="absolute bottom-3 right-3 z-10 flex gap-1 rounded-lg bg-background/80 p-1 backdrop-blur-sm border border-border/50">
         {(Object.keys(compareModeLabels) as CompareMode[]).map((mode) => (
           <button
             key={mode}
@@ -125,8 +125,8 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
                 </div>
               </div>
 
-              <div className="absolute top-3 left-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
-              <div className="absolute top-3 right-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
+              <div className="absolute top-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+              <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
             </div>
           )}
 
@@ -134,12 +134,12 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
             <div className="flex gap-1">
               <div className="flex-1 relative">
                 <img src={originalImage} alt="Original" className="block w-full" />
-                <div className="absolute top-3 right-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
+                <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
               </div>
               <div className="flex-1 relative">
                 <img src={resultImage} alt="Result" className="block w-full" style={{ filter: combinedFilter }} />
                 {renderOverlay()}
-                <div className="absolute top-3 left-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+                <div className="absolute top-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
               </div>
             </div>
           )}
@@ -177,8 +177,8 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
                 {renderOverlay()}
               </div>
               <div className="absolute left-0 right-0 top-1/2 z-10 border-t-2 border-dashed border-primary/60" />
-              <div className="absolute top-3 right-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
-              <div className="absolute bottom-3 left-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+              <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
+              <div className="absolute bottom-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
             </div>
           )}
 

@@ -759,14 +759,14 @@ export default function CollageBuilder() {
     <div className="min-h-screen bg-background" dir="rtl">
       {/* Header */}
       <div className="border-b bg-card p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div>
-            <h1 className="text-2xl font-bold">בונה קולאז׳ חכם</h1>
+            <h1 className="text-xl sm:text-2xl font-bold">בונה קולאז׳ חכם</h1>
             <p className="text-sm text-muted-foreground">
               קולאז׳ מתקדם עם מסגרות יוקרתיות, טקסט מעוצב וכלים חכמים
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => window.history.back()}>חזור</Button>
             {result && (
               <>
@@ -786,15 +786,15 @@ export default function CollageBuilder() {
 
       <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
         {/* Sidebar */}
-        <ScrollArea className="max-h-[calc(100vh-120px)]">
+        <ScrollArea className="max-h-[50vh] sm:max-h-[calc(100vh-120px)]">
           <div className="space-y-3 pr-1">
             <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
               <TabsList className="w-full grid grid-cols-5">
-                <TabsTrigger value="images" className="text-xs gap-1"><ImageIcon className="h-3.5 w-3.5" />תמונות</TabsTrigger>
-                <TabsTrigger value="design" className="text-xs gap-1"><Palette className="h-3.5 w-3.5" />עיצוב</TabsTrigger>
-                <TabsTrigger value="frames" className="text-xs gap-1"><Frame className="h-3.5 w-3.5" />מסגרות</TabsTrigger>
-                <TabsTrigger value="text" className="text-xs gap-1"><Type className="h-3.5 w-3.5" />טקסט</TabsTrigger>
-                <TabsTrigger value="templates" className="text-xs gap-1"><BookmarkPlus className="h-3.5 w-3.5" />תבניות</TabsTrigger>
+                <TabsTrigger value="images" className="text-[10px] sm:text-xs gap-1"><ImageIcon className="h-3.5 w-3.5" /><span className="hidden sm:inline">תמונות</span></TabsTrigger>
+                <TabsTrigger value="design" className="text-[10px] sm:text-xs gap-1"><Palette className="h-3.5 w-3.5" /><span className="hidden sm:inline">עיצוב</span></TabsTrigger>
+                <TabsTrigger value="frames" className="text-[10px] sm:text-xs gap-1"><Frame className="h-3.5 w-3.5" /><span className="hidden sm:inline">מסגרות</span></TabsTrigger>
+                <TabsTrigger value="text" className="text-[10px] sm:text-xs gap-1"><Type className="h-3.5 w-3.5" /><span className="hidden sm:inline">טקסט</span></TabsTrigger>
+                <TabsTrigger value="templates" className="text-[10px] sm:text-xs gap-1"><BookmarkPlus className="h-3.5 w-3.5" /><span className="hidden sm:inline">תבניות</span></TabsTrigger>
               </TabsList>
 
               {/* ─── Images Tab ─── */}

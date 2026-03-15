@@ -12,3 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+Sitemap: https://background-alchemy-pro.lovable.app/sitemap.xml

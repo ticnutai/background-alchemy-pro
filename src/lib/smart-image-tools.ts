@@ -486,6 +486,31 @@ export async function sharpenImage(
 }
 
 // ─── 11. Collage Layout Engine ──────────────────────────────────
+
+// Canvas size presets for common aspect ratios
+export const CANVAS_SIZE_PRESETS = [
+  { label: '1:1 ריבוע', w: 1080, h: 1080 },
+  { label: '4:5 פורטרט', w: 1080, h: 1350 },
+  { label: '9:16 סטורי', w: 1080, h: 1920 },
+  { label: '16:9 רחב', w: 1920, h: 1080 },
+  { label: 'A4 הדפסה', w: 2480, h: 3508 },
+];
+
+/** Calculate optimal canvas height based on images and layout */
+export function calcOptimalCanvasHeight(
+  images: { width: number; height: number }[],
+  canvasWidth: number,
+  cols: number,
+  gap: number
+): number {
+  if (images.length === 0) return canvasWidth;
+  const cellW = (canvasWidth - gap * (cols + 1)) / cols;
+  const rows = Math.ceil(images.length / cols);
+  const avgRatio = images.reduce((sum, img) => sum + img.height / img.width, 0) / images.length;
+  const cellH = cellW * avgRatio;
+  return Math.round(rows * cellH + gap * (rows + 1));
+}
+
 export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'grid-2x3' | 'grid-3x2' | 'grid-4x4' | 'hero-side' | 'hero-top' | 'strip' | 'strip-vertical' | 'masonry' | 'pinterest' | 'diagonal' | 'l-shape' | 'featured-grid';
 
 export interface CollageTextOverlay {
@@ -529,7 +554,7 @@ export interface CollageOptions {
   gap: number;
   bgColor: string;
   borderRadius: number;
-  fitMode?: 'cover' | 'contain';
+  fitMode?: 'cover' | 'contain' | 'smart-pad';
   frameStyle?: FrameStyle;
   textOverlays?: CollageTextOverlay[];
   bgGradient?: { from: string; to: string; angle: number };
@@ -747,14 +772,24 @@ export async function generateCollage(
       roundedClip(ctx, cell.x, cell.y, cell.w, cell.h, borderRadius);
     }
 
-    if (fitMode === 'contain') {
+    if (fitMode === 'contain' || fitMode === 'smart-pad') {
       const cellBg = cellBgColors[i] || bgColor;
       ctx.fillStyle = cellBg;
       ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
       const imgRatio = img.width / img.height;
       const cellRatio = cell.w / cell.h;
       let dw: number, dh: number;
-      if (imgRatio > cellRatio) {
+      if (fitMode === 'smart-pad') {
+        // Smart-pad: scale to 90% of cell, always pad
+        const padScale = 0.9;
+        if (imgRatio > cellRatio) {
+          dw = cell.w * padScale;
+          dh = dw / imgRatio;
+        } else {
+          dh = cell.h * padScale;
+          dw = dh * imgRatio;
+        }
+      } else if (imgRatio > cellRatio) {
         dw = cell.w;
         dh = cell.w / imgRatio;
       } else {

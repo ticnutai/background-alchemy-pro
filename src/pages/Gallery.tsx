@@ -482,7 +482,7 @@ const Gallery = () => {
     <div className="min-h-screen bg-background font-body" dir="rtl">
       {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
@@ -509,10 +509,10 @@ const Gallery = () => {
               </button>
             </div>
             <Link to="/" className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40">
-              <Home className="h-3.5 w-3.5" /> דף הבית
+              <Home className="h-3.5 w-3.5" /> <span className="hidden sm:inline">דף הבית</span>
             </Link>
             <Link to="/tool" className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-accent text-xs font-semibold text-accent-foreground transition-all hover:brightness-110">
-              <Sparkles className="h-3.5 w-3.5" /> לכלי העריכה
+              <Sparkles className="h-3.5 w-3.5" /> <span className="hidden sm:inline">לכלי העריכה</span>
             </Link>
             <button
               onClick={() => navigate(-1)}
@@ -525,10 +525,10 @@ const Gallery = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-6">
-        <div className="flex gap-6">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
+        <div className="flex flex-col md:flex-row gap-4 md:gap-6">
           {/* Sidebar - Folders */}
-          <div className="w-56 shrink-0 space-y-3">
+          <div className="w-full md:w-56 shrink-0 space-y-3">
             <div className="rounded-xl border border-border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-display text-sm font-bold text-foreground">תיקיות</h3>

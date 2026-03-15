@@ -622,12 +622,12 @@ const ToolInner = () => {
     <div className="min-h-screen bg-background font-body" dir="rtl">
       {/* Header */}
       <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
           <div className="flex items-center gap-3">
             <Link to="/" className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </Link>
-            <h1 className="font-display text-xl font-bold text-foreground">AI Background Replacer</h1>
+            <h1 className="font-display text-base sm:text-xl font-bold text-foreground">AI Background Replacer</h1>
           </div>
           <div className="flex items-center gap-3">
             {user && (
@@ -637,21 +637,21 @@ const ToolInner = () => {
                   className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
                 >
                   <Home className="h-3.5 w-3.5" />
-                  דף הבית
+                  <span className="hidden sm:inline">דף הבית</span>
                 </Link>
                 <button
                   onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "history", value: true } })}
                   className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
                 >
                   <Clock className="h-3.5 w-3.5" />
-                  היסטוריה
+                  <span className="hidden sm:inline">היסטוריה</span>
                 </button>
                 <Link
                   to="/gallery"
                   className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
                 >
                   <Eye className="h-3.5 w-3.5" />
-                  גלריה
+                  <span className="hidden sm:inline">גלריה</span>
                 </Link>
               </>
             )}
@@ -696,8 +696,8 @@ const ToolInner = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-8">
-        <div className="flex gap-8">
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
           {/* Canvas */}
           <div className="flex-1 space-y-6">
             {originalImage ? (
@@ -818,7 +818,7 @@ const ToolInner = () => {
                   <button
                     onClick={handleProcess}
                     disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
-                    className={`flex items-center gap-2 rounded-lg px-6 py-3 font-display text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2.5 sm:px-6 sm:py-3 font-display text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed ${
                       selectedPresetType === "scene"
                         ? "bg-gradient-to-l from-emerald-500 to-teal-600 text-white"
                         : preciseMode
@@ -957,10 +957,10 @@ const ToolInner = () => {
 
           {/* Sidebar */}
           {originalImage && (
-            <div className="w-80 shrink-0">
+            <div className="w-full lg:w-80 shrink-0">
               <div className="sticky top-8 space-y-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Tabs */}
-                <div className="flex flex-wrap border-b border-border">
+                <div className="overflow-x-auto scrollbar-hide border-b border-border">
                   {[
                     { key: "backgrounds" as const, label: "רקעים" },
                     { key: "smart" as const, label: "🧠 חכם" },
@@ -974,7 +974,7 @@ const ToolInner = () => {
                     <button
                       key={tab.key}
                       onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: tab.key })}
-                      className={`flex-1 py-3 font-display text-xs font-semibold transition-colors ${
+                      className={`shrink-0 whitespace-nowrap flex-1 py-3 font-display text-xs font-semibold transition-colors ${
                         activeTab === tab.key
                           ? "text-primary border-b-2 border-primary bg-primary/5"
                           : "text-muted-foreground hover:text-foreground"
@@ -985,7 +985,7 @@ const ToolInner = () => {
                   ))}
                 </div>
 
-                <div className="p-5 max-h-[70vh] overflow-y-auto">
+                <div className="p-3 sm:p-5 max-h-[70vh] overflow-y-auto">
                   {/* Tooltip Help Button */}
                   <div className="flex justify-end mb-2">
                     <TooltipHelpButton page={activeTab} />

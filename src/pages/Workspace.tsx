@@ -179,7 +179,7 @@ export default function Workspace() {
             <motion.div
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
-              className="flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-gold bg-gold/5 px-16 py-12"
+              className="flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-gold bg-gold/5 px-8 py-8 sm:px-16 sm:py-12"
             >
               <Upload className="h-16 w-16 text-gold" />
               <p className="font-display text-2xl font-bold text-foreground">שחררו את הקבצים כאן</p>
@@ -191,7 +191,7 @@ export default function Workspace() {
 
       {/* Nav */}
       <nav className="sticky top-0 z-50 border-b border-gold/20 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl flex items-center justify-between px-6 py-3">
+          <div className="mx-auto max-w-6xl flex items-center justify-between px-4 sm:px-6 py-3">
           <Link to="/" className="flex items-center gap-3">
             <img src={studioLogo} alt="רותי פרל" className="h-10 w-auto" />
           </Link>
@@ -204,7 +204,7 @@ export default function Workspace() {
         </div>
       </nav>
 
-      <div className="mx-auto max-w-6xl px-6 py-8 space-y-8">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6 py-6 sm:py-8 space-y-8">
         {/* Upload zone */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
           <div
@@ -240,7 +240,7 @@ export default function Workspace() {
                     או לחצו לבחירת קבצים • JPG, PNG, WebP
                   </p>
                 </div>
-                <div className="flex items-center gap-6 mt-2">
+                <div className="flex flex-wrap justify-center items-center gap-3 sm:gap-6 mt-2">
                   <button
                     onClick={e => {
                       e.stopPropagation();
@@ -390,7 +390,7 @@ export default function Workspace() {
                 <p className="font-body text-sm text-muted-foreground">עדיין אין תמונות — התחילו לעבוד!</p>
               </div>
             ) : (
-              <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-8 gap-2">
                 {recentImages.map(img => (
                   <ImageHoverMenu
                     key={img.id}
