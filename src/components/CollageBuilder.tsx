@@ -206,7 +206,7 @@ export default function CollageBuilder() {
       toast.error("שגיאה ביצירת הקולאז׳");
     }
     setProcessing(false);
-  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius]);
+  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode]);
 
   // ── Download ────────────────────────────────────────────────
   const downloadCollage = useCallback(() => {
