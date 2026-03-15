@@ -19,7 +19,7 @@ import {
   AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
   BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram,
   Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
-  FileDown, FilePlus2
+  FileDown, FilePlus2, X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -297,6 +297,11 @@ export default function CollageBuilder() {
   const [currentPage, setCurrentPage] = useState(0);
   const [processing, setProcessing] = useState(false);
   const result = pages[currentPage] || null;
+
+  // Comparison preview
+  const [comparePreviews, setComparePreviews] = useState<{ layout: CollageLayout; label: string; dataUrl: string }[]>([]);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareProcessing, setCompareProcessing] = useState(false);
 
   // Gallery import
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -607,7 +612,64 @@ export default function CollageBuilder() {
     setProcessing(false);
   }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
 
-  // ── Download ────────────────────────────────────────────────
+  // ── Compare Layouts ─────────────────────────────────────────
+  const handleCompareLayouts = useCallback(async () => {
+    if (images.length < 1) {
+      toast.error("העלה לפחות תמונה אחת");
+      return;
+    }
+    setCompareProcessing(true);
+    setCompareMode(true);
+    try {
+      const allSrcs = images.map(img => img.src);
+      const allCellColors = images.map(img => img.cellBgColor || null);
+      // Pick layouts that fit the number of images
+      const candidateLayouts = LAYOUT_OPTIONS.filter(l => l.maxImages >= Math.min(images.length, l.maxImages));
+      // Generate up to 6 previews with different layouts
+      const layoutsToPreview = candidateLayouts.slice(0, 6);
+      const previews: { layout: CollageLayout; label: string; dataUrl: string }[] = [];
+
+      for (const lo of layoutsToPreview) {
+        const pageSrcs = allSrcs.slice(0, lo.maxImages);
+        const pageCellColors = allCellColors.slice(0, lo.maxImages);
+        const collageOptions: CollageOptions = {
+          layout: lo.id,
+          width: 600, // smaller for speed
+          height: 600,
+          gap,
+          bgColor,
+          borderRadius,
+          fitMode,
+          frameStyle,
+          textOverlays,
+          bgGradient: bgGradientEnabled ? bgGradient : undefined,
+          cellBgColors: pageCellColors,
+          watermark: watermarkEnabled ? watermark : undefined,
+        };
+        try {
+          const dataUrl = await generateCollage(pageSrcs, collageOptions);
+          previews.push({ layout: lo.id, label: lo.label, dataUrl });
+        } catch {
+          // skip failed layouts
+        }
+      }
+
+      setComparePreviews(previews);
+      if (previews.length === 0) toast.error("לא הצלחנו ליצור תצוגות מקדימות");
+    } catch {
+      toast.error("שגיאה ביצירת תצוגות מקדימות");
+    }
+    setCompareProcessing(false);
+  }, [images, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
+
+  const selectCompareLayout = useCallback((selectedLayout: CollageLayout) => {
+    setLayout(selectedLayout);
+    setCompareMode(false);
+    setComparePreviews([]);
+    toast.success("הלייאאוט נבחר! לחץ 'צור קולאז׳' ליצירה באיכות מלאה");
+  }, []);
+
+
   const downloadCollage = useCallback(() => {
     if (!result) return;
     const a = document.createElement("a");
@@ -1364,17 +1426,63 @@ export default function CollageBuilder() {
                 })()}
               </div>
             )}
-            <Button className="w-full" size="lg" onClick={handleGenerate} disabled={processing || images.length < 1}>
-              {processing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Layers className="h-4 w-4 ml-2" />}
-              {processing ? "מייצר..." : "צור קולאז׳"}
-            </Button>
+            <div className="flex gap-2">
+              <Button className="flex-1" size="lg" onClick={handleGenerate} disabled={processing || compareProcessing || images.length < 1}>
+                {processing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Layers className="h-4 w-4 ml-2" />}
+                {processing ? "מייצר..." : "צור קולאז׳"}
+              </Button>
+              <Button variant="outline" size="lg" onClick={handleCompareLayouts} disabled={processing || compareProcessing || images.length < 1} title="השוואת לייאאוטים">
+                {compareProcessing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Eye className="h-4 w-4 ml-2" />}
+                {compareProcessing ? "טוען..." : "השווה"}
+              </Button>
+            </div>
           </div>
         </ScrollArea>
 
         {/* Main Preview */}
         <Card className="min-h-[500px] flex items-center justify-center">
           <CardContent className="p-4 w-full">
-            {result ? (
+            {/* Comparison Mode */}
+            {compareMode && comparePreviews.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">השוואת לייאאוטים</Badge>
+                    <Badge variant="outline" className="text-xs">{comparePreviews.length} אפשרויות</Badge>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => { setCompareMode(false); setComparePreviews([]); }}>
+                    <X className="h-4 w-4 ml-1" />סגור
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">לחץ על הקולאז׳ שאתה רוצה — הלייאאוט ייבחר אוטומטית</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {comparePreviews.map((preview) => (
+                    <button
+                      key={preview.layout}
+                      onClick={() => selectCompareLayout(preview.layout)}
+                      className={`group relative rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] ${
+                        layout === preview.layout ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <img src={preview.dataUrl} alt={preview.label} className="w-full aspect-square object-contain bg-muted/30" />
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                        <span className="text-white text-xs font-semibold">{preview.label}</span>
+                      </div>
+                      {layout === preview.layout && (
+                        <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center">
+                          <Check className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : compareProcessing ? (
+              <div className="text-center space-y-4 py-20">
+                <RefreshCw className="h-12 w-12 mx-auto text-primary animate-spin" />
+                <p className="text-muted-foreground">מייצר תצוגות מקדימות...</p>
+              </div>
+            ) : result ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
@@ -1436,7 +1544,7 @@ export default function CollageBuilder() {
                     <img key={img.id} src={img.src} alt={img.name} className="w-full aspect-square object-cover rounded-lg border" />
                   ))}
                 </div>
-                <p className="text-muted-foreground text-sm">בחר עיצוב ולחץ "צור קולאז׳"</p>
+                <p className="text-muted-foreground text-sm">בחר עיצוב ולחץ "צור קולאז׳" או "השווה" להשוואת לייאאוטים</p>
               </div>
             ) : (
               <div className="text-center space-y-4 py-20">
