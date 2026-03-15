@@ -24,6 +24,7 @@ interface HistoryPanelProps {
 const PAGE_SIZE = 24;
 
 const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
