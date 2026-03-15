@@ -1426,10 +1426,16 @@ export default function CollageBuilder() {
                 })()}
               </div>
             )}
-            <Button className="w-full" size="lg" onClick={handleGenerate} disabled={processing || images.length < 1}>
-              {processing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Layers className="h-4 w-4 ml-2" />}
-              {processing ? "מייצר..." : "צור קולאז׳"}
-            </Button>
+            <div className="flex gap-2">
+              <Button className="flex-1" size="lg" onClick={handleGenerate} disabled={processing || compareProcessing || images.length < 1}>
+                {processing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Layers className="h-4 w-4 ml-2" />}
+                {processing ? "מייצר..." : "צור קולאז׳"}
+              </Button>
+              <Button variant="outline" size="lg" onClick={handleCompareLayouts} disabled={processing || compareProcessing || images.length < 1} title="השוואת לייאאוטים">
+                {compareProcessing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Eye className="h-4 w-4 ml-2" />}
+                {compareProcessing ? "טוען..." : "השווה"}
+              </Button>
+            </div>
           </div>
         </ScrollArea>
 
