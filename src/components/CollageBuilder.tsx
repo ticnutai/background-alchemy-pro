@@ -1120,8 +1120,21 @@ export default function CollageBuilder() {
                           <Label className="text-[10px]">גופן</Label>
                           <Select value={editingText.fontFamily} onValueChange={v => updateTextOverlay(editingText.id, { fontFamily: v })}>
                             <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {FONT_OPTIONS.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.label}</SelectItem>)}
+                            <SelectContent className="max-h-[300px]">
+                              {['עברית', 'אנגלית', 'דקורטיבי', 'אחר'].map(cat => {
+                                const fonts = FONT_OPTIONS.filter(f => f.category === cat);
+                                if (fonts.length === 0) return null;
+                                return (
+                                  <div key={cat}>
+                                    <div className="px-2 py-1 text-[9px] font-bold text-muted-foreground uppercase">{cat}</div>
+                                    {fonts.map(f => (
+                                      <SelectItem key={f.id} value={f.id} className="text-xs">
+                                        {f.label}
+                                      </SelectItem>
+                                    ))}
+                                  </div>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
