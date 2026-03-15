@@ -989,3 +989,68 @@ export async function removeWhiteBg(
   ctx.putImageData(imageData, 0, 0);
   return canvasToDataUrl(canvas);
 }
+
+// ─── Image Splitting ──────────────────────────────────────────────
+export type SplitMode = 'grid' | 'instagram' | 'free';
+
+export interface SplitOptions {
+  mode: SplitMode;
+  cols: number;
+  rows: number;
+  // Instagram: number of slides (cols=slides, rows=1, aspect 4:5 or 1:1)
+  instagramAspect?: '1:1' | '4:5' | '16:9';
+  // Free: custom regions as percentages [x%, y%, w%, h%]
+  regions?: { x: number; y: number; w: number; h: number }[];
+}
+
+export async function splitImage(imageSrc: string, options: SplitOptions): Promise<string[]> {
+  const img = await loadImage(imageSrc);
+  const results: string[] = [];
+
+  if (options.mode === 'grid') {
+    const cellW = Math.floor(img.width / options.cols);
+    const cellH = Math.floor(img.height / options.rows);
+    for (let r = 0; r < options.rows; r++) {
+      for (let c = 0; c < options.cols; c++) {
+        const canvas = document.createElement('canvas');
+        canvas.width = cellW;
+        canvas.height = cellH;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(img, c * cellW, r * cellH, cellW, cellH, 0, 0, cellW, cellH);
+        results.push(canvasToDataUrl(canvas));
+      }
+    }
+  } else if (options.mode === 'instagram') {
+    const slides = options.cols || 3;
+    const aspectMap: Record<string, number> = { '1:1': 1, '4:5': 5 / 4, '16:9': 9 / 16 };
+    const aspectRatio = aspectMap[options.instagramAspect || '1:1'] || 1;
+    // Each slide has width = totalWidth / slides, height by aspect
+    const slideW = Math.floor(img.width / slides);
+    const slideH = Math.floor(slideW * aspectRatio);
+    // Center vertically
+    const yOffset = Math.max(0, Math.floor((img.height - slideH) / 2));
+    for (let i = 0; i < slides; i++) {
+      const canvas = document.createElement('canvas');
+      canvas.width = slideW;
+      canvas.height = Math.min(slideH, img.height);
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, i * slideW, yOffset, slideW, Math.min(slideH, img.height), 0, 0, slideW, canvas.height);
+      results.push(canvasToDataUrl(canvas));
+    }
+  } else if (options.mode === 'free' && options.regions) {
+    for (const region of options.regions) {
+      const sx = Math.floor((region.x / 100) * img.width);
+      const sy = Math.floor((region.y / 100) * img.height);
+      const sw = Math.floor((region.w / 100) * img.width);
+      const sh = Math.floor((region.h / 100) * img.height);
+      const canvas = document.createElement('canvas');
+      canvas.width = sw;
+      canvas.height = sh;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+      results.push(canvasToDataUrl(canvas));
+    }
+  }
+
+  return results;
+}
