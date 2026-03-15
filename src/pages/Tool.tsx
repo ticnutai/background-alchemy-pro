@@ -748,6 +748,137 @@ const Index = () => {
                       }}
                     />
                   )}
+                  {activeTab === "filters" && (
+                    <div className="space-y-6">
+                      <LiveFilterPanel
+                        currentImage={resultImage || originalImage}
+                        onPreviewFilter={(css) => setLiveFilterCss(css)}
+                        onApply={async (filters) => {
+                          setFilterProcessing(true);
+                          const currentImg = resultImage || originalImage;
+                          const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as any) : null;
+                          if (cached) {
+                            setResultImage(cached);
+                            setLiveFilterCss("");
+                            toast.success("נטען מ-cache!");
+                            setFilterProcessing(false);
+                            return;
+                          }
+                          try {
+                            const { data, error } = await supabase.functions.invoke("image-tools", {
+                              body: { imageBase64: currentImg, action: "live-filter-apply", actionParams: { filters } },
+                            });
+                            if (error) throw error;
+                            if (data?.error) throw new Error(data.error);
+                            if (data?.resultImage) {
+                              setResultImage(data.resultImage);
+                              if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as any, data.resultImage);
+                              setLiveFilterCss("");
+                              toast.success("הפילטרים הוחלו!");
+                            }
+                          } catch (err: any) {
+                            toast.error(err.message || "שגיאה בעיבוד");
+                          } finally {
+                            setFilterProcessing(false);
+                          }
+                        }}
+                        isProcessing={filterProcessing}
+                      />
+
+                      <div className="border-t border-border pt-4">
+                        <FilterLayersPanel
+                          currentImage={resultImage || originalImage}
+                          onPreviewFilter={(css) => setLiveFilterCss(css)}
+                          onApplyLayers={async (layers) => {
+                            setFilterProcessing(true);
+                            const currentImg = resultImage || originalImage;
+                            const layerNames = layers.filter(l => l.visible).map(l => l.name);
+                            try {
+                              const { data, error } = await supabase.functions.invoke("image-tools", {
+                                body: { imageBase64: currentImg, action: "apply-layers", actionParams: { layerNames } },
+                              });
+                              if (error) throw error;
+                              if (data?.error) throw new Error(data.error);
+                              if (data?.resultImage) {
+                                setResultImage(data.resultImage);
+                                setLiveFilterCss("");
+                                toast.success("השכבות הוחלו!");
+                              }
+                            } catch (err: any) {
+                              toast.error(err.message || "שגיאה בעיבוד");
+                            } finally {
+                              setFilterProcessing(false);
+                            }
+                          }}
+                          isProcessing={filterProcessing}
+                        />
+                      </div>
+
+                      <div className="border-t border-border pt-4">
+                        <ColorTransferPanel
+                          currentImage={resultImage || originalImage}
+                          onApply={async (referenceBase64) => {
+                            setFilterProcessing(true);
+                            try {
+                              const { data, error } = await supabase.functions.invoke("image-tools", {
+                                body: {
+                                  imageBase64: resultImage || originalImage,
+                                  action: "color-transfer",
+                                  actionParams: { referenceImage: referenceBase64 },
+                                },
+                              });
+                              if (error) throw error;
+                              if (data?.error) throw new Error(data.error);
+                              if (data?.resultImage) {
+                                setResultImage(data.resultImage);
+                                toast.success("הפלטה הועברה בהצלחה!");
+                              }
+                            } catch (err: any) {
+                              toast.error(err.message || "שגיאה בהעברת צבע");
+                            } finally {
+                              setFilterProcessing(false);
+                            }
+                          }}
+                          isProcessing={filterProcessing}
+                        />
+                      </div>
+
+                      <div className="border-t border-border pt-4">
+                        <RegionalMaskPanel
+                          currentImage={resultImage || originalImage}
+                          onApply={async (region, filterType, intensity) => {
+                            setFilterProcessing(true);
+                            const currentImg = resultImage || originalImage;
+                            const params = { region, filterType, intensity };
+                            const cached = currentImg ? getCachedResult(currentImg, "regional-mask", params) : null;
+                            if (cached) {
+                              setResultImage(cached);
+                              toast.success("נטען מ-cache!");
+                              setFilterProcessing(false);
+                              return;
+                            }
+                            try {
+                              const { data, error } = await supabase.functions.invoke("image-tools", {
+                                body: { imageBase64: currentImg, action: "regional-mask", actionParams: params },
+                              });
+                              if (error) throw error;
+                              if (data?.error) throw new Error(data.error);
+                              if (data?.resultImage) {
+                                setResultImage(data.resultImage);
+                                if (currentImg) setCachedResult(currentImg, "regional-mask", params, data.resultImage);
+                                toast.success("הפילטר האזורי הוחל!");
+                              }
+                            } catch (err: any) {
+                              toast.error(err.message || "שגיאה בעיבוד");
+                            } finally {
+                              setFilterProcessing(false);
+                            }
+                          }}
+                          isProcessing={filterProcessing}
+                        />
+                      </div>
+                    </div>
+                  )}
                   {activeTab === "adjust" && (
                     <ImageAdjustmentsPanel
                       adjustments={adjustments}
