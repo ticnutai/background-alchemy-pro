@@ -454,7 +454,7 @@ export default function CollageBuilder() {
 
       {/* Gallery Import Dialog */}
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-        <DialogContent className="max-w-2xl" dir="rtl">
+        <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col" dir="rtl">
           <DialogHeader>
             <DialogTitle>ייבוא תמונות מהגלריה / מהענן</DialogTitle>
           </DialogHeader>
@@ -484,7 +484,7 @@ export default function CollageBuilder() {
             />
             <span className="text-sm">בחר הכל ({gallerySelected.size}/{galleryItems.length})</span>
           </div>
-          <ScrollArea className="h-[320px]">
+          <ScrollArea className="flex-1 h-[55vh]">
             {galleryLoading ? (
               <div className="flex items-center justify-center h-full">
                 <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -492,12 +492,12 @@ export default function CollageBuilder() {
             ) : galleryItems.length === 0 ? (
               <div className="text-center text-muted-foreground py-10">אין תמונות</div>
             ) : (
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 p-1">
                 {galleryItems.map((item) => (
                   <div
                     key={item.id}
                     className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${
-                      gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent"
+                      gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/30"
                     }`}
                     onClick={() => {
                       setGallerySelected((prev) => {
@@ -508,7 +508,7 @@ export default function CollageBuilder() {
                       });
                     }}
                   >
-                    <img src={item.image} alt={item.name} className="w-full aspect-square object-cover" />
+                    <img src={item.image} alt={item.name} className="w-full aspect-square object-cover" loading="lazy" />
                     {gallerySelected.has(item.id) && (
                       <div className="absolute inset-0 bg-primary/20 flex items-center justify-center">
                         <Check className="h-6 w-6 text-primary" />

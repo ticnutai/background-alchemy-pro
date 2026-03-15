@@ -8,6 +8,8 @@ import {
   FolderOpen, ArrowUpCircle, Eraser, Zap, CheckCircle2,
   ChevronDown, ChevronUp, Frame, EyeOff, ALargeSmall, PenLine,
   Database, CloudDownload, Check, Star, SunMedium,
+  Search, Pencil, EyeOff as EyeOffIcon, List, Grid3X3, ArrowDownAZ, ArrowUpAZ,
+  RotateCw, TextCursorInput,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -135,6 +137,12 @@ export default function CatalogBuilder() {
   const [galleryItems, setGalleryItems] = useState<{ id: string; image: string; name: string; description?: string; price?: string; source: "history" | "products" }[]>([]);
   const [gallerySelected, setGallerySelected] = useState<Set<string>>(new Set());
   const [galleryLoading, setGalleryLoading] = useState(false);
+  const [gallerySearch, setGallerySearch] = useState("");
+  const [galleryNameEdits, setGalleryNameEdits] = useState<Record<string, string>>({});
+  const [galleryEditingId, setGalleryEditingId] = useState<string | null>(null);
+  const [galleryHideText, setGalleryHideText] = useState<{ name: boolean; description: boolean; price: boolean }>({ name: false, description: false, price: false });
+  const [gallerySortDir, setGallerySortDir] = useState<"asc" | "desc">("desc");
+  const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
   // Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -267,8 +275,28 @@ export default function CatalogBuilder() {
 
   const openGalleryImport = useCallback(() => {
     setGalleryOpen(true);
+    setGallerySearch("");
+    setGalleryNameEdits({});
+    setGalleryEditingId(null);
     loadGalleryItems(galleryTab);
   }, [galleryTab, loadGalleryItems]);
+
+  // Filtered + sorted gallery items
+  const filteredGalleryItems = useMemo(() => {
+    let items = galleryItems;
+    if (gallerySearch.trim()) {
+      const q = gallerySearch.trim().toLowerCase();
+      items = items.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        (i.description?.toLowerCase().includes(q)) ||
+        (i.price?.toLowerCase().includes(q))
+      );
+    }
+    if (gallerySortDir === "asc") {
+      items = [...items].reverse();
+    }
+    return items;
+  }, [galleryItems, gallerySearch, gallerySortDir]);
 
   const toggleGalleryItem = useCallback((id: string) => {
     setGallerySelected(prev => {
@@ -279,12 +307,26 @@ export default function CatalogBuilder() {
   }, []);
 
   const selectAllGallery = useCallback(() => {
-    if (gallerySelected.size === galleryItems.length) {
-      setGallerySelected(new Set());
+    const currentIds = filteredGalleryItems.map(i => i.id);
+    const allSelected = currentIds.every(id => gallerySelected.has(id));
+    if (allSelected) {
+      setGallerySelected(prev => {
+        const next = new Set(prev);
+        currentIds.forEach(id => next.delete(id));
+        return next;
+      });
     } else {
-      setGallerySelected(new Set(galleryItems.map(i => i.id)));
+      setGallerySelected(prev => {
+        const next = new Set(prev);
+        currentIds.forEach(id => next.add(id));
+        return next;
+      });
     }
-  }, [galleryItems, gallerySelected.size]);
+  }, [filteredGalleryItems, gallerySelected]);
+
+  const getGalleryItemName = useCallback((item: typeof galleryItems[0]) => {
+    return galleryNameEdits[item.id] ?? item.name;
+  }, [galleryNameEdits]);
 
   const importSelectedGallery = useCallback(() => {
     const selected = galleryItems.filter(i => gallerySelected.has(i.id));
@@ -292,18 +334,34 @@ export default function CatalogBuilder() {
     const newProducts: CatalogProduct[] = selected.map(item => ({
       id: newId(),
       image: item.image,
-      name: item.name,
-      description: item.description || "",
-      price: item.price || "",
+      name: galleryHideText.name ? "" : (galleryNameEdits[item.id] ?? item.name),
+      description: galleryHideText.description ? "" : (item.description || ""),
+      price: galleryHideText.price ? "" : (item.price || ""),
       sku: "",
       badge: "",
       category: categories.length > 0 ? categories[0].id : undefined,
+      hideElements: {
+        showName: !galleryHideText.name,
+        showDescription: !galleryHideText.description,
+        showPrice: !galleryHideText.price,
+      },
     }));
     setProducts(prev => [...prev, ...newProducts]);
     toast.success(`${newProducts.length} פריטים יובאו מהגלריה`);
     setGalleryOpen(false);
     setGallerySelected(new Set());
-  }, [galleryItems, gallerySelected, categories]);
+  }, [galleryItems, gallerySelected, categories, galleryNameEdits, galleryHideText]);
+
+  const bulkRenameGalleryPrefix = useCallback((prefix: string) => {
+    const edits: Record<string, string> = {};
+    galleryItems.forEach((item, i) => {
+      if (gallerySelected.has(item.id)) {
+        edits[item.id] = `${prefix} ${i + 1}`;
+      }
+    });
+    setGalleryNameEdits(prev => ({ ...prev, ...edits }));
+    toast.success(`שמות עודכנו ל-${Object.keys(edits).length} פריטים`);
+  }, [galleryItems, gallerySelected]);
 
   // ─── Logo upload ──────────────────────────────────────────
   const handleLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1892,7 +1950,7 @@ export default function CatalogBuilder() {
 
       {/* ── Gallery Import Dialog ───────────────────────── */}
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col" dir="rtl">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col" dir="rtl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CloudDownload className="h-5 w-5 text-primary" />
@@ -1900,80 +1958,190 @@ export default function CatalogBuilder() {
           </DialogTitle>
         </DialogHeader>
 
-        {/* Source tabs */}
-        <div className="flex gap-1 border-b pb-2">
-          <Button
-            size="sm"
-            variant={galleryTab === "history" ? "default" : "outline"}
-            onClick={() => { setGalleryTab("history"); loadGalleryItems("history"); }}
-            className="gap-1.5"
-          >
-            <ImageIcon className="h-3.5 w-3.5" />
-            תמונות מעובדות
-          </Button>
-          <Button
-            size="sm"
-            variant={galleryTab === "products" ? "default" : "outline"}
-            onClick={() => { setGalleryTab("products"); loadGalleryItems("products"); }}
-            className="gap-1.5"
-          >
-            <Star className="h-3.5 w-3.5" />
-            גלריית מוצרים
-          </Button>
+        {/* Source tabs + toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b pb-2">
+          <div className="flex gap-1">
+            <Button
+              size="sm"
+              variant={galleryTab === "history" ? "default" : "outline"}
+              onClick={() => { setGalleryTab("history"); loadGalleryItems("history"); }}
+              className="gap-1.5"
+            >
+              <ImageIcon className="h-3.5 w-3.5" />
+              תמונות מעובדות
+            </Button>
+            <Button
+              size="sm"
+              variant={galleryTab === "products" ? "default" : "outline"}
+              onClick={() => { setGalleryTab("products"); loadGalleryItems("products"); }}
+              className="gap-1.5"
+            >
+              <Star className="h-3.5 w-3.5" />
+              גלריית מוצרים
+            </Button>
+          </div>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost" size="icon" className="h-7 w-7"
+              onClick={() => setGalleryViewMode(galleryViewMode === "grid" ? "list" : "grid")}
+              title={galleryViewMode === "grid" ? "תצוגת רשימה" : "תצוגת רשת"}
+            >
+              {galleryViewMode === "grid" ? <List className="h-3.5 w-3.5" /> : <Grid3X3 className="h-3.5 w-3.5" />}
+            </Button>
+            <Button
+              variant="ghost" size="icon" className="h-7 w-7"
+              onClick={() => setGallerySortDir(d => d === "desc" ? "asc" : "desc")}
+              title={gallerySortDir === "desc" ? "מהישן לחדש" : "מהחדש לישן"}
+            >
+              {gallerySortDir === "desc" ? <ArrowDownAZ className="h-3.5 w-3.5" /> : <ArrowUpAZ className="h-3.5 w-3.5" />}
+            </Button>
+            <Button
+              variant="ghost" size="icon" className="h-7 w-7"
+              onClick={() => loadGalleryItems(galleryTab)}
+              title="רענן"
+            >
+              <RotateCw className="h-3.5 w-3.5" />
+            </Button>
+          </div>
         </div>
 
-        {/* Select all */}
+        {/* Search */}
+        <div className="relative">
+          <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <Input
+            value={gallerySearch}
+            onChange={e => setGallerySearch(e.target.value)}
+            placeholder="חיפוש לפי שם, תיאור..."
+            className="h-8 text-xs pr-8"
+          />
+        </div>
+
+        {/* Select all + text visibility toggles */}
         {galleryItems.length > 0 && (
-          <div className="flex items-center justify-between px-1">
+          <div className="flex flex-wrap items-center gap-3 px-1">
             <button onClick={selectAllGallery} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              <Checkbox checked={gallerySelected.size === galleryItems.length && galleryItems.length > 0} />
-              {gallerySelected.size === galleryItems.length ? "בטל הכל" : `בחר הכל (${galleryItems.length})`}
+              <Checkbox checked={filteredGalleryItems.length > 0 && filteredGalleryItems.every(i => gallerySelected.has(i.id))} />
+              {filteredGalleryItems.every(i => gallerySelected.has(i.id)) && filteredGalleryItems.length > 0 ? "בטל הכל" : `בחר הכל (${filteredGalleryItems.length})`}
             </button>
             <Badge variant="secondary" className="text-xs">
               {gallerySelected.size} נבחרו
             </Badge>
+            <Separator orientation="vertical" className="h-4" />
+            <span className="text-[10px] text-muted-foreground font-medium">הסתר בייבוא:</span>
+            <button
+              onClick={() => setGalleryHideText(prev => ({ ...prev, name: !prev.name }))}
+              className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                galleryHideText.name ? "bg-destructive/10 border-destructive/30 text-destructive" : "border-border text-muted-foreground hover:border-primary/30"
+              }`}
+            >
+              {galleryHideText.name ? <EyeOffIcon className="h-2.5 w-2.5" /> : <Type className="h-2.5 w-2.5" />}
+              שם
+            </button>
+            <button
+              onClick={() => setGalleryHideText(prev => ({ ...prev, description: !prev.description }))}
+              className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                galleryHideText.description ? "bg-destructive/10 border-destructive/30 text-destructive" : "border-border text-muted-foreground hover:border-primary/30"
+              }`}
+            >
+              {galleryHideText.description ? <EyeOffIcon className="h-2.5 w-2.5" /> : <FileText className="h-2.5 w-2.5" />}
+              תיאור
+            </button>
+            <button
+              onClick={() => setGalleryHideText(prev => ({ ...prev, price: !prev.price }))}
+              className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                galleryHideText.price ? "bg-destructive/10 border-destructive/30 text-destructive" : "border-border text-muted-foreground hover:border-primary/30"
+              }`}
+            >
+              {galleryHideText.price ? <EyeOffIcon className="h-2.5 w-2.5" /> : <span className="text-[10px]">₪</span>}
+              מחיר
+            </button>
+            {gallerySelected.size > 0 && (
+              <>
+                <Separator orientation="vertical" className="h-4" />
+                <Button
+                  variant="outline" size="sm" className="h-6 text-[10px] gap-1 px-2"
+                  onClick={() => {
+                    const prefix = prompt("הכנס קידומת לשם (מספור אוטומטי):", "מוצר");
+                    if (prefix) bulkRenameGalleryPrefix(prefix);
+                  }}
+                >
+                  <TextCursorInput className="h-2.5 w-2.5" />
+                  שינוי שם קבוצתי
+                </Button>
+              </>
+            )}
           </div>
         )}
 
-        {/* Grid */}
-        <ScrollArea className="flex-1 min-h-0">
+        {/* Grid / List */}
+        <ScrollArea className="flex-1 h-[55vh]">
           {galleryLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
               <span className="text-sm text-muted-foreground mr-3">טוען גלריה...</span>
             </div>
-          ) : galleryItems.length === 0 ? (
+          ) : filteredGalleryItems.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Database className="h-10 w-10 mx-auto mb-3 opacity-40" />
-              <p className="text-sm">אין תמונות בגלריה זו</p>
-              <p className="text-xs mt-1">עבד תמונות בכלי העריכה כדי שיופיעו כאן</p>
+              <p className="text-sm">{gallerySearch ? "אין תוצאות לחיפוש" : "אין תמונות בגלריה זו"}</p>
+              <p className="text-xs mt-1">{gallerySearch ? "נסה מילות חיפוש אחרות" : "עבד תמונות בכלי העריכה כדי שיופיעו כאן"}</p>
             </div>
-          ) : (
-            <div className="grid grid-cols-3 gap-2 p-1">
-              {galleryItems.map(item => {
+          ) : galleryViewMode === "grid" ? (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 p-1">
+              {filteredGalleryItems.map(item => {
                 const isSelected = gallerySelected.has(item.id);
+                const isEditing = galleryEditingId === item.id;
+                const displayName = getGalleryItemName(item);
                 return (
-                  <button
+                  <div
                     key={item.id}
-                    onClick={() => toggleGalleryItem(item.id)}
                     className={`relative rounded-lg border-2 overflow-hidden transition-all group ${
                       isSelected
                         ? "border-primary ring-2 ring-primary/30"
                         : "border-transparent hover:border-primary/30"
                     }`}
                   >
-                    <div className="aspect-square bg-muted">
-                      <img
-                        src={item.image}
-                        alt={item.name}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
+                    <button
+                      onClick={() => toggleGalleryItem(item.id)}
+                      className="w-full"
+                    >
+                      <div className="aspect-square bg-muted">
+                        <img
+                          src={item.image}
+                          alt={displayName}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    </button>
+                    <div className="p-1.5 bg-background flex items-center gap-1 min-h-[28px]">
+                      {isEditing ? (
+                        <Input
+                          autoFocus
+                          className="h-5 text-[10px] px-1"
+                          value={displayName}
+                          onChange={e => setGalleryNameEdits(prev => ({ ...prev, [item.id]: e.target.value }))}
+                          onBlur={() => setGalleryEditingId(null)}
+                          onKeyDown={e => { if (e.key === "Enter") setGalleryEditingId(null); }}
+                        />
+                      ) : (
+                        <>
+                          <p className="text-[10px] font-medium truncate flex-1">{displayName}</p>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setGalleryEditingId(item.id); }}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity h-4 w-4 flex items-center justify-center hover:text-primary shrink-0"
+                            title="ערוך שם"
+                          >
+                            <Pencil className="h-2.5 w-2.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
-                    <div className="p-1.5 bg-background">
-                      <p className="text-[10px] font-medium truncate">{item.name}</p>
-                      {item.price && <p className="text-[10px] text-primary font-bold">{item.price}</p>}
-                    </div>
+                    {item.price && !isEditing && (
+                      <div className="px-1.5 pb-1 bg-background">
+                        <p className="text-[10px] text-primary font-bold">{item.price}</p>
+                      </div>
+                    )}
                     {/* Selection indicator */}
                     <div className={`absolute top-1.5 right-1.5 w-5 h-5 rounded-full flex items-center justify-center transition-all ${
                       isSelected
@@ -1982,7 +2150,60 @@ export default function CatalogBuilder() {
                     }`}>
                       <Check className="h-3 w-3" />
                     </div>
-                  </button>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            /* List view */
+            <div className="flex flex-col gap-1 p-1">
+              {filteredGalleryItems.map(item => {
+                const isSelected = gallerySelected.has(item.id);
+                const isEditing = galleryEditingId === item.id;
+                const displayName = getGalleryItemName(item);
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center gap-2 rounded-lg border-2 p-1.5 transition-all group cursor-pointer ${
+                      isSelected
+                        ? "border-primary bg-primary/5"
+                        : "border-transparent hover:border-primary/30 hover:bg-muted/50"
+                    }`}
+                    onClick={() => toggleGalleryItem(item.id)}
+                  >
+                    <div className="w-12 h-12 rounded bg-muted shrink-0 overflow-hidden">
+                      <img src={item.image} alt={displayName} className="w-full h-full object-cover" loading="lazy" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {isEditing ? (
+                        <Input
+                          autoFocus
+                          className="h-6 text-xs px-1"
+                          value={displayName}
+                          onClick={e => e.stopPropagation()}
+                          onChange={e => setGalleryNameEdits(prev => ({ ...prev, [item.id]: e.target.value }))}
+                          onBlur={() => setGalleryEditingId(null)}
+                          onKeyDown={e => { if (e.key === "Enter") setGalleryEditingId(null); }}
+                        />
+                      ) : (
+                        <p className="text-xs font-medium truncate">{displayName}</p>
+                      )}
+                      {item.description && <p className="text-[10px] text-muted-foreground truncate">{item.description}</p>}
+                    </div>
+                    {item.price && <span className="text-xs text-primary font-bold shrink-0">{item.price}</span>}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setGalleryEditingId(item.id); }}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex items-center justify-center hover:text-primary shrink-0"
+                      title="ערוך שם"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                      isSelected ? "bg-primary text-white" : "border border-muted-foreground/30"
+                    }`}>
+                      {isSelected && <Check className="h-3 w-3" />}
+                    </div>
+                  </div>
                 );
               })}
             </div>
@@ -1990,6 +2211,20 @@ export default function CatalogBuilder() {
         </ScrollArea>
 
         <DialogFooter className="flex gap-2 pt-2 border-t">
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mr-auto">
+            {(galleryHideText.name || galleryHideText.description || galleryHideText.price) && (
+              <span className="flex items-center gap-1 text-amber-600">
+                <EyeOffIcon className="h-3 w-3" />
+                {[galleryHideText.name && "שם", galleryHideText.description && "תיאור", galleryHideText.price && "מחיר"].filter(Boolean).join(", ")} — יוסתרו
+              </span>
+            )}
+            {Object.keys(galleryNameEdits).length > 0 && (
+              <span className="flex items-center gap-1 text-blue-600">
+                <Pencil className="h-3 w-3" />
+                {Object.keys(galleryNameEdits).length} שמות שונו
+              </span>
+            )}
+          </div>
           <Button variant="outline" onClick={() => setGalleryOpen(false)}>ביטול</Button>
           <Button
             onClick={importSelectedGallery}
