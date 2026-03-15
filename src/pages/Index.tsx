@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+
 import { Link } from "react-router-dom";
 import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook, Menu, X as XIcon } from "lucide-react";
 import { motion } from "framer-motion";
