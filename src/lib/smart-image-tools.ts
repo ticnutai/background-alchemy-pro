@@ -698,7 +698,7 @@ export async function generateCollage(
   images: string[],
   options: CollageOptions
 ): Promise<string> {
-  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [] } = options;
+  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [], watermark } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
