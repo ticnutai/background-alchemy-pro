@@ -938,6 +938,46 @@ export default function CollageBuilder() {
                 <Card>
                   <CardContent className="p-4 space-y-4">
                     <h3 className="font-semibold text-sm">עיצוב כללי</h3>
+
+                    {/* Canvas Size Presets */}
+                    <div className="space-y-2">
+                      <Label className="text-xs flex items-center gap-1"><Maximize2 className="h-3 w-3" /> גודל קנבס</Label>
+                      <div className="grid grid-cols-3 gap-1">
+                        {CANVAS_SIZE_PRESETS.map(preset => (
+                          <Button
+                            key={preset.id}
+                            size="sm"
+                            variant={canvasSizePreset === preset.id ? "default" : "outline"}
+                            onClick={() => {
+                              setCanvasSizePreset(preset.id);
+                              if (preset.id !== "custom" && preset.w > 0) {
+                                setCanvasWidth(preset.w);
+                                setCanvasHeight(preset.h);
+                              }
+                            }}
+                            className="text-[10px] h-7 px-1"
+                          >
+                            {preset.icon} {preset.label}
+                          </Button>
+                        ))}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground text-center">
+                        {canvasWidth} × {canvasHeight} px
+                      </div>
+                      {canvasSizePreset === "custom" && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px]">רוחב</Label>
+                            <Input type="number" value={canvasWidth} onChange={e => setCanvasWidth(Math.max(200, +e.target.value))} className="h-7 text-xs" min={200} max={6000} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px]">גובה</Label>
+                            <Input type="number" value={canvasHeight} onChange={e => setCanvasHeight(Math.max(200, +e.target.value))} className="h-7 text-xs" min={200} max={6000} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <div className="space-y-2">
                       <Label className="text-xs">מרווח: {gap}px</Label>
                       <Slider value={[gap]} onValueChange={([v]) => setGap(v)} min={0} max={40} step={2} />
@@ -945,10 +985,6 @@ export default function CollageBuilder() {
                     <div className="space-y-2">
                       <Label className="text-xs">רדיוס פינות: {borderRadius}px</Label>
                       <Slider value={[borderRadius]} onValueChange={([v]) => setBorderRadius(v)} min={0} max={30} step={2} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label className="text-xs">גובה: {canvasHeight}px</Label>
-                      <Slider value={[canvasHeight]} onValueChange={([v]) => setCanvasHeight(v)} min={600} max={2400} step={100} />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">התאמת תמונה</Label>
