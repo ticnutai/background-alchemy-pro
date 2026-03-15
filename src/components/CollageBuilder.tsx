@@ -1157,6 +1157,15 @@ export default function CollageBuilder() {
             </Tabs>
 
             {/* Generate Button */}
+            {images.length > 0 && (
+              <div className="text-xs text-muted-foreground text-center">
+                {(() => {
+                  const maxPerPage = LAYOUT_OPTIONS.find(l => l.id === layout)?.maxImages || 9;
+                  const pageCount = Math.ceil(images.length / maxPerPage);
+                  return pageCount > 1 ? `${images.length} תמונות → ${pageCount} עמודים (${maxPerPage} לכל עמוד)` : `${images.length} תמונות`;
+                })()}
+              </div>
+            )}
             <Button className="w-full" size="lg" onClick={handleGenerate} disabled={processing || images.length < 1}>
               {processing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Layers className="h-4 w-4 ml-2" />}
               {processing ? "מייצר..." : "צור קולאז׳"}
