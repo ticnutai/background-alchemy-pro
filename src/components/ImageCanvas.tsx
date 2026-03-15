@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useMemo, memo } from "react";
+import DOMPurify from "dompurify";
 import { getFilterString, getOverlayStyles, getSvgFilterId, getSvgFilterMarkup, type ImageAdjustments, defaultAdjustments } from "./ImageAdjustmentsPanel";
 
 type CompareMode = "slider" | "side-by-side" | "fade" | "split";
@@ -68,7 +69,17 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
 
   return (
     <div className="relative w-full overflow-hidden rounded-lg bg-card shadow-lg">
-      {svgMarkup && <div dangerouslySetInnerHTML={{ __html: svgMarkup }} />}
+      {svgMarkup && (
+        <div
+          dangerouslySetInnerHTML={{
+            __html: DOMPurify.sanitize(svgMarkup, {
+              USE_PROFILES: { svg: true, svgFilters: true },
+              ADD_TAGS: ["filter", "feGaussianBlur", "feTurbulence", "feDisplacementMap", "feConvolveMatrix", "feFlood", "feBlend", "feComposite", "feMerge", "feMergeNode"],
+              ADD_ATTR: ["stdDeviation", "baseFrequency", "numOctaves", "seed", "kernelMatrix", "order", "divisor", "flood-color", "flood-opacity", "mode", "in", "in2", "result", "operator"],
+            }),
+          }}
+        />
+      )}
       {isProcessing && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-foreground/20 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3">

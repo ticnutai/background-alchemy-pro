@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare } from "lucide-react";
@@ -920,6 +921,7 @@ const ToolInner = () => {
                     />
                   )}
                   {activeTab === "tools" && (
+                    <ErrorBoundary>
                     <Suspense fallback={<LazyFallback />}>
                       <AdvancedToolsPanel
                         originalImage={originalImage}
@@ -927,8 +929,10 @@ const ToolInner = () => {
                         onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
                       />
                     </Suspense>
+                    </ErrorBoundary>
                   )}
                   {activeTab === "smart" && (
+                    <ErrorBoundary>
                     <Suspense fallback={<LazyFallback />}>
                       <SmartSuggestPanel
                         imageBase64={originalImage}
@@ -938,6 +942,7 @@ const ToolInner = () => {
                         }}
                       />
                     </Suspense>
+                    </ErrorBoundary>
                   )}
                   {activeTab === "filters" && (
                     <div className="space-y-6">
@@ -1100,6 +1105,7 @@ const ToolInner = () => {
       </main>
 
       {/* Lazy-loaded modals — only rendered when shown */}
+      <ErrorBoundary>
       <Suspense fallback={null}>
         {showMockup && resultImage && (
           <MockupPreview imageUrl={resultImage} onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "mockup", value: false } })} />
@@ -1222,6 +1228,7 @@ const ToolInner = () => {
           />
         )}
       </Suspense>
+      </ErrorBoundary>
     </div>
   );
 };

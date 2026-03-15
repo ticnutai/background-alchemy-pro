@@ -1,12 +1,9 @@
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
+  const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -58,9 +55,11 @@ serve(async (req) => {
     const prediction = await createRes.json();
     let result = prediction;
 
-    // Poll with exponential backoff: 500ms, 1s, 2s, 4s, then cap at 4s
+    // Poll with exponential backoff, max 60 iterations (~4 min timeout)
     let pollDelay = 500;
+    let pollCount = 0;
     while (result.status !== "succeeded" && result.status !== "failed") {
+      if (++pollCount > 60) throw new Error("Timeout: processing took too long");
       await new Promise((r) => setTimeout(r, pollDelay));
       pollDelay = Math.min(pollDelay * 2, 4000);
       const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
