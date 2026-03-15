@@ -137,13 +137,12 @@ export async function magicWandRemove(
   const visited = new Uint8Array(w * h);
 
   if (contiguous) {
-    // BFS flood fill — use index pointer instead of shift() for O(1) dequeue
+    // BFS flood fill
     const queue: [number, number][] = [[startX, startY]];
     visited[startY * w + startX] = 1;
-    let head = 0;
 
-    while (head < queue.length) {
-      const [cx, cy] = queue[head++];
+    while (queue.length > 0) {
+      const [cx, cy] = queue.shift()!;
       const ci = (cy * w + cx) * 4;
       const pixel: RGBA = { r: data[ci], g: data[ci + 1], b: data[ci + 2], a: data[ci + 3] };
 

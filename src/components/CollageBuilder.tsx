@@ -189,6 +189,7 @@ export default function CollageBuilder() {
   const [galleryItems, setGalleryItems] = useState<{ id: string; image: string; name: string }[]>([]);
   const [gallerySelected, setGallerySelected] = useState<Set<string>>(new Set());
   const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryImportMode, setGalleryImportMode] = useState<'collage' | 'split' | 'logo'>('collage');
 
   // Smart tool processing
   const [toolProcessing, setToolProcessing] = useState<string | null>(null);
@@ -383,7 +384,8 @@ export default function CollageBuilder() {
     }
   }, []);
 
-  const openGalleryImport = useCallback(() => {
+  const openGalleryImport = useCallback((mode: 'collage' | 'split' | 'logo' = 'collage') => {
+    setGalleryImportMode(mode);
     setGalleryOpen(true);
     setGallerySelected(new Set());
     loadGalleryItems(galleryTab);
@@ -391,15 +393,32 @@ export default function CollageBuilder() {
 
   const importSelected = useCallback(() => {
     const selected = galleryItems.filter((i) => gallerySelected.has(i.id));
-    const newImages = selected.map((item) => ({
-      id: `gallery_${item.id}`,
-      src: item.image,
-      name: item.name,
-    }));
-    setImages((prev) => [...prev, ...newImages]);
+    if (selected.length === 0) return;
+
+    if (galleryImportMode === 'split') {
+      // Use first selected image as split source
+      setSplitSource(selected[0].image);
+      setSplitDialogOpen(true);
+    } else if (galleryImportMode === 'logo') {
+      // Use first selected image as watermark logo
+      setWatermark(w => ({ ...w, imageSrc: selected[0].image }));
+    } else {
+      // Default: add to collage
+      const newImages = selected.map((item) => ({
+        id: `gallery_${item.id}`,
+        src: item.image,
+        name: item.name,
+      }));
+      setImages((prev) => [...prev, ...newImages]);
+    }
+
     setGalleryOpen(false);
-    toast.success(`${newImages.length} תמונות יובאו בהצלחה`);
-  }, [galleryItems, gallerySelected]);
+    toast.success(
+      galleryImportMode === 'split' ? "תמונה נבחרה לפיצול" :
+      galleryImportMode === 'logo' ? "לוגו נטען מהגלריה" :
+      `${selected.length} תמונות יובאו בהצלחה`
+    );
+  }, [galleryItems, gallerySelected, galleryImportMode]);
 
   // ── Smart Tools ─────────────────────────────────────────────
   const applySmartTool = useCallback(async (toolId: string, imageId: string) => {
@@ -566,15 +585,12 @@ export default function CollageBuilder() {
                         </Button>
                         <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileUpload} />
                       </label>
-                      <Button variant="outline" className="w-full" onClick={openGalleryImport}>
+                      <Button variant="outline" className="w-full" onClick={() => openGalleryImport('collage')}>
                         <Database className="h-4 w-4 ml-2" />ייבוא מהגלריה / מהענן
                       </Button>
-                      <label className="cursor-pointer">
-                        <Button variant="outline" className="w-full" asChild>
-                          <span><SplitSquareVertical className="h-4 w-4 ml-2" />פיצול תמונה לחלקים</span>
-                        </Button>
-                        <input type="file" accept="image/*" className="hidden" ref={splitFileRef} onChange={handleSplitUpload} />
-                      </label>
+                      <Button variant="outline" className="w-full" onClick={() => { setSplitSource(null); setSplitDialogOpen(true); }}>
+                        <SplitSquareVertical className="h-4 w-4 ml-2" />פיצול תמונה לחלקים
+                      </Button>
                     </div>
                     {images.length > 0 && <div className="text-xs text-muted-foreground">{images.length} תמונות נטענו</div>}
                   </CardContent>
@@ -806,24 +822,29 @@ export default function CollageBuilder() {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <label className="cursor-pointer">
-                              <Button variant="outline" size="sm" className="w-full text-xs gap-1" asChild>
-                                <span><Plus className="h-3 w-3" />{watermark.imageSrc ? 'החלף לוגו' : 'העלה לוגו'}</span>
+                            <div className="flex gap-1">
+                              <label className="cursor-pointer flex-1">
+                                <Button variant="outline" size="sm" className="w-full text-xs gap-1" asChild>
+                                  <span><Plus className="h-3 w-3" />{watermark.imageSrc ? 'החלף' : 'העלה'}</span>
+                                </Button>
+                                <input
+                                  ref={logoInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = ev => setWatermark(w => ({ ...w, imageSrc: ev.target?.result as string }));
+                                    reader.readAsDataURL(file);
+                                  }}
+                                />
+                              </label>
+                              <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => openGalleryImport('logo')}>
+                                <Database className="h-3 w-3" />מהגלריה
                               </Button>
-                              <input
-                                ref={logoInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={e => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  const reader = new FileReader();
-                                  reader.onload = ev => setWatermark(w => ({ ...w, imageSrc: ev.target?.result as string }));
-                                  reader.readAsDataURL(file);
-                                }}
-                              />
-                            </label>
+                            </div>
                             {watermark.imageSrc && (
                               <div className="flex items-center gap-2">
                                 <img src={watermark.imageSrc} alt="logo" className="w-10 h-10 object-contain rounded border bg-muted" />
@@ -1313,22 +1334,27 @@ export default function CollageBuilder() {
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col" dir="rtl">
           <DialogHeader>
-            <DialogTitle>ייבוא תמונות מהגלריה / מהענן</DialogTitle>
+            <DialogTitle>{galleryImportMode === 'split' ? 'בחר תמונה לפיצול' : galleryImportMode === 'logo' ? 'בחר לוגו מהגלריה' : 'ייבוא תמונות מהגלריה / מהענן'}</DialogTitle>
           </DialogHeader>
           <div className="flex gap-2 mb-3">
             <Button variant={galleryTab === "history" ? "default" : "outline"} size="sm" onClick={() => { setGalleryTab("history"); loadGalleryItems("history"); }}>תמונות מעובדות</Button>
             <Button variant={galleryTab === "products" ? "default" : "outline"} size="sm" onClick={() => { setGalleryTab("products"); loadGalleryItems("products"); }}>גלריית מוצרים</Button>
           </div>
-          <div className="flex items-center gap-2 mb-2">
-            <Checkbox
-              checked={galleryItems.length > 0 && gallerySelected.size === galleryItems.length}
-              onCheckedChange={(checked) => {
-                if (checked) setGallerySelected(new Set(galleryItems.map((i) => i.id)));
-                else setGallerySelected(new Set());
-              }}
-            />
-            <span className="text-sm">בחר הכל ({gallerySelected.size}/{galleryItems.length})</span>
-          </div>
+          {galleryImportMode === 'collage' && (
+            <div className="flex items-center gap-2 mb-2">
+              <Checkbox
+                checked={galleryItems.length > 0 && gallerySelected.size === galleryItems.length}
+                onCheckedChange={(checked) => {
+                  if (checked) setGallerySelected(new Set(galleryItems.map((i) => i.id)));
+                  else setGallerySelected(new Set());
+                }}
+              />
+              <span className="text-sm">בחר הכל ({gallerySelected.size}/{galleryItems.length})</span>
+            </div>
+          )}
+          {(galleryImportMode === 'split' || galleryImportMode === 'logo') && (
+            <p className="text-xs text-muted-foreground mb-2">בחר תמונה אחת</p>
+          )}
           <ScrollArea className="flex-1 min-h-0 max-h-[55vh] overflow-y-auto">
             {galleryLoading ? (
               <div className="flex items-center justify-center h-full"><RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -1340,7 +1366,14 @@ export default function CollageBuilder() {
                   <div
                     key={item.id}
                     className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/30"}`}
-                    onClick={() => { setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; }); }}
+                    onClick={() => {
+                      if (galleryImportMode === 'split' || galleryImportMode === 'logo') {
+                        // Single selection mode
+                        setGallerySelected(new Set([item.id]));
+                      } else {
+                        setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; });
+                      }
+                    }}
                   >
                     <img src={item.image} alt={item.name} className="w-full aspect-square object-cover" loading="lazy" />
                     {gallerySelected.has(item.id) && (
@@ -1354,7 +1387,8 @@ export default function CollageBuilder() {
           </ScrollArea>
           <DialogFooter>
             <Button disabled={gallerySelected.size === 0} onClick={importSelected}>
-              <CloudDownload className="h-4 w-4 ml-2" />ייבא {gallerySelected.size} תמונות
+              <CloudDownload className="h-4 w-4 ml-2" />
+              {galleryImportMode === 'split' ? 'בחר לפיצול' : galleryImportMode === 'logo' ? 'בחר כלוגו' : `ייבא ${gallerySelected.size} תמונות`}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1369,6 +1403,20 @@ export default function CollageBuilder() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Source selection */}
+            {!splitSource && (
+              <div className="flex gap-2">
+                <label className="cursor-pointer flex-1">
+                  <Button variant="outline" className="w-full text-xs gap-1" asChild>
+                    <span><Plus className="h-3.5 w-3.5" />העלה תמונה</span>
+                  </Button>
+                  <input type="file" accept="image/*" className="hidden" ref={splitFileRef} onChange={handleSplitUpload} />
+                </label>
+                <Button variant="outline" className="flex-1 text-xs gap-1" onClick={() => { setSplitDialogOpen(false); openGalleryImport('split'); }}>
+                  <Database className="h-3.5 w-3.5" />מהגלריה / ענן
+                </Button>
+              </div>
+            )}
             {splitSource && (
               <div className="relative rounded-lg overflow-hidden border bg-muted">
                 <img src={splitSource} alt="source" className="w-full max-h-48 object-contain" />

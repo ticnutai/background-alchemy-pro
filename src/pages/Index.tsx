@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook, BookOpen, LayoutGrid, Menu, X } from "lucide-react";
+import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook, BookOpen, LayoutGrid } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import studioLogo from "@/assets/studio-logo.png";
@@ -15,7 +15,6 @@ import ThemeToggle from "@/components/ThemeToggle";
 const Index = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -45,7 +44,7 @@ const Index = () => {
             <a href="#services" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">שירותים</a>
             <a href="#contact" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">צור קשר</a>
           </div>
-          <div className="hidden md:flex items-center gap-3">
+          <div className="flex items-center gap-3">
             <ThemeToggle />
             <Link
               to="/tool"
@@ -69,36 +68,7 @@ const Index = () => {
               בונה קולאז׳
             </Link>
           </div>
-          {/* Mobile menu button */}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden rounded-lg p-2 hover:bg-secondary transition-colors"
-          >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </button>
         </div>
-        {/* Mobile dropdown menu */}
-        {mobileMenuOpen && (
-          <div className="md:hidden border-t border-border bg-card px-6 py-4 space-y-3">
-            <a href="#home" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">דף הבית</a>
-            <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">אודות</a>
-            <a href="#gallery" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">גלריה</a>
-            <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">שירותים</a>
-            <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">צור קשר</a>
-            <div className="border-t border-border pt-3 space-y-2">
-              <Link to="/tool" className="flex items-center gap-2 rounded-lg bg-gold px-4 py-2.5 font-accent text-xs font-semibold text-gold-foreground" onClick={() => setMobileMenuOpen(false)}>
-                <Sparkles className="h-3.5 w-3.5" /> כלי AI לרקעים
-              </Link>
-              <Link to="/catalog" className="flex items-center gap-2 rounded-lg border border-gold/40 px-4 py-2.5 font-accent text-xs font-semibold text-foreground" onClick={() => setMobileMenuOpen(false)}>
-                <BookOpen className="h-3.5 w-3.5" /> מחולל קטלוגים
-              </Link>
-              <Link to="/collage" className="flex items-center gap-2 rounded-lg border border-gold/40 px-4 py-2.5 font-accent text-xs font-semibold text-foreground" onClick={() => setMobileMenuOpen(false)}>
-                <LayoutGrid className="h-3.5 w-3.5" /> בונה קולאז׳
-              </Link>
-            </div>
-            <div className="flex justify-end"><ThemeToggle /></div>
-          </div>
-        )}
       </nav>
 
       {/* Hero Section */}

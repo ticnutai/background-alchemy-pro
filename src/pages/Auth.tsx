@@ -10,7 +10,6 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -50,32 +49,7 @@ const Auth = () => {
         toast.success("נרשמת בהצלחה! בדוק את המייל לאימות.");
       }
     } catch (err: any) {
-      const msg = err.message || "שגיאה";
-      // Translate common Supabase errors to Hebrew
-      if (msg.includes("Invalid login")) toast.error("אימייל או סיסמה שגויים");
-      else if (msg.includes("Email not confirmed")) toast.error("יש לאמת את האימייל לפני התחברות");
-      else if (msg.includes("already registered")) toast.error("האימייל כבר רשום — נסה להתחבר");
-      else toast.error(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      toast.error("הזן אימייל לפני שליחת איפוס");
-      return;
-    }
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/auth",
-      });
-      if (error) throw error;
-      toast.success("קישור לאיפוס סיסמה נשלח לאימייל שלך!");
-      setShowForgotPassword(false);
-    } catch (err: any) {
-      toast.error(err.message || "שגיאה בשליחת איפוס");
+      toast.error(err.message || "שגיאה");
     } finally {
       setLoading(false);
     }
@@ -122,48 +96,15 @@ const Auth = () => {
           </div>
 
           {isLogin && (
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2 cursor-pointer select-none">
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                  className="h-4 w-4 rounded border-border accent-gold"
-                />
-                <span className="font-body text-sm text-muted-foreground">זכור אותי</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowForgotPassword(true)}
-                className="font-body text-xs text-gold hover:underline"
-              >
-                שכחתי סיסמה
-              </button>
-            </div>
-          )}
-
-          {!isLogin && password.length > 0 && (
-            <div className="space-y-1">
-              <div className="flex gap-1 h-1.5">
-                {[1, 2, 3, 4].map((level) => {
-                  const strength =
-                    (password.length >= 6 ? 1 : 0) +
-                    (/[A-Z]/.test(password) ? 1 : 0) +
-                    (/[0-9]/.test(password) ? 1 : 0) +
-                    (/[^A-Za-z0-9]/.test(password) ? 1 : 0);
-                  const colors = ["bg-red-400", "bg-orange-400", "bg-yellow-400", "bg-green-500"];
-                  return (
-                    <div
-                      key={level}
-                      className={`flex-1 rounded-full ${level <= strength ? colors[strength - 1] : "bg-border"}`}
-                    />
-                  );
-                })}
-              </div>
-              <p className="text-[10px] text-muted-foreground">
-                {password.length < 6 ? "מינימום 6 תווים" : "מומלץ: אותיות גדולות, מספרים וסימנים"}
-              </p>
-            </div>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => setRememberMe(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-gold"
+              />
+              <span className="font-body text-sm text-muted-foreground">זכור אותי</span>
+            </label>
           )}
 
           <button
@@ -181,39 +122,6 @@ const Auth = () => {
             {isLogin ? "אין לך חשבון? הירשם" : "יש לך חשבון? התחבר"}
           </button>
         </form>
-
-        {/* Forgot Password Modal */}
-        {showForgotPassword && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm p-4" dir="rtl" onClick={() => setShowForgotPassword(false)}>
-            <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4" onClick={e => e.stopPropagation()}>
-              <h3 className="font-display text-lg font-bold text-foreground">איפוס סיסמה</h3>
-              <p className="font-body text-sm text-muted-foreground">הזן את כתובת האימייל שלך ונשלח לך קישור לאיפוס.</p>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-border bg-background px-4 py-3 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-gold/50 focus:outline-none"
-                placeholder="example@email.com"
-                dir="ltr"
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setShowForgotPassword(false)}
-                  className="flex-1 rounded-lg border border-border py-2.5 font-display text-xs font-semibold text-foreground hover:bg-secondary transition-colors"
-                >
-                  ביטול
-                </button>
-                <button
-                  onClick={handleForgotPassword}
-                  disabled={loading}
-                  className="flex-1 rounded-lg bg-gold py-2.5 font-display text-xs font-semibold text-gold-foreground hover:brightness-110 transition-all disabled:opacity-50"
-                >
-                  {loading ? "שולח..." : "שלח קישור"}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

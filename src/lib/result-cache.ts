@@ -1,26 +1,15 @@
 /** Simple in-memory cache for processed image results to avoid re-processing */
 const cache = new Map<string, string>();
 
-/** FNV-1a 32-bit hash — much better distribution than djb2 */
-function fnv1a(str: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
-  }
-  return h >>> 0;
-}
-
 function makeKey(imageBase64: string, action: string, params: Record<string, unknown>): string {
+  // Use a short hash of the image + action + params as the cache key
   const paramsStr = JSON.stringify(params);
-  // Sample 500 chars from start, middle and end for reliable fingerprint
-  const len = imageBase64.length;
-  const mid = Math.floor(len / 2);
-  const sample = imageBase64.slice(0, 200)
-    + imageBase64.slice(Math.max(0, mid - 100), mid + 100)
-    + imageBase64.slice(Math.max(0, len - 200));
-  const raw = `${sample}|${len}|${action}|${paramsStr}`;
-  return `${action}_${fnv1a(raw)}`;
+  const raw = `${imageBase64.slice(0, 100)}|${action}|${paramsStr}`;
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
+  }
+  return `${action}_${hash}`;
 }
 
 export function getCachedResult(
