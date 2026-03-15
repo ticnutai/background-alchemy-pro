@@ -162,7 +162,7 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
                   imageUrl={item.result_image_url}
                   isFavorite={item.is_favorite}
                   hoverDelay={800}
-                  className="group rounded-xl border border-border overflow-hidden bg-background transition-all hover:border-gold/40 hover:shadow-lg"
+                  className="group rounded-xl border border-border bg-background transition-all hover:border-gold/40 hover:shadow-lg"
                   actions={{
                     onFavorite: () => toggleFavorite(item),
                     onZoom: () => onSelectImage?.(item.result_image_url),
