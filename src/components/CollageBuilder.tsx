@@ -71,17 +71,30 @@ const FRAME_PRESETS: { id: FrameStyle; label: string; description: string }[] = 
 ];
 
 const FONT_OPTIONS = [
-  { id: "hebrew-modern", label: "עברית מודרנית" },
-  { id: "hebrew-classic", label: "עברית קלאסית" },
-  { id: "hebrew-display", label: "עברית דיספליי" },
-  { id: "hebrew-elegant", label: "עברית אלגנטית" },
-  { id: "luxury", label: "Luxury" },
-  { id: "elegant-serif", label: "Elegant Serif" },
-  { id: "modern-sans", label: "Modern Sans" },
-  { id: "classic-serif", label: "Classic Serif" },
-  { id: "bold-display", label: "Bold Display" },
-  { id: "handwritten", label: "כתב יד" },
-  { id: "mono", label: "Mono" },
+  { id: "hebrew-modern", label: "עברית מודרנית", category: "עברית" },
+  { id: "hebrew-classic", label: "עברית קלאסית", category: "עברית" },
+  { id: "hebrew-display", label: "עברית דיספליי", category: "עברית" },
+  { id: "hebrew-elegant", label: "עברית אלגנטית", category: "עברית" },
+  { id: "hebrew-secular", label: "סקולר", category: "עברית" },
+  { id: "hebrew-suez", label: "סואץ", category: "עברית" },
+  { id: "hebrew-varela", label: "וארלה", category: "עברית" },
+  { id: "hebrew-karantina", label: "קרנטינה", category: "עברית" },
+  { id: "hebrew-noto", label: "נוטו", category: "עברית" },
+  { id: "hebrew-fredoka", label: "פרדוקה", category: "עברית" },
+  { id: "hebrew-amatic", label: "אמאטיק", category: "עברית" },
+  { id: "luxury", label: "Luxury", category: "אנגלית" },
+  { id: "elegant-serif", label: "Elegant Serif", category: "אנגלית" },
+  { id: "modern-sans", label: "Modern Sans", category: "אנגלית" },
+  { id: "classic-serif", label: "Classic Serif", category: "אנגלית" },
+  { id: "bold-display", label: "Bold Display", category: "אנגלית" },
+  { id: "display-bebas", label: "Bebas Neue", category: "אנגלית" },
+  { id: "display-abril", label: "Abril Fatface", category: "אנגלית" },
+  { id: "display-righteous", label: "Righteous", category: "אנגלית" },
+  { id: "handwritten", label: "כתב יד", category: "דקורטיבי" },
+  { id: "script-satisfy", label: "Satisfy", category: "דקורטיבי" },
+  { id: "script-lobster", label: "Lobster", category: "דקורטיבי" },
+  { id: "script-pacifico", label: "Pacifico", category: "דקורטיבי" },
+  { id: "mono", label: "Mono", category: "אחר" },
 ];
 
 const TEXT_PRESETS: { label: string; overlay: Partial<CollageTextOverlay> }[] = [
@@ -93,6 +106,17 @@ const TEXT_PRESETS: { label: string; overlay: Partial<CollageTextOverlay> }[] = 
   { label: "כתב יד אישי", overlay: { fontSize: 40, fontFamily: "handwritten", fontWeight: "normal", color: "#6b4c3b" } },
   { label: "מודרני עם קו חיצוני", overlay: { fontSize: 60, fontFamily: "bold-display", fontWeight: "black", color: "#ffffff", stroke: { color: "#1a1a2e", width: 3 } } },
   { label: "אלגנטי עם סיבוב", overlay: { fontSize: 36, fontFamily: "elegant-serif", fontWeight: "normal", color: "#c9a84c", rotation: -5 } },
+  // New presets
+  { label: "סקולר כחול חזק", overlay: { fontSize: 58, fontFamily: "hebrew-secular", fontWeight: "bold", color: "#1e3a5f", shadow: { color: "rgba(0,0,0,0.3)", blur: 6, offsetX: 1, offsetY: 2 } } },
+  { label: "קרנטינה דרמטית", overlay: { fontSize: 72, fontFamily: "hebrew-karantina", fontWeight: "bold", color: "#e63946", shadow: { color: "rgba(0,0,0,0.6)", blur: 10, offsetX: 3, offsetY: 3 } } },
+  { label: "אמאטיק שמח", overlay: { fontSize: 68, fontFamily: "hebrew-amatic", fontWeight: "bold", color: "#ff6b6b" } },
+  { label: "פרדוקה ילדותי", overlay: { fontSize: 50, fontFamily: "hebrew-fredoka", fontWeight: "bold", color: "#6c5ce7" } },
+  { label: "וארלה נקי", overlay: { fontSize: 42, fontFamily: "hebrew-varela", fontWeight: "normal", color: "#2d3436" } },
+  { label: "Bebas סינמטי", overlay: { fontSize: 70, fontFamily: "display-bebas", fontWeight: "bold", color: "#ffffff", stroke: { color: "#000000", width: 2 } } },
+  { label: "ורוד גרדיאנט", overlay: { fontSize: 54, fontFamily: "hebrew-fredoka", fontWeight: "bold", gradient: { from: "#ee5a6f", to: "#f0a6ca", angle: 90 } } },
+  { label: "ירוק טבעי", overlay: { fontSize: 46, fontFamily: "hebrew-suez", fontWeight: "bold", color: "#2d6a4f", shadow: { color: "rgba(0,0,0,0.3)", blur: 5, offsetX: 1, offsetY: 1 } } },
+  { label: "Lobster רומנטי", overlay: { fontSize: 52, fontFamily: "script-lobster", fontWeight: "normal", color: "#d63384" } },
+  { label: "זהב על שחור", overlay: { fontSize: 60, fontFamily: "hebrew-suez", fontWeight: "bold", color: "#ffd700", shadow: { color: "#000", blur: 15, offsetX: 0, offsetY: 0 } } },
 ];
 
 const BG_GRADIENT_PRESETS = [
