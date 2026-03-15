@@ -682,6 +682,7 @@ const Index = () => {
                   {[
                     { key: "backgrounds" as const, label: "רקעים" },
                     { key: "smart" as const, label: "🧠 חכם" },
+                    { key: "filters" as const, label: "⚡ פילטרים" },
                     { key: "tools" as const, label: "כלים" },
                     { key: "adjust" as const, label: "התאמות" },
                     { key: "export" as const, label: "ייצוא" },
