@@ -264,6 +264,39 @@ export default function CollageBuilder() {
     toast.success("תבנית נמחקה");
   }, [savedTemplates]);
 
+  const exportTemplates = useCallback(() => {
+    if (savedTemplates.length === 0) { toast.error("אין תבניות לייצוא"); return; }
+    const json = JSON.stringify(savedTemplates, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `collage-templates_${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast.success(`${savedTemplates.length} תבניות יוצאו בהצלחה`);
+  }, [savedTemplates]);
+
+  const importTemplates = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imported = JSON.parse(ev.target?.result as string) as CollageTemplate[];
+        if (!Array.isArray(imported) || imported.length === 0) { toast.error("קובץ לא תקין"); return; }
+        const existingIds = new Set(savedTemplates.map(t => t.id));
+        const newOnes = imported.filter(t => !existingIds.has(t.id));
+        if (newOnes.length === 0) { toast.info("כל התבניות כבר קיימות"); return; }
+        const updated = [...newOnes, ...savedTemplates];
+        setSavedTemplates(updated);
+        saveTemplatesToStorage(updated);
+        toast.success(`${newOnes.length} תבניות יובאו בהצלחה`);
+      } catch { toast.error("שגיאה בקריאת הקובץ"); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }, [savedTemplates]);
+
   // ── Split Image ─────────────────────────────────────────────
   const handleSplitUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
