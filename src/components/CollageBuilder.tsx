@@ -1134,7 +1134,13 @@ export default function CollageBuilder() {
                         <input type="file" accept=".json" className="hidden" onChange={importTemplates} />
                       </label>
                     </div>
-                    </h3>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4" />תבניות שמורות ({savedTemplates.length})
                     {savedTemplates.length === 0 ? (
                       <div className="text-center py-6">
                         <BookmarkPlus className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
