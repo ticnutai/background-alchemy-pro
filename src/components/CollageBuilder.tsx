@@ -29,6 +29,23 @@ import {
   autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
+import { aiUpscaleImage } from "@/lib/catalog-ai";
+
+// ─── Canvas Size Presets ────────────────────────────────────────
+const CANVAS_SIZE_PRESETS: { id: string; label: string; w: number; h: number; icon?: string }[] = [
+  { id: "square", label: "ריבוע 1:1", w: 1200, h: 1200, icon: "⬜" },
+  { id: "ig-post", label: "אינסטגרם פוסט", w: 1080, h: 1080, icon: "📱" },
+  { id: "ig-story", label: "אינסטגרם סטורי", w: 1080, h: 1920, icon: "📲" },
+  { id: "ig-landscape", label: "אינסטגרם רוחב", w: 1080, h: 566, icon: "🖼️" },
+  { id: "fb-post", label: "פייסבוק פוסט", w: 1200, h: 630, icon: "📘" },
+  { id: "fb-cover", label: "פייסבוק כיסוי", w: 820, h: 312, icon: "🏞️" },
+  { id: "pinterest", label: "פינטרסט", w: 1000, h: 1500, icon: "📌" },
+  { id: "a4-portrait", label: "A4 לאורך", w: 2480, h: 3508, icon: "📄" },
+  { id: "a4-landscape", label: "A4 לרוחב", w: 3508, h: 2480, icon: "📃" },
+  { id: "hd", label: "HD 1920×1080", w: 1920, h: 1080, icon: "🖥️" },
+  { id: "4k", label: "4K", w: 3840, h: 2160, icon: "🎬" },
+  { id: "custom", label: "מותאם אישית", w: 0, h: 0, icon: "✏️" },
+];
 
 // ─── Constants ──────────────────────────────────────────────────
 const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number }[] = [
