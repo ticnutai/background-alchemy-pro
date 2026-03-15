@@ -364,6 +364,7 @@ export default function CollageBuilder() {
       gap,
       borderRadius,
       bgColor,
+      canvasWidth,
       canvasHeight,
       fitMode,
       frameStyle,
