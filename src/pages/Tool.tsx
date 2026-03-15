@@ -948,7 +948,7 @@ const ToolInner = () => {
                           const currentImg = resultImage || originalImage;
                           const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as any) : null;
                           if (cached) {
-                            setResultImage(cached);
+                            dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
                             setLiveFilterCss("");
                             toast.success("נטען מ-cache!");
                             setFilterProcessing(false);
