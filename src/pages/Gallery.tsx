@@ -201,6 +201,66 @@ function generateTIFF(canvas: HTMLCanvasElement): Blob {
 
 type ViewMode = "grid" | "single" | "sideBySide";
 
+interface ImageMeta { width: number; height: number; sizeKB: number | null }
+
+const ImageInfoBadge = ({ url }: { url: string }) => {
+  const [meta, setMeta] = useState<ImageMeta | null>(null);
+  const [show, setShow] = useState(false);
+  const loaded = useRef(false);
+
+  const loadMeta = () => {
+    setShow(true);
+    if (loaded.current) return;
+    loaded.current = true;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      // Try to get file size
+      fetch(url, { method: "HEAD" }).then(r => {
+        const cl = r.headers.get("content-length");
+        setMeta({ width: img.naturalWidth, height: img.naturalHeight, sizeKB: cl ? Math.round(parseInt(cl) / 1024) : null });
+      }).catch(() => {
+        setMeta({ width: img.naturalWidth, height: img.naturalHeight, sizeKB: null });
+      });
+    };
+    img.onerror = () => setMeta({ width: 0, height: 0, sizeKB: null });
+    img.src = url;
+  };
+
+  const quality = meta ? (
+    meta.width >= 3000 ? "גבוהה מאוד" :
+    meta.width >= 2000 ? "גבוהה" :
+    meta.width >= 1000 ? "טובה" : "בסיסית"
+  ) : "";
+
+  return (
+    <div className="relative inline-block">
+      <button
+        onMouseEnter={loadMeta}
+        onMouseLeave={() => setShow(false)}
+        onClick={e => { e.stopPropagation(); loadMeta(); }}
+        className="rounded-full p-0.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+      >
+        <Info className="h-3 w-3" />
+      </button>
+      {show && meta && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 whitespace-nowrap rounded-lg bg-foreground text-card px-2.5 py-1.5 text-[10px] font-accent shadow-lg animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center gap-2">
+            <span>{meta.width}×{meta.height}</span>
+            <span className="w-px h-3 bg-card/30" />
+            <span>איכות: {quality}</span>
+            {meta.sizeKB && <>
+              <span className="w-px h-3 bg-card/30" />
+              <span>{meta.sizeKB > 1024 ? `${(meta.sizeKB / 1024).toFixed(1)} MB` : `${meta.sizeKB} KB`}</span>
+            </>}
+          </div>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45 -mt-1" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Gallery = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState<User | null>(null);
