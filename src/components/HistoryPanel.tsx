@@ -23,6 +23,7 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   useEffect(() => {
     loadHistory();
@@ -199,7 +200,7 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
                       <Download className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => deleteItem(item.id)}
+                      onClick={() => setDeleteConfirmId(item.id)}
                       className="rounded-full bg-foreground/50 p-1.5 text-card backdrop-blur-sm hover:bg-destructive transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -218,6 +219,37 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/60 backdrop-blur-sm" dir="rtl" onClick={() => setDeleteConfirmId(null)}>
+          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
+                <Trash2 className="h-5 w-5 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-display text-sm font-bold text-foreground">מחיקת תמונה</h3>
+                <p className="font-body text-xs text-muted-foreground">האם אתה בטוח? פעולה זו לא ניתנת לביטול.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 justify-end">
+              <button
+                onClick={() => setDeleteConfirmId(null)}
+                className="rounded-lg border border-border px-4 py-2 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+              >
+                ביטול
+              </button>
+              <button
+                onClick={() => { deleteItem(deleteConfirmId); setDeleteConfirmId(null); }}
+                className="rounded-lg bg-destructive px-4 py-2 font-display text-xs font-semibold text-destructive-foreground transition-all hover:brightness-110"
+              >
+                מחק
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -58,6 +58,9 @@ const Index = () => {
   const [selectedPresetType, setSelectedPresetType] = useState<string | null>(null);
   const [showDevSettings, setShowDevSettings] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveNewName, setSaveNewName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -323,6 +326,61 @@ const Index = () => {
     [resultImage, originalImage, adjustments]
   );
 
+  const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
+    const img = resultImage;
+    if (!img || !user) return;
+    setIsSaving(true);
+    try {
+      const uid = user.id;
+      const ts = Date.now();
+      const resultBlob = await fetch(img).then(r => r.blob());
+      const upload = await supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" });
+      if (!upload.data) throw new Error("Upload failed");
+      const resultUrl = supabase.storage.from("processed-images").getPublicUrl(upload.data.path).data.publicUrl;
+
+      if (mode === "new") {
+        const origBlob = originalImage ? await fetch(originalImage).then(r => r.blob()) : resultBlob;
+        const origUpload = await supabase.storage.from("processed-images").upload(`${uid}/${ts}_original.png`, origBlob, { contentType: "image/png" });
+        const origUrl = origUpload.data ? supabase.storage.from("processed-images").getPublicUrl(origUpload.data.path).data.publicUrl : resultUrl;
+        await supabase.from("processing_history").insert({
+          user_id: uid,
+          original_image_url: origUrl,
+          result_image_url: resultUrl,
+          background_prompt: customPrompt.trim() || activePrompt || "עריכת צבע/סגנון",
+          background_name: saveNewName.trim() || suggestedName || "תמונה ערוכה",
+        });
+        toast.success("נשמר כתמונה חדשה בגלריה! 🎨");
+      } else {
+        const editImageUrl = searchParams.get("editImage");
+        if (editImageUrl) {
+          const { data: existing } = await supabase.from("processing_history")
+            .select("id")
+            .eq("result_image_url", editImageUrl)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            await supabase.from("processing_history")
+              .update({ result_image_url: resultUrl, background_name: saveNewName.trim() || suggestedName || undefined })
+              .eq("id", existing[0].id);
+            toast.success("התמונה הוחלפה בגלריה! ✅");
+          } else {
+            await supabase.from("processing_history").insert({
+              user_id: uid, original_image_url: editImageUrl, result_image_url: resultUrl,
+              background_prompt: customPrompt.trim() || activePrompt || "עריכה",
+              background_name: saveNewName.trim() || suggestedName || "תמונה ערוכה",
+            });
+            toast.success("נשמר בגלריה! ✅");
+          }
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "שגיאה בשמירה");
+    } finally {
+      setIsSaving(false);
+      setShowSaveDialog(false);
+      setSaveNewName("");
+    }
+  }, [resultImage, originalImage, user, saveNewName, suggestedName, customPrompt, activePrompt, searchParams]);
+
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
       {/* Header */}
@@ -575,6 +633,16 @@ const Index = () => {
                   </button>
                 )}
 
+                {resultImage && user && (
+                  <button
+                    onClick={() => { setSaveNewName(suggestedName || ""); setShowSaveDialog(true); }}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-5 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110"
+                  >
+                    <Save className="h-4 w-4" />
+                    שמור לגלריה
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowBatch(true)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
@@ -762,6 +830,57 @@ const Index = () => {
 
       {/* Dev Settings */}
       <DevSettingsDialog open={showDevSettings} onClose={() => setShowDevSettings(false)} />
+
+      {/* Save to Gallery Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm" dir="rtl">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                <Save className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-display text-sm font-bold text-foreground">שמירה לגלריה</h3>
+                <p className="font-body text-xs text-muted-foreground">בחר שם לתמונה ואופן שמירה</p>
+              </div>
+            </div>
+
+            <input
+              value={saveNewName}
+              onChange={e => setSaveNewName(e.target.value)}
+              placeholder="שם התמונה..."
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              dir="rtl"
+              autoFocus
+            />
+
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowSaveDialog(false)}
+                className="rounded-lg border border-border px-4 py-2.5 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+              >
+                ביטול
+              </button>
+              {searchParams.get("editImage") && (
+                <button
+                  onClick={() => handleSaveToGallery("replace")}
+                  disabled={isSaving}
+                  className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
+                >
+                  {isSaving ? "שומר..." : "🔄 החלף קיים"}
+                </button>
+              )}
+              <button
+                onClick={() => handleSaveToGallery("new")}
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {isSaving ? "שומר..." : "💾 שמור חדש"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
