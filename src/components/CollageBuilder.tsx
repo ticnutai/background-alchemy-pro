@@ -415,6 +415,32 @@ export default function CollageBuilder() {
                           </Button>
                         ))}
                       </div>
+                      {/* Per-cell background color */}
+                      <div className="pt-2 border-t space-y-2">
+                        <Label className="text-xs flex items-center gap-2">
+                          <Palette className="h-3.5 w-3.5" />
+                          צבע רקע לתא זה
+                        </Label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            value={images.find(i => i.id === selectedImage)?.cellBgColor || bgColor}
+                            onChange={e => setImages(prev => prev.map(i => i.id === selectedImage ? { ...i, cellBgColor: e.target.value } : i))}
+                            className="w-10 h-7 rounded border cursor-pointer"
+                          />
+                          <span className="text-[10px] text-muted-foreground flex-1">
+                            {images.find(i => i.id === selectedImage)?.cellBgColor ? 'צבע מותאם' : 'כמו הרקע הכללי'}
+                          </span>
+                          {images.find(i => i.id === selectedImage)?.cellBgColor && (
+                            <Button
+                              size="sm" variant="ghost" className="h-6 text-[10px] px-2"
+                              onClick={() => setImages(prev => prev.map(i => i.id === selectedImage ? { ...i, cellBgColor: undefined } : i))}
+                            >
+                              איפוס
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
