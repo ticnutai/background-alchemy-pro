@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Heart, Trash2, Clock, X, Download, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import EditableLabel from "@/components/EditableLabel";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 
 interface HistoryItem {
   id: string;
