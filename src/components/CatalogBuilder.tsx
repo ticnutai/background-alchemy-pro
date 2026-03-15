@@ -1968,6 +1968,10 @@ export default function CatalogBuilder() {
                     <FileText className="h-3 w-3" />
                     <span className="text-[10px]">PDF</span>
                   </Button>
+                  <Button variant="ghost" size="sm" className="h-7" onClick={saveCatalogToGallery} disabled={savingToGallery}>
+                    {savingToGallery ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
+                    <span className="text-[10px]">גלריה</span>
+                  </Button>
                 </div>
               )}
 
