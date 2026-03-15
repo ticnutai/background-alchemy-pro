@@ -324,11 +324,6 @@ export default function CollageBuilder() {
   // Split image
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [splitSource, setSplitSource] = useState<string | null>(null);
-  const [splitMode, setSplitMode] = useState<SplitMode>('grid');
-  const [splitCols, setSplitCols] = useState(3);
-  const [splitRows, setSplitRows] = useState(3);
-  const [splitInstagramAspect, setSplitInstagramAspect] = useState<'1:1' | '4:5' | '16:9'>('1:1');
-  const [splitProcessing, setSplitProcessing] = useState(false);
   const splitFileRef = useRef<HTMLInputElement>(null);
 
   const editingText = useMemo(() => textOverlays.find(t => t.id === editingTextId) || null, [textOverlays, editingTextId]);
