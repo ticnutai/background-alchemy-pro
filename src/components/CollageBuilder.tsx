@@ -1102,7 +1102,9 @@ export default function CollageBuilder() {
                                     <div className="px-2 py-1 text-[9px] font-bold text-muted-foreground uppercase">{cat}</div>
                                     {fonts.map(f => (
                                       <SelectItem key={f.id} value={f.id} className="text-xs">
-                                        {f.label}
+                                        <span style={{ fontFamily: COLLAGE_FONT_MAP[f.id] || 'inherit' }}>
+                                          {f.label}
+                                        </span>
                                       </SelectItem>
                                     ))}
                                   </div>
