@@ -82,6 +82,7 @@ const ImageHoverMenu = ({
   useEffect(() => {
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
     };
   }, []);
 
