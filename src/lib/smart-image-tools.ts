@@ -486,7 +486,7 @@ export async function sharpenImage(
 }
 
 // ─── 11. Collage Layout Engine ──────────────────────────────────
-export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'masonry' | 'hero-side' | 'strip' | 'pinterest';
+export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'grid-2x3' | 'grid-3x2' | 'grid-4x4' | 'hero-side' | 'hero-top' | 'strip' | 'strip-vertical' | 'masonry' | 'pinterest' | 'diagonal' | 'l-shape' | 'featured-grid';
 
 export interface CollageTextOverlay {
   id: string;
