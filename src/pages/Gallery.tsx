@@ -1087,6 +1087,14 @@ const Gallery = () => {
                     </div>
                   )}
                 </div>
+                {/* Delete button in zoom */}
+                <button
+                  onClick={() => confirmDeleteItem(zoomedItem.id)}
+                  className="rounded-lg border border-destructive/30 p-1.5 text-destructive hover:bg-destructive/10 transition-colors"
+                  title="מחק תמונה"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
                 <button
                   onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}
                   className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
