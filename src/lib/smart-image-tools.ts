@@ -495,13 +495,14 @@ export interface CollageOptions {
   gap: number;
   bgColor: string;
   borderRadius: number;
+  fitMode?: 'cover' | 'contain';
 }
 
 export async function generateCollage(
   images: string[],
   options: CollageOptions
 ): Promise<string> {
-  const { layout, width, height, gap, bgColor, borderRadius } = options;
+  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain' } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -523,18 +524,37 @@ export async function generateCollage(
       roundedClip(ctx, cell.x, cell.y, cell.w, cell.h, borderRadius);
     }
 
-    // Cover-fit image into cell
-    const imgRatio = img.width / img.height;
-    const cellRatio = cell.w / cell.h;
-    let sx = 0, sy = 0, sw = img.width, sh = img.height;
-    if (imgRatio > cellRatio) {
-      sw = img.height * cellRatio;
-      sx = (img.width - sw) / 2;
+    if (fitMode === 'contain') {
+      // Contain-fit: show entire image, fill remaining space with bgColor
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
+      const imgRatio = img.width / img.height;
+      const cellRatio = cell.w / cell.h;
+      let dw: number, dh: number;
+      if (imgRatio > cellRatio) {
+        dw = cell.w;
+        dh = cell.w / imgRatio;
+      } else {
+        dh = cell.h;
+        dw = cell.h * imgRatio;
+      }
+      const dx = cell.x + (cell.w - dw) / 2;
+      const dy = cell.y + (cell.h - dh) / 2;
+      ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
     } else {
-      sh = img.width / cellRatio;
-      sy = (img.height - sh) / 2;
+      // Cover-fit: fill cell, crop excess
+      const imgRatio = img.width / img.height;
+      const cellRatio = cell.w / cell.h;
+      let sx = 0, sy = 0, sw = img.width, sh = img.height;
+      if (imgRatio > cellRatio) {
+        sw = img.height * cellRatio;
+        sx = (img.width - sw) / 2;
+      } else {
+        sh = img.width / cellRatio;
+        sy = (img.height - sh) / 2;
+      }
+      ctx.drawImage(img, sx, sy, sw, sh, cell.x, cell.y, cell.w, cell.h);
     }
-    ctx.drawImage(img, sx, sy, sw, sh, cell.x, cell.y, cell.w, cell.h);
     ctx.restore();
   }
 
