@@ -472,9 +472,18 @@ export default function CollageBuilder() {
     if (!result) return;
     const a = document.createElement("a");
     a.href = result;
-    a.download = `collage_${Date.now()}.png`;
+    a.download = `collage_${pages.length > 1 ? `page${currentPage + 1}_` : ''}${Date.now()}.png`;
     a.click();
-  }, [result]);
+  }, [result, pages.length, currentPage]);
+
+  const downloadAllPages = useCallback(() => {
+    pages.forEach((page, i) => {
+      const a = document.createElement("a");
+      a.href = page;
+      a.download = `collage_page${i + 1}_${Date.now()}.png`;
+      a.click();
+    });
+  }, [pages]);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
