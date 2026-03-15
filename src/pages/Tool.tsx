@@ -272,10 +272,11 @@ const ToolInner = () => {
 
     settled.forEach((result, idx) => {
       if (result.status === "fulfilled") {
-        results.push(result.value);
+        const val = result.value as { name: string; image: string; prompt: string };
+        results.push(val);
         // Fire-and-forget history save
         if (user) {
-          saveToHistoryAsync(user, originalImage, result.value.image, result.value.prompt, result.value.name);
+          saveToHistoryAsync(user, originalImage, val.image, val.prompt, val.name);
         }
       } else {
         toast.error(`שגיאה ב-${selectedBgs[idx].label}: ${(result.reason as Error)?.message}`);
