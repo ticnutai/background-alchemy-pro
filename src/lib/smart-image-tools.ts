@@ -529,37 +529,12 @@ export interface CollageOptions {
   gap: number;
   bgColor: string;
   borderRadius: number;
-  fitMode?: 'cover' | 'contain' | 'smart-pad';
+  fitMode?: 'cover' | 'contain';
   frameStyle?: FrameStyle;
   textOverlays?: CollageTextOverlay[];
   bgGradient?: { from: string; to: string; angle: number };
   cellBgColors?: (string | null)[];
   watermark?: CollageWatermark;
-  perImageFitMode?: (('cover' | 'contain' | 'smart-pad') | null)[];
-}
-
-/** Canvas size presets – used by CollageBuilder UI */
-export const CANVAS_SIZE_PRESETS: { id: string; label: string; width: number; height: number }[] = [
-  { id: '1:1',   label: '1:1 ריבוע',      width: 1200, height: 1200 },
-  { id: '4:5',   label: '4:5 אינסטגרם',   width: 1200, height: 1500 },
-  { id: '9:16',  label: '9:16 סטורי',      width: 1080, height: 1920 },
-  { id: '16:9',  label: '16:9 לנדסקייפ',   width: 1200, height: 675  },
-  { id: 'A4',    label: 'A4 הדפסה',        width: 1200, height: 1697 },
-];
-
-/** Calculate optimal canvas height from loaded images' average aspect ratio */
-export function calcOptimalCanvasHeight(
-  imageSrcs: HTMLImageElement[],
-  canvasWidth: number,
-  layout: CollageLayout
-): number {
-  if (imageSrcs.length === 0) return canvasWidth;
-  const avgRatio = imageSrcs.reduce((sum, img) => sum + img.width / img.height, 0) / imageSrcs.length;
-  const cols = layout.startsWith('grid-') ? parseInt(layout.split('-')[1].split('x')[0]) || 2 : 2;
-  const rows = Math.ceil(imageSrcs.length / cols);
-  const cellW = canvasWidth / cols;
-  const cellH = cellW / avgRatio;
-  return Math.round(Math.min(Math.max(cellH * rows, 600), 2400));
 }
 
 export const COLLAGE_FONT_MAP: Record<string, string> = {
@@ -737,7 +712,7 @@ export async function generateCollage(
   images: string[],
   options: CollageOptions
 ): Promise<string> {
-  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [], watermark, perImageFitMode = [] } = options;
+  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [], watermark } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -766,34 +741,28 @@ export async function generateCollage(
   for (let i = 0; i < Math.min(loadedImages.length, cells.length); i++) {
     const cell = cells[i];
     const img = loadedImages[i];
-    const mode = perImageFitMode[i] || fitMode;
 
     ctx.save();
     if (borderRadius > 0) {
       roundedClip(ctx, cell.x, cell.y, cell.w, cell.h, borderRadius);
     }
 
-    if (mode === 'contain' || mode === 'smart-pad') {
+    if (fitMode === 'contain') {
       const cellBg = cellBgColors[i] || bgColor;
       ctx.fillStyle = cellBg;
       ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
-      const pad = mode === 'smart-pad' ? 0.05 : 0; // 5% inner padding
-      const innerW = cell.w * (1 - pad * 2);
-      const innerH = cell.h * (1 - pad * 2);
-      const innerX = cell.x + cell.w * pad;
-      const innerY = cell.y + cell.h * pad;
       const imgRatio = img.width / img.height;
-      const cellRatio = innerW / innerH;
+      const cellRatio = cell.w / cell.h;
       let dw: number, dh: number;
       if (imgRatio > cellRatio) {
-        dw = innerW;
-        dh = innerW / imgRatio;
+        dw = cell.w;
+        dh = cell.w / imgRatio;
       } else {
-        dh = innerH;
-        dw = innerH * imgRatio;
+        dh = cell.h;
+        dw = cell.h * imgRatio;
       }
-      const dx = innerX + (innerW - dw) / 2;
-      const dy = innerY + (innerH - dh) / 2;
+      const dx = cell.x + (cell.w - dw) / 2;
+      const dy = cell.y + (cell.h - dh) / 2;
       ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
     } else {
       const imgRatio = img.width / img.height;

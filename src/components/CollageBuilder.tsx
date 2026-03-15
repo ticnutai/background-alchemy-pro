@@ -21,13 +21,14 @@ import {
   Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
   FileDown, FilePlus2, X
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 import {
   generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, compositeImages, adjustImage,
-  autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP,
-  CANVAS_SIZE_PRESETS, calcOptimalCanvasHeight
+  autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
 
@@ -147,7 +148,7 @@ const BG_GRADIENT_PRESETS = [
   { label: "קרח", from: "#e0eafc", to: "#cfdef3" },
 ];
 
-type CollageImage = { id: string; src: string; name: string; cellBgColor?: string; fitMode?: 'contain' | 'cover' | 'smart-pad' | null };
+type CollageImage = { id: string; src: string; name: string; cellBgColor?: string };
 
 interface CollageTemplate {
   id: string;
@@ -158,7 +159,7 @@ interface CollageTemplate {
   borderRadius: number;
   bgColor: string;
   canvasHeight: number;
-  fitMode: 'contain' | 'cover' | 'smart-pad';
+  fitMode: 'contain' | 'cover';
   frameStyle: FrameStyle;
   bgGradientEnabled: boolean;
   bgGradient: { from: string; to: string; angle: number };
@@ -273,6 +274,7 @@ let _tid = 0;
 const newTextId = () => `txt_${Date.now()}_${++_tid}`;
 
 export default function CollageBuilder() {
+  const navigate = useNavigate();
   // Images
   const [images, setImages] = useState<CollageImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -285,7 +287,7 @@ export default function CollageBuilder() {
   const [canvasWidth, setCanvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
   const [selectedPageSize, setSelectedPageSize] = useState<CollagePageSize>("custom");
-  const [fitMode, setFitMode] = useState<'contain' | 'cover' | 'smart-pad'>('contain');
+  const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
   const [bgGradient, setBgGradient] = useState({ from: "#1a1a2e", to: "#c9a84c", angle: 135 });
@@ -603,7 +605,6 @@ export default function CollageBuilder() {
       for (let p = 0; p < pageCount; p++) {
         const pageSrcs = allSrcs.slice(p * maxPerPage, (p + 1) * maxPerPage);
         const pageCellColors = allCellColors.slice(p * maxPerPage, (p + 1) * maxPerPage);
-        const pagePerImageFit = images.slice(p * maxPerPage, (p + 1) * maxPerPage).map(img => img.fitMode || null);
         const collageOptions: CollageOptions = {
           layout,
           width: canvasWidth,
@@ -617,7 +618,6 @@ export default function CollageBuilder() {
           bgGradient: bgGradientEnabled ? bgGradient : undefined,
           cellBgColors: pageCellColors,
           watermark: watermarkEnabled ? watermark : undefined,
-          perImageFitMode: pagePerImageFit,
         };
         const dataUrl = await generateCollage(pageSrcs, collageOptions);
         results.push(dataUrl);
@@ -758,27 +758,25 @@ export default function CollageBuilder() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       {/* Header */}
-      <div className="border-b bg-card p-3 sm:p-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+      <div className="border-b bg-card p-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold">בונה קולאז׳ חכם</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
+            <h1 className="text-2xl font-bold">בונה קולאז׳ חכם</h1>
+            <p className="text-sm text-muted-foreground">
               קולאז׳ מתקדם עם מסגרות יוקרתיות, טקסט מעוצב וכלים חכמים
             </p>
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" onClick={() => window.history.back()}>חזור</Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => window.history.back()}>חזור</Button>
             {result && (
               <>
-                <Button variant="outline" size="sm" onClick={saveToGallery} disabled={savingToGallery}>
+                <Button variant="outline" onClick={saveToGallery} disabled={savingToGallery}>
                   {savingToGallery ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
-                  <span className="hidden sm:inline">שמור לגלריה</span>
-                  <span className="sm:hidden">שמור</span>
+                  שמור לגלריה
                 </Button>
-                <Button size="sm" onClick={downloadCollage}>
+                <Button onClick={downloadCollage}>
                   <Download className="h-4 w-4 ml-2" />
-                  <span className="hidden sm:inline">הורד קולאז׳</span>
-                  <span className="sm:hidden">הורד</span>
+                  הורד קולאז׳
                 </Button>
               </>
             )}
@@ -786,17 +784,17 @@ export default function CollageBuilder() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
+      <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
         {/* Sidebar */}
-        <ScrollArea className="max-h-[50vh] lg:max-h-[calc(100vh-120px)]">
+        <ScrollArea className="max-h-[calc(100vh-120px)]">
           <div className="space-y-3 pr-1">
             <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-              <TabsList className="w-full grid grid-cols-5 h-auto">
-                <TabsTrigger value="images" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><ImageIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />תמונות</TabsTrigger>
-                <TabsTrigger value="design" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><Palette className="h-3 w-3 sm:h-3.5 sm:w-3.5" />עיצוב</TabsTrigger>
-                <TabsTrigger value="frames" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><Frame className="h-3 w-3 sm:h-3.5 sm:w-3.5" />מסגרות</TabsTrigger>
-                <TabsTrigger value="text" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><Type className="h-3 w-3 sm:h-3.5 sm:w-3.5" />טקסט</TabsTrigger>
-                <TabsTrigger value="templates" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><BookmarkPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />תבניות</TabsTrigger>
+              <TabsList className="w-full grid grid-cols-5">
+                <TabsTrigger value="images" className="text-xs gap-1"><ImageIcon className="h-3.5 w-3.5" />תמונות</TabsTrigger>
+                <TabsTrigger value="design" className="text-xs gap-1"><Palette className="h-3.5 w-3.5" />עיצוב</TabsTrigger>
+                <TabsTrigger value="frames" className="text-xs gap-1"><Frame className="h-3.5 w-3.5" />מסגרות</TabsTrigger>
+                <TabsTrigger value="text" className="text-xs gap-1"><Type className="h-3.5 w-3.5" />טקסט</TabsTrigger>
+                <TabsTrigger value="templates" className="text-xs gap-1"><BookmarkPlus className="h-3.5 w-3.5" />תבניות</TabsTrigger>
               </TabsList>
 
               {/* ─── Images Tab ─── */}
@@ -832,41 +830,59 @@ export default function CollageBuilder() {
                       <ScrollArea className="max-h-[240px]">
                         <div className="grid grid-cols-3 gap-2">
                           {images.map((img, idx) => (
-                            <div
+                            <ImageHoverMenu
                               key={img.id}
-                              draggable
-                              onDragStart={() => { dragItemRef.current = idx; setDragIdx(idx); }}
-                              onDragEnter={() => { dragOverRef.current = idx; }}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDragEnd={() => {
-                                if (dragItemRef.current !== null && dragOverRef.current !== null && dragItemRef.current !== dragOverRef.current) {
-                                  setImages(prev => {
-                                    const updated = [...prev];
-                                    const [dragged] = updated.splice(dragItemRef.current!, 1);
-                                    updated.splice(dragOverRef.current!, 0, dragged);
-                                    return updated;
-                                  });
-                                }
-                                dragItemRef.current = null;
-                                dragOverRef.current = null;
-                                setDragIdx(null);
-                              }}
-                              className={`relative border rounded cursor-grab active:cursor-grabbing overflow-hidden aspect-square transition-all ${
+                              imageUrl={img.src}
+                              hoverDelay={800}
+                              className={`relative border rounded aspect-square transition-all ${
                                 selectedImage === img.id ? "ring-2 ring-primary" : ""
                               } ${dragIdx === idx ? "opacity-50 scale-95" : ""}`}
-                              onClick={() => setSelectedImage(selectedImage === img.id ? null : img.id)}
+                              actions={{
+                                onZoom: () => setSelectedImage(img.id),
+                                onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(img.src)}`),
+                                onDelete: () => setImages(prev => prev.filter(i => i.id !== img.id)),
+                                onCatalog: () => navigate(`/catalog?importImage=${encodeURIComponent(img.src)}`),
+                                onDownload: () => {
+                                  const link = document.createElement("a");
+                                  link.href = img.src;
+                                  link.download = img.name || "image.png";
+                                  link.click();
+                                },
+                              }}
                             >
-                              <img src={img.src} alt={img.name} className="w-full h-full object-cover pointer-events-none" />
-                              <div className="absolute top-0.5 right-0.5 bg-foreground/60 text-background rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
-                                {idx + 1}
-                              </div>
-                              <button
-                                className="absolute top-0.5 left-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
-                                onClick={(e) => { e.stopPropagation(); setImages(prev => prev.filter(i => i.id !== img.id)); }}
+                              <div
+                                draggable
+                                onDragStart={() => { dragItemRef.current = idx; setDragIdx(idx); }}
+                                onDragEnter={() => { dragOverRef.current = idx; }}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDragEnd={() => {
+                                  if (dragItemRef.current !== null && dragOverRef.current !== null && dragItemRef.current !== dragOverRef.current) {
+                                    setImages(prev => {
+                                      const updated = [...prev];
+                                      const [dragged] = updated.splice(dragItemRef.current!, 1);
+                                      updated.splice(dragOverRef.current!, 0, dragged);
+                                      return updated;
+                                    });
+                                  }
+                                  dragItemRef.current = null;
+                                  dragOverRef.current = null;
+                                  setDragIdx(null);
+                                }}
+                                className="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
+                                onClick={() => setSelectedImage(selectedImage === img.id ? null : img.id)}
                               >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
+                                <img src={img.src} alt={img.name} className="w-full h-full object-cover pointer-events-none" />
+                                <div className="absolute top-0.5 right-0.5 bg-foreground/60 text-background rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
+                                  {idx + 1}
+                                </div>
+                                <button
+                                  className="absolute top-0.5 left-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                                  onClick={(e) => { e.stopPropagation(); setImages(prev => prev.filter(i => i.id !== img.id)); }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </ImageHoverMenu>
                           ))}
                         </div>
                       </ScrollArea>
@@ -910,26 +926,6 @@ export default function CollageBuilder() {
                               איפוס
                             </Button>
                           )}
-                        </div>
-                      </div>
-                      {/* Per-image fit mode override */}
-                      <div className="pt-2 border-t space-y-2">
-                        <Label className="text-xs flex items-center gap-2">
-                          <Frame className="h-3.5 w-3.5" />
-                          התאמת תמונה (לתא זה)
-                        </Label>
-                        <div className="flex gap-1">
-                          {([null, 'contain', 'cover', 'smart-pad'] as const).map((mode) => (
-                            <Button
-                              key={mode ?? 'global'}
-                              size="sm"
-                              variant={images.find(i => i.id === selectedImage)?.fitMode === mode ? "default" : "outline"}
-                              className="flex-1 text-[9px] h-6"
-                              onClick={() => setImages(prev => prev.map(i => i.id === selectedImage ? { ...i, fitMode: mode } : i))}
-                            >
-                              {mode === null ? 'ברירת מחדל' : mode === 'contain' ? 'התאם' : mode === 'cover' ? 'חיתוך' : 'ריפוד'}
-                            </Button>
-                          ))}
                         </div>
                       </div>
                     </CardContent>
@@ -1016,9 +1012,8 @@ export default function CollageBuilder() {
                     <div className="space-y-2">
                       <Label className="text-xs">התאמת תמונה</Label>
                       <div className="flex gap-1">
-                        <Button size="sm" variant={fitMode === "contain" ? "default" : "outline"} onClick={() => setFitMode("contain")} className="flex-1 text-[10px]">התאם</Button>
-                        <Button size="sm" variant={fitMode === "cover" ? "default" : "outline"} onClick={() => setFitMode("cover")} className="flex-1 text-[10px]">חיתוך</Button>
-                        <Button size="sm" variant={fitMode === "smart-pad" ? "default" : "outline"} onClick={() => setFitMode("smart-pad")} className="flex-1 text-[10px]">ריפוד חכם</Button>
+                        <Button size="sm" variant={fitMode === "contain" ? "default" : "outline"} onClick={() => setFitMode("contain")} className="flex-1 text-xs">התאם (מלא)</Button>
+                        <Button size="sm" variant={fitMode === "cover" ? "default" : "outline"} onClick={() => setFitMode("cover")} className="flex-1 text-xs">חיתוך למילוי</Button>
                       </div>
                     </div>
                   </CardContent>
@@ -1752,24 +1747,38 @@ export default function CollageBuilder() {
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 p-1">
                 {galleryItems.map((item) => (
-                  <div
+                  <ImageHoverMenu
                     key={item.id}
-                    className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/30"}`}
-                    onClick={() => {
-                      if (galleryImportMode === 'split' || galleryImportMode === 'logo') {
-                        // Single selection mode
-                        setGallerySelected(new Set([item.id]));
-                      } else {
-                        setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; });
-                      }
+                    imageUrl={item.image}
+                    hoverDelay={800}
+                    className={`relative rounded-lg border-2 cursor-pointer transition-all ${gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/30"}`}
+                    actions={{
+                      onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(item.image)}`),
+                      onCatalog: () => navigate(`/catalog?importImage=${encodeURIComponent(item.image)}`),
+                      onDownload: () => {
+                        const link = document.createElement("a");
+                        link.href = item.image;
+                        link.download = item.name || "image.png";
+                        link.click();
+                      },
                     }}
                   >
-                    <img src={item.image} alt={item.name} className="w-full aspect-square object-cover" loading="lazy" />
-                    {gallerySelected.has(item.id) && (
-                      <div className="absolute inset-0 bg-primary/20 flex items-center justify-center"><Check className="h-6 w-6 text-primary" /></div>
-                    )}
-                    <div className="absolute bottom-0 inset-x-0 bg-foreground/60 text-background text-[10px] p-1 truncate">{item.name}</div>
-                  </div>
+                    <div
+                      onClick={() => {
+                        if (galleryImportMode === 'split' || galleryImportMode === 'logo') {
+                          setGallerySelected(new Set([item.id]));
+                        } else {
+                          setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; });
+                        }
+                      }}
+                    >
+                      <img src={item.image} alt={item.name} className="w-full aspect-square object-cover rounded-t-lg" loading="lazy" />
+                      {gallerySelected.has(item.id) && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center"><Check className="h-6 w-6 text-primary" /></div>
+                      )}
+                      <div className="absolute bottom-0 inset-x-0 bg-foreground/60 text-background text-[10px] p-1 truncate">{item.name}</div>
+                    </div>
+                  </ImageHoverMenu>
                 ))}
               </div>
             )}

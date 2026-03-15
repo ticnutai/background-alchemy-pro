@@ -11,7 +11,8 @@ import {
   Search, Pencil, EyeOff as EyeOffIcon, List, Grid3X3, ArrowDownAZ, ArrowUpAZ,
   RotateCw, TextCursorInput,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -110,6 +111,7 @@ const CATEGORY_COLORS = [
 
 // ─── Component ───────────────────────────────────────────────
 export default function CatalogBuilder() {
+  const navigate = useNavigate();
   // Products & Categories
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
@@ -654,45 +656,45 @@ export default function CatalogBuilder() {
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-auto sm:h-14 flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-0">
+        <div className="container flex h-14 items-center gap-3 px-4">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <Home className="h-4 w-4" />
           </Link>
-          <Separator orientation="vertical" className="h-5 hidden sm:block" />
-          <BookOpen className="h-5 w-5 text-primary hidden sm:block" />
-          <h1 className="font-bold text-base sm:text-lg">מחולל קטלוגים</h1>
-          <Badge variant="secondary" className="text-[10px] sm:text-xs">{products.length} מוצרים</Badge>
+          <Separator orientation="vertical" className="h-5" />
+          <BookOpen className="h-5 w-5 text-primary" />
+          <h1 className="font-bold text-lg">מחולל קטלוגים</h1>
+          <Badge variant="secondary" className="text-xs">{products.length} מוצרים</Badge>
           {categories.length > 0 && (
-            <Badge variant="outline" className="text-[10px] sm:text-xs hidden sm:inline-flex">{categories.length} קטגוריות</Badge>
+            <Badge variant="outline" className="text-xs">{categories.length} קטגוריות</Badge>
           )}
           {templateInfo.totalPages > 0 && (
-            <Badge variant="outline" className="text-[10px] sm:text-xs hidden sm:inline-flex">{templateInfo.totalPages} עמודים</Badge>
+            <Badge variant="outline" className="text-xs">{templateInfo.totalPages} עמודים</Badge>
           )}
           <div className="flex-1" />
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Label htmlFor="auto-preview" className="text-xs cursor-pointer">תצוגה אוטומטית</Label>
               <Switch id="auto-preview" checked={autoPreview} onCheckedChange={setAutoPreview} />
             </div>
             <Button variant="outline" size="sm" onClick={generate} disabled={generating || products.length === 0}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-              <span className="hidden sm:inline">תצוגה מקדימה</span>
+              תצוגה מקדימה
             </Button>
             <Button size="sm" onClick={exportPDF} disabled={products.length === 0}>
               <FileDown className="h-4 w-4" />
-              <span className="hidden sm:inline">ייצוא PDF</span>
+              ייצוא PDF
             </Button>
             <Button size="sm" variant="outline" onClick={saveCatalogToGallery} disabled={savingToGallery || pages.length === 0}>
               {savingToGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
-              <span className="hidden sm:inline">שמור לגלריה</span>
+              שמור לגלריה
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-3.5rem)]">
+      <div className="flex h-[calc(100vh-3.5rem)]">
         {/* ── Sidebar ──────────────────────────────────────── */}
-        <aside className="w-full lg:w-80 border-r bg-muted/30 flex flex-col">
+        <aside className="w-80 border-l bg-muted/30 flex flex-col">
           {/* Side tabs */}
           <div className="flex border-b overflow-x-auto">
             {[
@@ -1894,7 +1896,7 @@ export default function CatalogBuilder() {
         </aside>
 
         {/* ── Main Preview Area ────────────────────────────── */}
-        <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-muted/10">
+        <main className="flex-1 flex flex-col overflow-hidden bg-muted/10">
           {/* Progress bar during generation */}
           {generating && (
             <div className="px-4 pt-2">
@@ -2154,19 +2156,32 @@ export default function CatalogBuilder() {
                 const isEditing = galleryEditingId === item.id;
                 const displayName = getGalleryItemName(item);
                 return (
-                  <div
+                  <ImageHoverMenu
                     key={item.id}
-                    className={`relative rounded-lg border-2 overflow-hidden transition-all group ${
+                    imageUrl={item.image}
+                    hoverDelay={800}
+                    className={`relative rounded-lg border-2 transition-all group ${
                       isSelected
                         ? "border-primary ring-2 ring-primary/30"
                         : "border-transparent hover:border-primary/30"
                     }`}
+                    actions={{
+                      onZoom: () => toggleGalleryItem(item.id),
+                      onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(item.image)}`),
+                      onCollage: () => navigate(`/collage?importImage=${encodeURIComponent(item.image)}`),
+                      onDownload: () => {
+                        const link = document.createElement("a");
+                        link.href = item.image;
+                        link.download = displayName || "image.png";
+                        link.click();
+                      },
+                    }}
                   >
                     <button
                       onClick={() => toggleGalleryItem(item.id)}
                       className="w-full"
                     >
-                      <div className="aspect-square bg-muted">
+                      <div className="aspect-square bg-muted overflow-hidden rounded-t-lg">
                         <img
                           src={item.image}
                           alt={displayName}
@@ -2211,7 +2226,7 @@ export default function CatalogBuilder() {
                     }`}>
                       <Check className="h-3 w-3" />
                     </div>
-                  </div>
+                  </ImageHoverMenu>
                 );
               })}
             </div>
