@@ -612,7 +612,64 @@ export default function CollageBuilder() {
     setProcessing(false);
   }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
 
-  // ── Download ────────────────────────────────────────────────
+  // ── Compare Layouts ─────────────────────────────────────────
+  const handleCompareLayouts = useCallback(async () => {
+    if (images.length < 1) {
+      toast.error("העלה לפחות תמונה אחת");
+      return;
+    }
+    setCompareProcessing(true);
+    setCompareMode(true);
+    try {
+      const allSrcs = images.map(img => img.src);
+      const allCellColors = images.map(img => img.cellBgColor || null);
+      // Pick layouts that fit the number of images
+      const candidateLayouts = LAYOUT_OPTIONS.filter(l => l.maxImages >= Math.min(images.length, l.maxImages));
+      // Generate up to 6 previews with different layouts
+      const layoutsToPreview = candidateLayouts.slice(0, 6);
+      const previews: { layout: CollageLayout; label: string; dataUrl: string }[] = [];
+
+      for (const lo of layoutsToPreview) {
+        const pageSrcs = allSrcs.slice(0, lo.maxImages);
+        const pageCellColors = allCellColors.slice(0, lo.maxImages);
+        const collageOptions: CollageOptions = {
+          layout: lo.id,
+          width: 600, // smaller for speed
+          height: 600,
+          gap,
+          bgColor,
+          borderRadius,
+          fitMode,
+          frameStyle,
+          textOverlays,
+          bgGradient: bgGradientEnabled ? bgGradient : undefined,
+          cellBgColors: pageCellColors,
+          watermark: watermarkEnabled ? watermark : undefined,
+        };
+        try {
+          const dataUrl = await generateCollage(pageSrcs, collageOptions);
+          previews.push({ layout: lo.id, label: lo.label, dataUrl });
+        } catch {
+          // skip failed layouts
+        }
+      }
+
+      setComparePreviews(previews);
+      if (previews.length === 0) toast.error("לא הצלחנו ליצור תצוגות מקדימות");
+    } catch {
+      toast.error("שגיאה ביצירת תצוגות מקדימות");
+    }
+    setCompareProcessing(false);
+  }, [images, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
+
+  const selectCompareLayout = useCallback((selectedLayout: CollageLayout) => {
+    setLayout(selectedLayout);
+    setCompareMode(false);
+    setComparePreviews([]);
+    toast.success("הלייאאוט נבחר! לחץ 'צור קולאז׳' ליצירה באיכות מלאה");
+  }, []);
+
+
   const downloadCollage = useCallback(() => {
     if (!result) return;
     const a = document.createElement("a");
