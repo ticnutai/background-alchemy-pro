@@ -11,7 +11,8 @@ import {
   Search, Pencil, EyeOff as EyeOffIcon, List, Grid3X3, ArrowDownAZ, ArrowUpAZ,
   RotateCw, TextCursorInput,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

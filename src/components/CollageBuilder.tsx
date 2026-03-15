@@ -21,7 +21,9 @@ import {
   Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
   FileDown, FilePlus2, X
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 import {
   generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
