@@ -235,6 +235,7 @@ const Gallery = () => {
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null);
   const [showCompareView, setShowCompareView] = useState(false);
   const [showDownloadMenu, setShowDownloadMenu] = useState<string | null>(null); // item id or "zoom"
+  const [folderMenuItemId, setFolderMenuItemId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
