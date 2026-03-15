@@ -25,6 +25,11 @@ import SmartSuggestPanel from "@/components/SmartSuggestPanel";
 import ShareDialog from "@/components/ShareDialog";
 import ThemeToggle from "@/components/ThemeToggle";
 import DevSettingsDialog from "@/components/DevSettingsDialog";
+import LiveFilterPanel from "@/components/LiveFilterPanel";
+import FilterLayersPanel from "@/components/FilterLayersPanel";
+import ColorTransferPanel from "@/components/ColorTransferPanel";
+import RegionalMaskPanel from "@/components/RegionalMaskPanel";
+import { getCachedResult, setCachedResult } from "@/lib/result-cache";
 import type { User } from "@supabase/supabase-js";
 
 const Index = () => {
