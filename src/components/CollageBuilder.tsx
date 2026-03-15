@@ -645,14 +645,17 @@ export default function CollageBuilder() {
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm">לייאאוט</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      {LAYOUT_OPTIONS.map((opt) => (
-                        <Button key={opt.id} variant={layout === opt.id ? "default" : "outline"} size="sm" className="flex-col h-auto py-2 text-[10px]" onClick={() => setLayout(opt.id)}>
-                          {opt.icon}
-                          {opt.label}
-                        </Button>
-                      ))}
-                    </div>
+                    <ScrollArea className="max-h-[280px]">
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {LAYOUT_OPTIONS.map((opt) => (
+                          <Button key={opt.id} variant={layout === opt.id ? "default" : "outline"} size="sm" className="flex-col h-auto py-1.5 text-[9px] gap-0.5" onClick={() => setLayout(opt.id)}>
+                            {opt.icon}
+                            {opt.label}
+                            <span className="text-[8px] opacity-60">עד {opt.maxImages}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </CardContent>
                 </Card>
               </TabsContent>
