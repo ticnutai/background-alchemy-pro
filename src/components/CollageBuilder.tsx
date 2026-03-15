@@ -846,6 +846,97 @@ export default function CollageBuilder() {
                   </Card>
                 )}
               </TabsContent>
+
+              {/* ─── Templates Tab ─── */}
+              <TabsContent value="templates" className="space-y-3 mt-3">
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Save className="h-4 w-4" />שמור תבנית נוכחית
+                    </h3>
+                    <div className="flex gap-2">
+                      <Input
+                        value={templateName}
+                        onChange={e => setTemplateName(e.target.value)}
+                        placeholder="שם התבנית..."
+                        className="text-sm h-8"
+                        onKeyDown={e => { if (e.key === 'Enter') saveTemplate(); }}
+                      />
+                      <Button size="sm" className="shrink-0 gap-1" onClick={saveTemplate}>
+                        <Save className="h-3.5 w-3.5" />
+                        שמור
+                      </Button>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      שומר את כל ההגדרות: לייאאוט, מסגרת, צבעים, טקסטים וסגנונות
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <FolderOpen className="h-4 w-4" />תבניות שמורות ({savedTemplates.length})
+                    </h3>
+                    {savedTemplates.length === 0 ? (
+                      <div className="text-center py-6">
+                        <BookmarkPlus className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
+                        <p className="text-xs text-muted-foreground">אין תבניות שמורות</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">הגדר את העיצוב הרצוי ולחץ "שמור"</p>
+                      </div>
+                    ) : (
+                      <ScrollArea className="max-h-[400px]">
+                        <div className="space-y-2">
+                          {savedTemplates.map(tpl => (
+                            <div
+                              key={tpl.id}
+                              className="border rounded-lg p-3 space-y-2 hover:border-primary/30 transition-all"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold truncate">{tpl.name}</p>
+                                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                    <Clock className="h-2.5 w-2.5" />
+                                    {new Date(tpl.createdAt).toLocaleDateString('he-IL')}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => deleteTemplate(tpl.id)}
+                                  className="text-destructive hover:text-destructive/80 shrink-0 p-1"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                              <div className="flex flex-wrap gap-1">
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0">{LAYOUT_OPTIONS.find(l => l.id === tpl.layout)?.label || tpl.layout}</Badge>
+                                {tpl.frameStyle !== 'none' && <Badge variant="outline" className="text-[9px] px-1.5 py-0">{FRAME_PRESETS.find(f => f.id === tpl.frameStyle)?.label || tpl.frameStyle}</Badge>}
+                                {tpl.textOverlays.length > 0 && <Badge variant="outline" className="text-[9px] px-1.5 py-0">{tpl.textOverlays.length} טקסטים</Badge>}
+                                {tpl.bgGradientEnabled && <Badge variant="outline" className="text-[9px] px-1.5 py-0">גרדיאנט</Badge>}
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0">{tpl.fitMode === 'contain' ? 'התאם' : 'חיתוך'}</Badge>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <div className="w-5 h-5 rounded border" style={{ background: tpl.bgGradientEnabled ? `linear-gradient(135deg, ${tpl.bgGradient.from}, ${tpl.bgGradient.to})` : tpl.bgColor }} title="צבע רקע" />
+                                {tpl.frameStyle !== 'none' && (
+                                  <div className="w-5 h-5 rounded border-2 border-yellow-600" title="מסגרת" />
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full text-xs gap-1.5"
+                                onClick={() => loadTemplate(tpl)}
+                              >
+                                <FolderOpen className="h-3.5 w-3.5" />
+                                טען תבנית
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
             </Tabs>
 
             {/* Generate Button */}
