@@ -1123,13 +1123,17 @@ export default function CollageBuilder() {
                     <p className="text-[10px] text-muted-foreground">
                       שומר את כל ההגדרות: לייאאוט, מסגרת, צבעים, טקסטים וסגנונות
                     </p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="p-4 space-y-3">
-                    <h3 className="font-semibold text-sm flex items-center gap-2">
-                      <FolderOpen className="h-4 w-4" />תבניות שמורות ({savedTemplates.length})
+                    <div className="flex gap-1.5 pt-1 border-t">
+                      <Button variant="outline" size="sm" className="flex-1 text-[10px] gap-1" onClick={exportTemplates} disabled={savedTemplates.length === 0}>
+                        <FileDown className="h-3 w-3" />ייצוא JSON
+                      </Button>
+                      <label className="flex-1 cursor-pointer">
+                        <Button variant="outline" size="sm" className="w-full text-[10px] gap-1" asChild>
+                          <span><FilePlus2 className="h-3 w-3" />ייבוא JSON</span>
+                        </Button>
+                        <input type="file" accept=".json" className="hidden" onChange={importTemplates} />
+                      </label>
+                    </div>
                     </h3>
                     {savedTemplates.length === 0 ? (
                       <div className="text-center py-6">
