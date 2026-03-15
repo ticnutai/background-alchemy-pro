@@ -2156,19 +2156,32 @@ export default function CatalogBuilder() {
                 const isEditing = galleryEditingId === item.id;
                 const displayName = getGalleryItemName(item);
                 return (
-                  <div
+                  <ImageHoverMenu
                     key={item.id}
-                    className={`relative rounded-lg border-2 overflow-hidden transition-all group ${
+                    imageUrl={item.image}
+                    hoverDelay={800}
+                    className={`relative rounded-lg border-2 transition-all group ${
                       isSelected
                         ? "border-primary ring-2 ring-primary/30"
                         : "border-transparent hover:border-primary/30"
                     }`}
+                    actions={{
+                      onZoom: () => toggleGalleryItem(item.id),
+                      onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(item.image)}`),
+                      onCollage: () => navigate(`/collage?importImage=${encodeURIComponent(item.image)}`),
+                      onDownload: () => {
+                        const link = document.createElement("a");
+                        link.href = item.image;
+                        link.download = displayName || "image.png";
+                        link.click();
+                      },
+                    }}
                   >
                     <button
                       onClick={() => toggleGalleryItem(item.id)}
                       className="w-full"
                     >
-                      <div className="aspect-square bg-muted">
+                      <div className="aspect-square bg-muted overflow-hidden rounded-t-lg">
                         <img
                           src={item.image}
                           alt={displayName}
