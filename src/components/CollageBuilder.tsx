@@ -825,24 +825,29 @@ export default function CollageBuilder() {
                           </div>
                         ) : (
                           <div className="space-y-2">
-                            <label className="cursor-pointer">
-                              <Button variant="outline" size="sm" className="w-full text-xs gap-1" asChild>
-                                <span><Plus className="h-3 w-3" />{watermark.imageSrc ? 'החלף לוגו' : 'העלה לוגו'}</span>
+                            <div className="flex gap-1">
+                              <label className="cursor-pointer flex-1">
+                                <Button variant="outline" size="sm" className="w-full text-xs gap-1" asChild>
+                                  <span><Plus className="h-3 w-3" />{watermark.imageSrc ? 'החלף' : 'העלה'}</span>
+                                </Button>
+                                <input
+                                  ref={logoInputRef}
+                                  type="file"
+                                  accept="image/*"
+                                  className="hidden"
+                                  onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    const reader = new FileReader();
+                                    reader.onload = ev => setWatermark(w => ({ ...w, imageSrc: ev.target?.result as string }));
+                                    reader.readAsDataURL(file);
+                                  }}
+                                />
+                              </label>
+                              <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => openGalleryImport('logo')}>
+                                <Database className="h-3 w-3" />מהגלריה
                               </Button>
-                              <input
-                                ref={logoInputRef}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={e => {
-                                  const file = e.target.files?.[0];
-                                  if (!file) return;
-                                  const reader = new FileReader();
-                                  reader.onload = ev => setWatermark(w => ({ ...w, imageSrc: ev.target?.result as string }));
-                                  reader.readAsDataURL(file);
-                                }}
-                              />
-                            </label>
+                            </div>
                             {watermark.imageSrc && (
                               <div className="flex items-center gap-2">
                                 <img src={watermark.imageSrc} alt="logo" className="w-10 h-10 object-contain rounded border bg-muted" />
