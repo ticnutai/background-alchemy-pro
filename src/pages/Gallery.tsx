@@ -8,6 +8,7 @@ import {
   Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil, ChevronDown, Copy,
   FolderInput, LayoutGrid, BookOpen, Info,
 } from "lucide-react";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 import type { User } from "@supabase/supabase-js";
 import ImageAdjustmentsPanel, { getFilterString, defaultAdjustments, type ImageAdjustments } from "@/components/ImageAdjustmentsPanel";
 
