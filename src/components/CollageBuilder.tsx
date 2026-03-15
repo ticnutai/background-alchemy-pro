@@ -1334,7 +1334,7 @@ export default function CollageBuilder() {
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col" dir="rtl">
           <DialogHeader>
-            <DialogTitle>ייבוא תמונות מהגלריה / מהענן</DialogTitle>
+            <DialogTitle>{galleryImportMode === 'split' ? 'בחר תמונה לפיצול' : galleryImportMode === 'logo' ? 'בחר לוגו מהגלריה' : 'ייבוא תמונות מהגלריה / מהענן'}</DialogTitle>
           </DialogHeader>
           <div className="flex gap-2 mb-3">
             <Button variant={galleryTab === "history" ? "default" : "outline"} size="sm" onClick={() => { setGalleryTab("history"); loadGalleryItems("history"); }}>תמונות מעובדות</Button>
