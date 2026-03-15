@@ -146,7 +146,6 @@ const FONT_MAP: Record<string, string> = {
   sans: "Segoe UI, Arial, Helvetica, sans-serif",
   mono: "Consolas, 'Courier New', monospace",
   decorative: "'Segoe Script', 'Brush Script MT', cursive",
-  // Google Fonts
   "Assistant": "'Assistant', sans-serif",
   "Heebo": "'Heebo', sans-serif",
   "Rubik": "'Rubik', sans-serif",
