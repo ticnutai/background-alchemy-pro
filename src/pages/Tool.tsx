@@ -272,10 +272,11 @@ const ToolInner = () => {
 
     settled.forEach((result, idx) => {
       if (result.status === "fulfilled") {
-        results.push(result.value);
+        const val = result.value as { name: string; image: string; prompt: string };
+        results.push(val);
         // Fire-and-forget history save
         if (user) {
-          saveToHistoryAsync(user, originalImage, result.value.image, result.value.prompt, result.value.name);
+          saveToHistoryAsync(user, originalImage, val.image, val.prompt, val.name);
         }
       } else {
         toast.error(`שגיאה ב-${selectedBgs[idx].label}: ${(result.reason as Error)?.message}`);
@@ -697,8 +698,9 @@ const ToolInner = () => {
                     hebrewName={suggestedName}
                     englishName={selectedPresetName || suggestedName}
                     onSave={(he, en) => {
-                      setSuggestedName(he);
-                      setSelectedPresetName(en);
+                      dispatch({ type: "SET_SUGGESTED_NAME", payload: he });
+                      dispatch({ type: "SET_CUSTOM_PROMPT", payload: "" });
+                      dispatch({ type: "APPLY_BACKGROUND", payload: { prompt: state.activePrompt, name: en } });
                     }}
                     size="md"
                   />
@@ -946,7 +948,7 @@ const ToolInner = () => {
                           const currentImg = resultImage || originalImage;
                           const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as any) : null;
                           if (cached) {
-                            setResultImage(cached);
+                            dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
                             setLiveFilterCss("");
                             toast.success("נטען מ-cache!");
                             setFilterProcessing(false);
@@ -959,7 +961,7 @@ const ToolInner = () => {
                             if (error) throw error;
                             if (data?.error) throw new Error(data.error);
                             if (data?.resultImage) {
-                              setResultImage(data.resultImage);
+                              dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
                               if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as any, data.resultImage);
                               setLiveFilterCss("");
                               toast.success("הפילטרים הוחלו!");
@@ -988,7 +990,7 @@ const ToolInner = () => {
                               if (error) throw error;
                               if (data?.error) throw new Error(data.error);
                               if (data?.resultImage) {
-                                setResultImage(data.resultImage);
+                                dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
                                 setLiveFilterCss("");
                                 toast.success("השכבות הוחלו!");
                               }
@@ -1018,7 +1020,7 @@ const ToolInner = () => {
                               if (error) throw error;
                               if (data?.error) throw new Error(data.error);
                               if (data?.resultImage) {
-                                setResultImage(data.resultImage);
+                                dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
                                 toast.success("הפלטה הועברה בהצלחה!");
                               }
                             } catch (err: any) {
@@ -1040,7 +1042,7 @@ const ToolInner = () => {
                             const params = { region, filterType, intensity };
                             const cached = currentImg ? getCachedResult(currentImg, "regional-mask", params) : null;
                             if (cached) {
-                              setResultImage(cached);
+                              dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
                               toast.success("נטען מ-cache!");
                               setFilterProcessing(false);
                               return;
@@ -1052,7 +1054,7 @@ const ToolInner = () => {
                               if (error) throw error;
                               if (data?.error) throw new Error(data.error);
                               if (data?.resultImage) {
-                                setResultImage(data.resultImage);
+                                dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
                                 if (currentImg) setCachedResult(currentImg, "regional-mask", params, data.resultImage);
                                 toast.success("הפילטר האזורי הוחל!");
                               }

@@ -35,7 +35,7 @@ self.onmessage = async (e: MessageEvent<ExportMessage>) => {
     const q = (format === "jpg" || format === "webp") ? quality / 100 : undefined;
     const blob = await canvas.convertToBlob({ type: mimeType, quality: q });
 
-    self.postMessage({ type: "result", blob }, []);
+    self.postMessage({ type: "result", blob });
   } catch (err: any) {
     self.postMessage({ type: "error", error: err.message });
   }
