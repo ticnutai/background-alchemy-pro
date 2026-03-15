@@ -488,6 +488,26 @@ export async function sharpenImage(
 // ─── 11. Collage Layout Engine ──────────────────────────────────
 export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'masonry' | 'hero-side' | 'strip' | 'pinterest';
 
+export interface CollageTextOverlay {
+  id: string;
+  text: string;
+  x: number; // 0-1 ratio
+  y: number; // 0-1 ratio
+  fontSize: number;
+  fontFamily: string;
+  fontWeight: 'normal' | 'bold' | 'black';
+  color: string;
+  align: 'right' | 'center' | 'left';
+  opacity: number;
+  rotation: number;
+  shadow?: { color: string; blur: number; offsetX: number; offsetY: number };
+  stroke?: { color: string; width: number };
+  gradient?: { from: string; to: string; angle: number };
+  letterSpacing?: number;
+}
+
+export type FrameStyle = 'none' | 'thin-gold' | 'double-gold' | 'luxury-dark' | 'ornate-corners' | 'shadow-float' | 'neon-glow' | 'vintage-border' | 'marble-edge';
+
 export interface CollageOptions {
   layout: CollageLayout;
   width: number;
@@ -496,20 +516,193 @@ export interface CollageOptions {
   bgColor: string;
   borderRadius: number;
   fitMode?: 'cover' | 'contain';
+  frameStyle?: FrameStyle;
+  textOverlays?: CollageTextOverlay[];
+  bgGradient?: { from: string; to: string; angle: number };
+}
+
+const COLLAGE_FONT_MAP: Record<string, string> = {
+  'elegant-serif': '"Playfair Display", "Georgia", serif',
+  'modern-sans': '"Montserrat", "Helvetica Neue", sans-serif',
+  'classic-serif': '"Cormorant Garamond", "Times New Roman", serif',
+  'bold-display': '"Oswald", "Impact", sans-serif',
+  'handwritten': '"Dancing Script", cursive',
+  'luxury': '"Cinzel", "Trajan", serif',
+  'hebrew-classic': '"Frank Ruhl Libre", "David", serif',
+  'hebrew-modern': '"Heebo", "Arial", sans-serif',
+  'hebrew-display': '"Rubik", sans-serif',
+  'hebrew-elegant': '"Assistant", sans-serif',
+  'mono': '"JetBrains Mono", monospace',
+};
+
+function drawFrameOnCell(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number,
+  style: FrameStyle
+) {
+  ctx.save();
+  switch (style) {
+    case 'thin-gold': {
+      ctx.strokeStyle = '#c9a84c';
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+      break;
+    }
+    case 'double-gold': {
+      ctx.strokeStyle = '#c9a84c';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+      ctx.strokeRect(x + 8, y + 8, w - 16, h - 16);
+      break;
+    }
+    case 'luxury-dark': {
+      ctx.strokeStyle = '#1a1a2e';
+      ctx.lineWidth = 6;
+      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+      ctx.strokeStyle = '#c9a84c';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x + 8, y + 8, w - 16, h - 16);
+      break;
+    }
+    case 'ornate-corners': {
+      const cs = Math.min(w, h) * 0.12;
+      ctx.strokeStyle = '#c9a84c';
+      ctx.lineWidth = 2;
+      // Top-left
+      ctx.beginPath(); ctx.moveTo(x + 4, y + cs + 4); ctx.lineTo(x + 4, y + 4); ctx.lineTo(x + cs + 4, y + 4); ctx.stroke();
+      // Top-right
+      ctx.beginPath(); ctx.moveTo(x + w - cs - 4, y + 4); ctx.lineTo(x + w - 4, y + 4); ctx.lineTo(x + w - 4, y + cs + 4); ctx.stroke();
+      // Bottom-right
+      ctx.beginPath(); ctx.moveTo(x + w - 4, y + h - cs - 4); ctx.lineTo(x + w - 4, y + h - 4); ctx.lineTo(x + w - cs - 4, y + h - 4); ctx.stroke();
+      // Bottom-left
+      ctx.beginPath(); ctx.moveTo(x + cs + 4, y + h - 4); ctx.lineTo(x + 4, y + h - 4); ctx.lineTo(x + 4, y + h - cs - 4); ctx.stroke();
+      break;
+    }
+    case 'shadow-float': {
+      ctx.shadowColor = 'rgba(0,0,0,0.4)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = 6;
+      ctx.shadowOffsetY = 6;
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.fillRect(x, y, w, h);
+      break;
+    }
+    case 'neon-glow': {
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 15;
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+      ctx.shadowBlur = 0;
+      break;
+    }
+    case 'vintage-border': {
+      ctx.strokeStyle = '#8b7355';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([12, 4]);
+      ctx.strokeRect(x + 5, y + 5, w - 10, h - 10);
+      ctx.setLineDash([]);
+      break;
+    }
+    case 'marble-edge': {
+      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+      grad.addColorStop(0, '#e8e0d4');
+      grad.addColorStop(0.5, '#c9a84c');
+      grad.addColorStop(1, '#e8e0d4');
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = 5;
+      ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+function drawCollageTextOverlay(
+  ctx: CanvasRenderingContext2D,
+  overlay: CollageTextOverlay,
+  canvasW: number,
+  canvasH: number
+) {
+  ctx.save();
+  const px = overlay.x * canvasW;
+  const py = overlay.y * canvasH;
+  const fontSize = overlay.fontSize;
+  const fontFace = COLLAGE_FONT_MAP[overlay.fontFamily] || COLLAGE_FONT_MAP['hebrew-modern'];
+  const weight = overlay.fontWeight === 'black' ? '900' : overlay.fontWeight === 'bold' ? '700' : '400';
+
+  ctx.globalAlpha = overlay.opacity;
+  ctx.font = `${weight} ${fontSize}px ${fontFace}`;
+  ctx.textAlign = overlay.align;
+  ctx.textBaseline = 'middle';
+
+  if (overlay.rotation) {
+    ctx.translate(px, py);
+    ctx.rotate((overlay.rotation * Math.PI) / 180);
+    ctx.translate(-px, -py);
+  }
+
+  // Shadow
+  if (overlay.shadow) {
+    ctx.shadowColor = overlay.shadow.color;
+    ctx.shadowBlur = overlay.shadow.blur;
+    ctx.shadowOffsetX = overlay.shadow.offsetX;
+    ctx.shadowOffsetY = overlay.shadow.offsetY;
+  }
+
+  // Gradient or solid fill
+  if (overlay.gradient) {
+    const angle = (overlay.gradient.angle * Math.PI) / 180;
+    const len = fontSize * overlay.text.length * 0.3;
+    const gx = px - Math.cos(angle) * len;
+    const gy = py - Math.sin(angle) * len;
+    const gx2 = px + Math.cos(angle) * len;
+    const gy2 = py + Math.sin(angle) * len;
+    const grad = ctx.createLinearGradient(gx, gy, gx2, gy2);
+    grad.addColorStop(0, overlay.gradient.from);
+    grad.addColorStop(1, overlay.gradient.to);
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = overlay.color;
+  }
+
+  // Stroke
+  if (overlay.stroke) {
+    ctx.strokeStyle = overlay.stroke.color;
+    ctx.lineWidth = overlay.stroke.width;
+    ctx.lineJoin = 'round';
+    ctx.strokeText(overlay.text, px, py);
+  }
+
+  ctx.fillText(overlay.text, px, py);
+  ctx.restore();
 }
 
 export async function generateCollage(
   images: string[],
   options: CollageOptions
 ): Promise<string> {
-  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain' } = options;
+  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d')!;
 
-  // Background
-  ctx.fillStyle = bgColor;
+  // Background — gradient or solid
+  if (bgGradient) {
+    const angle = (bgGradient.angle * Math.PI) / 180;
+    const cx = width / 2, cy = height / 2;
+    const len = Math.max(width, height);
+    const grad = ctx.createLinearGradient(
+      cx - Math.cos(angle) * len / 2, cy - Math.sin(angle) * len / 2,
+      cx + Math.cos(angle) * len / 2, cy + Math.sin(angle) * len / 2
+    );
+    grad.addColorStop(0, bgGradient.from);
+    grad.addColorStop(1, bgGradient.to);
+    ctx.fillStyle = grad;
+  } else {
+    ctx.fillStyle = bgColor;
+  }
   ctx.fillRect(0, 0, width, height);
 
   const loadedImages = await Promise.all(images.slice(0, getMaxImages(layout)).map(loadImage));
@@ -525,7 +718,6 @@ export async function generateCollage(
     }
 
     if (fitMode === 'contain') {
-      // Contain-fit: show entire image, fill remaining space with bgColor
       ctx.fillStyle = bgColor;
       ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
       const imgRatio = img.width / img.height;
@@ -542,7 +734,6 @@ export async function generateCollage(
       const dy = cell.y + (cell.h - dh) / 2;
       ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
     } else {
-      // Cover-fit: fill cell, crop excess
       const imgRatio = img.width / img.height;
       const cellRatio = cell.w / cell.h;
       let sx = 0, sy = 0, sw = img.width, sh = img.height;
@@ -556,6 +747,16 @@ export async function generateCollage(
       ctx.drawImage(img, sx, sy, sw, sh, cell.x, cell.y, cell.w, cell.h);
     }
     ctx.restore();
+
+    // Frame on each cell
+    if (frameStyle && frameStyle !== 'none') {
+      drawFrameOnCell(ctx, cell.x, cell.y, cell.w, cell.h, frameStyle);
+    }
+  }
+
+  // Text overlays
+  for (const overlay of textOverlays) {
+    drawCollageTextOverlay(ctx, overlay, width, height);
   }
 
   return canvasToDataUrl(canvas);
