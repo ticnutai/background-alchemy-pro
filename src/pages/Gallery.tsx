@@ -825,7 +825,7 @@ const Gallery = () => {
                         </button>
                         <div className="w-px h-4 bg-border" />
                         <button
-                          onClick={e => { e.stopPropagation(); deleteItem(item.id); }}
+                          onClick={e => { e.stopPropagation(); confirmDeleteItem(item.id); }}
                           className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                           title="מחק"
                         >
