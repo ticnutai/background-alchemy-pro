@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Heart, Trash2, Clock, X, Download, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { Heart, Trash2, Clock, X, Download, Pencil } from "lucide-react";
 import EditableLabel from "@/components/EditableLabel";
 
 interface HistoryItem {
@@ -19,14 +19,11 @@ interface HistoryPanelProps {
   onSelectImage?: (url: string) => void;
 }
 
-const PAGE_SIZE = 24;
-
 const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [page, setPage] = useState(0);
 
   useEffect(() => {
     loadHistory();
@@ -97,8 +94,6 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
   };
 
   const filtered = filter === "favorites" ? items.filter((i) => i.is_favorite) : items;
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm p-4" dir="rtl">
@@ -151,9 +146,8 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
               </p>
             </div>
           ) : (
-            <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {paged.map((item) => (
+              {filtered.map((item) => (
                 <div
                   key={item.id}
                   className="group relative rounded-xl border border-border overflow-hidden bg-background transition-all hover:border-gold/40 hover:shadow-lg"
@@ -222,28 +216,6 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
                 </div>
               ))}
             </div>
-            {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 pt-4">
-                <button
-                  disabled={page <= 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  className="rounded-lg p-1.5 hover:bg-secondary disabled:opacity-30 transition-colors"
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-                <span className="font-accent text-xs text-muted-foreground">
-                  עמוד {page + 1} מתוך {totalPages}
-                </span>
-                <button
-                  disabled={page >= totalPages - 1}
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                  className="rounded-lg p-1.5 hover:bg-secondary disabled:opacity-30 transition-colors"
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-              </div>
-            )}
-            </>
           )}
         </div>
       </div>

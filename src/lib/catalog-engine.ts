@@ -85,7 +85,7 @@ export interface CatalogSettings {
   accentColor: string;
   bgColor: string;
   textColor: string;
-  fontFamily: string;
+  fontFamily: "serif" | "sans" | "mono";
   template: CatalogTemplate;
   pageSize: PageSize;
   showPrices: boolean;
@@ -146,50 +146,7 @@ const FONT_MAP: Record<string, string> = {
   sans: "Segoe UI, Arial, Helvetica, sans-serif",
   mono: "Consolas, 'Courier New', monospace",
   decorative: "'Segoe Script', 'Brush Script MT', cursive",
-  // Google Fonts
-  "Assistant": "'Assistant', sans-serif",
-  "Heebo": "'Heebo', sans-serif",
-  "Rubik": "'Rubik', sans-serif",
-  "Frank Ruhl Libre": "'Frank Ruhl Libre', serif",
-  "Secular One": "'Secular One', sans-serif",
-  "Suez One": "'Suez One', serif",
-  "Amatic SC": "'Amatic SC', cursive",
-  "Karantina": "'Karantina', cursive",
-  "Playfair Display": "'Playfair Display', serif",
-  "Cormorant Garamond": "'Cormorant Garamond', serif",
-  "Montserrat": "'Montserrat', sans-serif",
-  "Poppins": "'Poppins', sans-serif",
 };
-
-export const FONT_OPTIONS: { id: string; label: string }[] = [
-  { id: "sans", label: "Sans" },
-  { id: "serif", label: "Serif" },
-  { id: "mono", label: "Mono" },
-  { id: "Assistant", label: "Assistant" },
-  { id: "Heebo", label: "Heebo" },
-  { id: "Rubik", label: "Rubik" },
-  { id: "Frank Ruhl Libre", label: "Frank Ruhl" },
-  { id: "Secular One", label: "Secular" },
-  { id: "Suez One", label: "Suez" },
-  { id: "Amatic SC", label: "Amatic" },
-  { id: "Karantina", label: "Karantina" },
-  { id: "Playfair Display", label: "Playfair" },
-  { id: "Cormorant Garamond", label: "Cormorant" },
-  { id: "Montserrat", label: "Montserrat" },
-  { id: "Poppins", label: "Poppins" },
-];
-
-const _loadedFonts = new Set<string>();
-export async function loadGoogleFont(family: string): Promise<void> {
-  if (_loadedFonts.has(family) || ["serif", "sans", "mono", "decorative"].includes(family)) return;
-  const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@400;700&display=swap`;
-  const link = document.createElement("link");
-  link.rel = "stylesheet";
-  link.href = url;
-  document.head.appendChild(link);
-  await document.fonts.load(`16px "${family}"`);
-  _loadedFonts.add(family);
-}
 
 // ─── Helpers ─────────────────────────────────────────────────
 function loadImage(src: string): Promise<HTMLImageElement> {
