@@ -17,7 +17,7 @@ import {
   Image as ImageIcon, Wand2, Palette, SunMedium, Contrast, Sparkles,
   Scissors, Eraser, RefreshCw, Type, Frame, Pencil, RotateCw, Bold,
   AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
-  BookmarkPlus, Clock
+  BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
