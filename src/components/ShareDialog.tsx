@@ -22,10 +22,11 @@ const ShareDialog = ({ imageUrl, title, onClose }: ShareDialogProps) => {
   const createShortUrl = async () => {
     setShortening(true);
     try {
+      // Upload the image as a small redirect file in Supabase Storage
       const id = crypto.randomUUID().slice(0, 8);
       const fileName = `shared/${id}.html`;
       const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${imageUrl}"></head></html>`;
-      const { error } = await supabase.storage
+      const { data, error } = await supabase.storage
         .from("processing-results")
         .upload(fileName, new Blob([html], { type: "text/html" }), { upsert: true });
       if (error) throw error;

@@ -1,27 +1,36 @@
 import { supabase } from "@/integrations/supabase/client";
 
-// ─── Timeout & Abort ─────────────────────────────────────────
-let _abortController: AbortController | null = null;
+/** Default timeout for AI operations (90 seconds) */
+const AI_TIMEOUT_MS = 90_000;
 
-function withTimeout<T>(
-  fn: (signal: AbortSignal) => Promise<T>,
-  ms = 90_000,
-): Promise<T> {
-  _abortController = new AbortController();
-  const signal = _abortController.signal;
-  const timeout = setTimeout(() => _abortController?.abort(), ms);
-  return fn(signal).finally(() => {
-    clearTimeout(timeout);
-    _abortController = null;
+/** Global AbortController for the current AI operation */
+let _activeController: AbortController | null = null;
+
+/** Abort any in-flight AI operation */
+export function abortAiOperation() {
+  if (_activeController) {
+    _activeController.abort();
+    _activeController = null;
+  }
+}
+
+/** Check if an AI operation is currently running */
+export function isAiRunning() {
+  return _activeController !== null;
+}
+
+function withTimeout<T>(promise: Promise<T>, ms = AI_TIMEOUT_MS): Promise<T> {
+  _activeController = new AbortController();
+  const signal = _activeController.signal;
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("הפעולה חרגה מזמן ההמתנה")), ms);
+    const onAbort = () => { clearTimeout(timer); reject(new Error("הפעולה בוטלה")); };
+    signal.addEventListener("abort", onAbort, { once: true });
+    promise.then(
+      (v) => { clearTimeout(timer); signal.removeEventListener("abort", onAbort); _activeController = null; resolve(v); },
+      (e) => { clearTimeout(timer); signal.removeEventListener("abort", onAbort); _activeController = null; reject(e); },
+    );
   });
-}
-
-export function abortAiOperation(): void {
-  _abortController?.abort();
-}
-
-export function isAiRunning(): boolean {
-  return _abortController !== null;
 }
 
 // Cloudinary optimization and CDN delivery utility
@@ -37,10 +46,9 @@ export interface CloudinaryOperations {
 }
 
 export async function cloudinaryOptimize(imageUrl: string, operations: CloudinaryOperations) {
-  return withTimeout(async () => {
-  const { data, error } = await supabase.functions.invoke("cloudinary-optimize", {
+  const { data, error } = await withTimeout(supabase.functions.invoke("cloudinary-optimize", {
     body: { imageUrl, operations },
-  });
+  }));
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as {
@@ -52,64 +60,53 @@ export async function cloudinaryOptimize(imageUrl: string, operations: Cloudinar
     format: string;
     bytes: number;
   };
-  });
 }
 
 // Replicate-based AI tools
 
 export async function removeBgPrecise(imageBase64: string) {
-  return withTimeout(async () => {
-  const { data, error } = await supabase.functions.invoke("remove-bg-precise", {
+  const { data, error } = await withTimeout(supabase.functions.invoke("remove-bg-precise", {
     body: { imageBase64 },
-  });
+  }));
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as { resultImage: string; method: string };
-  });
 }
 
 export async function upscaleImage(imageBase64: string, scale: number = 4) {
-  return withTimeout(async () => {
-  const { data, error } = await supabase.functions.invoke("upscale-image", {
+  const { data, error } = await withTimeout(supabase.functions.invoke("upscale-image", {
     body: { imageBase64, scale },
-  });
+  }), 180_000);
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as { resultImage: string; scale: number; method: string };
-  }, 180_000);
 }
 
 export async function relightImage(imageBase64: string, lightingPrompt?: string) {
-  return withTimeout(async () => {
-  const { data, error } = await supabase.functions.invoke("relight-image", {
+  const { data, error } = await withTimeout(supabase.functions.invoke("relight-image", {
     body: { imageBase64, lightingPrompt },
-  });
+  }));
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as { resultImage: string; method: string };
-  });
 }
 
 export async function inpaintRemove(imageBase64: string, maskBase64?: string, description?: string) {
-  return withTimeout(async () => {
-  const { data, error } = await supabase.functions.invoke("inpaint-remove", {
+  const { data, error } = await withTimeout(supabase.functions.invoke("inpaint-remove", {
     body: { imageBase64, maskBase64, description },
-  });
+  }));
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as { resultImage: string; method: string };
-  });
 }
 
 export async function segmentProduct(imageBase64: string, pointPrompts?: string) {
-  return withTimeout(async () => {
-  const { data, error } = await supabase.functions.invoke("segment-product", {
+  const { data, error } = await withTimeout(supabase.functions.invoke("segment-product", {
     body: { imageBase64, pointPrompts },
-  });
+  }));
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as { detections: Record<string, unknown>; segmentation: Record<string, unknown>; method: string };
-  });
 }
 
 export async function generateBgSdxl(
@@ -118,14 +115,12 @@ export async function generateBgSdxl(
   negativePrompt?: string,
   strength?: number
 ) {
-  return withTimeout(async () => {
-  const { data, error } = await supabase.functions.invoke("generate-bg-sdxl", {
+  const { data, error } = await withTimeout(supabase.functions.invoke("generate-bg-sdxl", {
     body: { imageBase64, backgroundPrompt, negativePrompt, strength },
-  });
+  }));
   if (error) throw error;
   if (data?.error) throw new Error(data.error);
   return data as { resultImage: string; method: string };
-  });
 }
 
 // Lighting presets for IC-Light

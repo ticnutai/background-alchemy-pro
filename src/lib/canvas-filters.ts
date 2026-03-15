@@ -116,75 +116,98 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-// ─── Web Worker Integration ─────────────────────────────────
+// ─── Web Worker Pool ─────────────────────────────────────────
 let _filterWorker: Worker | null = null;
+let _workerFailed = false;
 
 function getFilterWorker(): Worker | null {
-  if (typeof Worker === "undefined") return null;
-  if (!_filterWorker) {
-    try {
-      _filterWorker = new Worker(
-        new URL("./filter-worker.ts", import.meta.url),
-        { type: "module" },
-      );
-    } catch { return null; }
+  if (_workerFailed) return null;
+  if (_filterWorker) return _filterWorker;
+  try {
+    _filterWorker = new Worker(
+      new URL("./filter-worker.ts", import.meta.url),
+      { type: "module" },
+    );
+    _filterWorker.onerror = () => { _workerFailed = true; _filterWorker = null; };
+    return _filterWorker;
+  } catch {
+    _workerFailed = true;
+    return null;
   }
-  return _filterWorker;
 }
 
 function runPixelsInWorker(
   pixels: Uint8ClampedArray,
-  w: number,
-  h: number,
-  options: CanvasFilterOptions,
+  width: number,
+  height: number,
+  options: Record<string, number>,
 ): Promise<Uint8ClampedArray> {
   const worker = getFilterWorker();
   if (!worker) return Promise.reject(new Error("no worker"));
+
   return new Promise((resolve, reject) => {
     const copy = new Uint8ClampedArray(pixels);
-    worker.onmessage = (e) => resolve(new Uint8ClampedArray(e.data.pixels));
-    worker.onerror = reject;
-    worker.postMessage(
-      { pixels: copy, width: w, height: h, options },
-      [copy.buffer] as unknown as Transferable[],
-    );
+    const handler = (e: MessageEvent) => {
+      worker.removeEventListener("message", handler);
+      resolve(e.data.pixels as Uint8ClampedArray);
+    };
+    const errHandler = () => {
+      worker.removeEventListener("error", errHandler);
+      reject(new Error("worker error"));
+    };
+    worker.addEventListener("message", handler);
+    worker.addEventListener("error", errHandler, { once: true });
+    worker.postMessage({ pixels: copy, width, height, options }, [copy.buffer] as never);
   });
 }
 
-/**
- * Main-thread pixel processing fallback (same logic as filter-worker).
- */
-function applyPixelFiltersMainThread(data: Uint8ClampedArray, options: CanvasFilterOptions) {
-  const o = { ...defaultCanvasFilters, ...options };
+/** Main-thread fallback for per-pixel filter processing */
+function applyPixelFiltersMainThread(data: Uint8ClampedArray, o: CanvasFilterOptions) {
+  const merged = { ...defaultCanvasFilters, ...o };
   const brightnessLut = new Uint8Array(256);
   const contrastLut = new Uint8Array(256);
   const levelsLut = new Uint8Array(256);
-  const brightFactor = (o.brightness! / 100);
-  const expFactor = Math.pow(2, o.exposure! / 100);
+
+  const brightFactor = (merged.brightness! / 100);
+  const expFactor = Math.pow(2, merged.exposure! / 100);
   for (let i = 0; i < 256; i++) brightnessLut[i] = clamp(Math.round(i * brightFactor * expFactor));
-  const contrastFactor = (o.contrast! - 100) / 100;
+
+  const contrastFactor = (merged.contrast! - 100) / 100;
   const intercept = 128 * (1 - (1 + contrastFactor));
   for (let i = 0; i < 256; i++) contrastLut[i] = clamp(Math.round(i * (1 + contrastFactor) + intercept));
-  const lBlack = o.levelsBlack!, lWhite = o.levelsWhite!, lMid = o.levelsMidtones!;
+
+  const lBlack = merged.levelsBlack!, lWhite = merged.levelsWhite!, lMid = merged.levelsMidtones!;
   const lRange = Math.max(lWhite - lBlack, 1);
   for (let i = 0; i < 256; i++) {
-    let v = (i - lBlack) / lRange; v = Math.max(0, Math.min(1, v)); v = Math.pow(v, 1 / lMid);
+    let v = (i - lBlack) / lRange;
+    v = Math.max(0, Math.min(1, v));
+    v = Math.pow(v, 1 / lMid);
     levelsLut[i] = clamp(Math.round(v * 255));
   }
-  const dehazeContrast = 1 + (o.dehaze! * 0.005), dehazeSat = 1 + (o.dehaze! * 0.003);
-  const fadeAmount = o.fade! / 100, satFactor = o.saturation! / 100, vibranceFactor = o.vibrance! / 100;
-  const warmShift = o.warmth! * 1.5, tintShift = o.tint! * 1.2, hueShift = o.hue! / 360;
-  const bwAmount = o.blackAndWhite! / 100, sepiaAmount = o.sepiaTone! / 100;
-  const highlightFactor = o.highlights! / 100, shadowFactor = o.shadows! / 100;
-  const cbSR = o.cbShadowsR! / 100, cbSG = o.cbShadowsG! / 100, cbSB = o.cbShadowsB! / 100;
-  const cbMR = o.cbMidtonesR! / 100, cbMG = o.cbMidtonesG! / 100, cbMB = o.cbMidtonesB! / 100;
-  const cbHR = o.cbHighlightsR! / 100, cbHG = o.cbHighlightsG! / 100, cbHB = o.cbHighlightsB! / 100;
+
+  const dehazeContrast = 1 + (merged.dehaze! * 0.005);
+  const dehazeSat = 1 + (merged.dehaze! * 0.003);
+  const fadeAmount = merged.fade! / 100;
+  const satFactor = merged.saturation! / 100;
+  const vibranceFactor = merged.vibrance! / 100;
+  const warmShift = merged.warmth! * 1.5;
+  const tintShift = merged.tint! * 1.2;
+  const hueShift = merged.hue! / 360;
+  const bwAmount = merged.blackAndWhite! / 100;
+  const sepiaAmount = merged.sepiaTone! / 100;
+  const highlightFactor = merged.highlights! / 100;
+  const shadowFactor = merged.shadows! / 100;
+  const cbSR = merged.cbShadowsR! / 100, cbSG = merged.cbShadowsG! / 100, cbSB = merged.cbShadowsB! / 100;
+  const cbMR = merged.cbMidtonesR! / 100, cbMG = merged.cbMidtonesG! / 100, cbMB = merged.cbMidtonesB! / 100;
+  const cbHR = merged.cbHighlightsR! / 100, cbHG = merged.cbHighlightsG! / 100, cbHB = merged.cbHighlightsB! / 100;
+
   for (let i = 0; i < data.length; i += 4) {
     let r = data[i], g = data[i + 1], b = data[i + 2];
     r = brightnessLut[r]; g = brightnessLut[g]; b = brightnessLut[b];
     r = contrastLut[r]; g = contrastLut[g]; b = contrastLut[b];
     r = levelsLut[r]; g = levelsLut[g]; b = levelsLut[b];
-    if (o.dehaze! > 0) {
+
+    if (merged.dehaze! > 0) {
       const avg = (r + g + b) / 3;
       r = clamp(Math.round((r - avg) * dehazeContrast + avg));
       g = clamp(Math.round((g - avg) * dehazeContrast + avg));
@@ -194,31 +217,68 @@ function applyPixelFiltersMainThread(data: Uint8ClampedArray, options: CanvasFil
       g = clamp(Math.round(gray + (g - gray) * dehazeSat));
       b = clamp(Math.round(gray + (b - gray) * dehazeSat));
     }
+
     const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    if (highlightFactor !== 0) { const w = lum * lum, s = highlightFactor * 80 * w; r = clamp(Math.round(r + s)); g = clamp(Math.round(g + s)); b = clamp(Math.round(b + s)); }
-    if (shadowFactor !== 0) { const w = (1 - lum) * (1 - lum), s = shadowFactor * 80 * w; r = clamp(Math.round(r + s)); g = clamp(Math.round(g + s)); b = clamp(Math.round(b + s)); }
-    const ln = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-    const sw = Math.max(0, 1 - ln * 3), hw = Math.max(0, ln * 3 - 2), mw = 1 - sw - hw;
+    if (highlightFactor !== 0) {
+      const hlWeight = lum * lum;
+      r = clamp(Math.round(r + highlightFactor * 80 * hlWeight));
+      g = clamp(Math.round(g + highlightFactor * 80 * hlWeight));
+      b = clamp(Math.round(b + highlightFactor * 80 * hlWeight));
+    }
+    if (shadowFactor !== 0) {
+      const shWeight = (1 - lum) * (1 - lum);
+      r = clamp(Math.round(r + shadowFactor * 80 * shWeight));
+      g = clamp(Math.round(g + shadowFactor * 80 * shWeight));
+      b = clamp(Math.round(b + shadowFactor * 80 * shWeight));
+    }
+
+    const lumNorm = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    const sw = Math.max(0, 1 - lumNorm * 3);
+    const hw = Math.max(0, lumNorm * 3 - 2);
+    const mw = 1 - sw - hw;
     r = clamp(Math.round(r + (cbSR * sw + cbMR * mw + cbHR * hw) * 50));
     g = clamp(Math.round(g + (cbSG * sw + cbMG * mw + cbHG * hw) * 50));
     b = clamp(Math.round(b + (cbSB * sw + cbMB * mw + cbHB * hw) * 50));
+
     if (warmShift !== 0) { r = clamp(Math.round(r + warmShift)); b = clamp(Math.round(b - warmShift * 0.7)); }
     if (tintShift !== 0) { g = clamp(Math.round(g + tintShift)); }
+
     let [h, s, l] = rgbToHsl(r, g, b);
     if (hueShift !== 0) h = (h + hueShift + 1) % 1;
     s = Math.max(0, Math.min(1, s * satFactor));
-    if (vibranceFactor !== 0) { s = Math.max(0, Math.min(1, s + vibranceFactor * (1 - s) * 0.5)); }
-    [r, g, b] = hslToRgb(h, s, l); r = Math.round(r); g = Math.round(g); b = Math.round(b);
-    if (bwAmount > 0) { const gr = 0.299 * r + 0.587 * g + 0.114 * b; r = Math.round(r * (1 - bwAmount) + gr * bwAmount); g = Math.round(g * (1 - bwAmount) + gr * bwAmount); b = Math.round(b * (1 - bwAmount) + gr * bwAmount); }
-    if (sepiaAmount > 0) { const sr2 = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189), sg2 = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168), sb2 = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131); r = Math.round(r * (1 - sepiaAmount) + sr2 * sepiaAmount); g = Math.round(g * (1 - sepiaAmount) + sg2 * sepiaAmount); b = Math.round(b * (1 - sepiaAmount) + sb2 * sepiaAmount); }
-    if (fadeAmount > 0) { const la = fadeAmount * 60; r = clamp(Math.round(r + la * (1 - r / 255))); g = clamp(Math.round(g + la * (1 - g / 255))); b = clamp(Math.round(b + la * (1 - b / 255))); }
+    if (vibranceFactor !== 0) s = Math.max(0, Math.min(1, s + vibranceFactor * (1 - s) * 0.5));
+    [r, g, b] = hslToRgb(h, s, l);
+    r = Math.round(r); g = Math.round(g); b = Math.round(b);
+
+    if (bwAmount > 0) {
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      r = Math.round(r * (1 - bwAmount) + gray * bwAmount);
+      g = Math.round(g * (1 - bwAmount) + gray * bwAmount);
+      b = Math.round(b * (1 - bwAmount) + gray * bwAmount);
+    }
+    if (sepiaAmount > 0) {
+      const sr = Math.min(255, r * 0.393 + g * 0.769 + b * 0.189);
+      const sg = Math.min(255, r * 0.349 + g * 0.686 + b * 0.168);
+      const sb = Math.min(255, r * 0.272 + g * 0.534 + b * 0.131);
+      r = Math.round(r * (1 - sepiaAmount) + sr * sepiaAmount);
+      g = Math.round(g * (1 - sepiaAmount) + sg * sepiaAmount);
+      b = Math.round(b * (1 - sepiaAmount) + sb * sepiaAmount);
+    }
+    if (fadeAmount > 0) {
+      const lift = fadeAmount * 60;
+      r = clamp(Math.round(r + lift * (1 - r / 255)));
+      g = clamp(Math.round(g + lift * (1 - g / 255)));
+      b = clamp(Math.round(b + lift * (1 - b / 255)));
+    }
+
     data[i] = r; data[i + 1] = g; data[i + 2] = b;
   }
 }
 
 /**
  * Apply all canvas filters to an image and return the result as base64.
- * Tries Web Worker first, falls back to main thread.
+ * Per-pixel processing is offloaded to a Web Worker when available.
+ * Falls back to main thread if worker is unavailable.
  */
 export async function applyCanvasFilters(
   imageSrc: string,
@@ -239,13 +299,22 @@ export async function applyCanvasFilters(
   // Step 2: Get pixel data
   const imageData = ctx.getImageData(0, 0, w, h);
 
-  // Try Web Worker first, fall back to main thread
+  const o = { ...defaultCanvasFilters, ...options };
+  const flatOpts: Record<string, number> = {};
+  for (const [k, v] of Object.entries(o)) flatOpts[k] = v as number;
+
+  // Try Web Worker for per-pixel processing
+  let workerProcessed = false;
   try {
-    const processed = await runPixelsInWorker(imageData.data, w, h, options);
+    const processed = await runPixelsInWorker(imageData.data, w, h, flatOpts);
     imageData.data.set(processed);
+    workerProcessed = true;
   } catch {
-    // Main-thread fallback
-    applyPixelFiltersMainThread(imageData.data, options);
+    // Fallback: process on main thread
+  }
+
+  if (!workerProcessed) {
+    applyPixelFiltersMainThread(imageData.data, o);
   }
 
   // Write processed pixels

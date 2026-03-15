@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook, BookOpen, LayoutGrid, Menu, X as XIcon } from "lucide-react";
+import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook, Menu, X as XIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import studioLogo from "@/assets/studio-logo.png";
@@ -47,6 +47,7 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
+            {/* Hamburger for mobile */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="rounded-lg p-2 hover:bg-secondary transition-colors md:hidden"
@@ -54,28 +55,15 @@ const Index = () => {
               {mobileMenuOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
             <Link
-              to="/tool"
+              to="/workspace"
               className="flex items-center gap-2 rounded-full bg-gold px-5 py-2 font-accent text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
             >
               <Sparkles className="h-3.5 w-3.5" />
-              כלי AI לרקעים
-            </Link>
-            <Link
-              to="/catalog"
-              className="flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2 font-accent text-xs font-semibold text-foreground transition-all hover:bg-gold/10"
-            >
-              <BookOpen className="h-3.5 w-3.5" />
-              מחולל קטלוגים
-            </Link>
-            <Link
-              to="/collage"
-              className="flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2 font-accent text-xs font-semibold text-foreground transition-all hover:bg-gold/10"
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              בונה קולאז׳
+              סטודיו עריכה
             </Link>
           </div>
         </div>
+        {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gold/20 bg-background/95 backdrop-blur-md px-6 py-4 space-y-3">
             <a href="#home" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">דף הבית</a>
@@ -83,10 +71,8 @@ const Index = () => {
             <a href="#gallery" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">גלריה</a>
             <a href="#services" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">שירותים</a>
             <a href="#contact" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">צור קשר</a>
-            <div className="border-t border-border pt-3 space-y-2">
-              <Link to="/tool" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 font-accent text-sm font-semibold text-gold"><Sparkles className="h-4 w-4" /> כלי AI לרקעים</Link>
-              <Link to="/catalog" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 font-accent text-sm font-semibold text-foreground"><BookOpen className="h-4 w-4" /> מחולל קטלוגים</Link>
-              <Link to="/collage" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 font-accent text-sm font-semibold text-foreground"><LayoutGrid className="h-4 w-4" /> בונה קולאז׳</Link>
+            <div className="border-t border-border pt-3">
+              <Link to="/workspace" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2 font-accent text-sm font-semibold text-gold"><Sparkles className="h-4 w-4" /> סטודיו עריכה</Link>
             </div>
           </div>
         )}
@@ -258,11 +244,11 @@ const Index = () => {
               </p>
             </div>
             <Link
-              to="/tool"
+              to="/workspace"
               className="flex items-center gap-2 rounded-full bg-gold px-8 py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 shrink-0"
             >
               <Sparkles className="h-4 w-4" />
-              לכלי AI
+              לסטודיו עריכה
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </div>
