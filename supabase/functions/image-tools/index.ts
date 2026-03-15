@@ -126,6 +126,48 @@ serve(async (req) => {
         break;
       }
 
+      case "live-filter-apply": {
+        const filters = actionParams?.filters || {};
+        prompt = `Apply these precise adjustments to this product photo: brightness ${filters.brightness || 100}%, contrast ${filters.contrast || 100}%, saturation ${filters.saturation || 100}%, hue shift ${filters.hueRotate || 0} degrees, sepia ${filters.sepia || 0}%. Keep the product details sharp and identical. Apply the color adjustments professionally.`;
+        break;
+      }
+
+      case "apply-layers": {
+        const layerNames = actionParams?.layerNames || [];
+        prompt = `Apply these combined filter effects to this product photo: ${layerNames.join(", ")}. Apply them in order, stacking each effect. Keep the product details sharp and identical. Professional color grading result.`;
+        break;
+      }
+
+      case "color-transfer": {
+        prompt = `Transfer the color palette, tones, lighting mood, and overall color atmosphere from the SECOND image (reference) to the FIRST image (product). Keep the product composition, shape, and details identical — only change the colors, tones, and lighting to match the reference image's palette and mood.`;
+        // Content will include both images
+        break;
+      }
+
+      case "regional-mask": {
+        const region = actionParams?.region || "background";
+        const filterType = actionParams?.filterType || "blur";
+        const maskIntensity = actionParams?.intensity || 70;
+        const intensityWord = maskIntensity < 40 ? "subtly" : maskIntensity < 70 ? "moderately" : "strongly";
+        const filterMap: Record<string, string> = {
+          "blur": `${intensityWord} blur`,
+          "darken": `${intensityWord} darken`,
+          "brighten": `${intensityWord} brighten`,
+          "desaturate": `${intensityWord} desaturate (make black and white)`,
+          "warm": `${intensityWord} apply warm golden tones to`,
+          "cool": `${intensityWord} apply cool blue tones to`,
+          "vintage": `${intensityWord} apply vintage film effect to`,
+          "dramatic": `${intensityWord} apply dramatic high-contrast moody effect to`,
+        };
+        const filterDesc = filterMap[filterType] || filterMap["blur"];
+        if (region === "background") {
+          prompt = `${filterDesc} ONLY the background of this product photo. Keep the product PERFECTLY sharp, unchanged, and unaffected. Only modify the background area behind and around the product.`;
+        } else {
+          prompt = `${filterDesc} ONLY the product/main subject in this photo. Keep the background PERFECTLY unchanged and unaffected. Only modify the product/main subject.`;
+        }
+        break;
+      }
+
       default:
         return new Response(JSON.stringify({ error: "Unknown action" }), {
           status: 400,
@@ -137,6 +179,11 @@ serve(async (req) => {
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: imageBase64 } },
     ];
+
+    // For color-transfer, add the reference image
+    if (action === "color-transfer" && actionParams?.referenceImage) {
+      content.push({ type: "image_url", image_url: { url: actionParams.referenceImage } });
+    }
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
