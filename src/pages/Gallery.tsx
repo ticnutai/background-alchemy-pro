@@ -810,7 +810,10 @@ const Gallery = () => {
                     </div>
                     <div className="p-2.5">
                       <p className="font-display text-xs font-semibold text-foreground truncate">{item.background_name || "רקע מותאם"}</p>
-                      <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
+                        <ImageInfoBadge url={item.result_image_url} />
+                      </div>
                     </div>
 
                     {/* Hover action popup - floating above the card */}
