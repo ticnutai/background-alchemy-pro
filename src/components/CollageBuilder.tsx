@@ -73,6 +73,7 @@ const SMART_TOOLS = [
   { id: "auto-enhance", label: "שיפור אוטומטי", icon: <Sparkles className="h-4 w-4" /> },
   { id: "sharpen", label: "חידוד", icon: <Contrast className="h-4 w-4" /> },
   { id: "vignette", label: "וינייט", icon: <Palette className="h-4 w-4" /> },
+  { id: "ai-upscale", label: "הגדל עם AI", icon: <ArrowUpCircle className="h-4 w-4" /> },
 ];
 
 const FRAME_PRESETS: { id: FrameStyle; label: string; description: string }[] = [
