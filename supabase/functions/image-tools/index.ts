@@ -180,6 +180,11 @@ serve(async (req) => {
       { type: "image_url", image_url: { url: imageBase64 } },
     ];
 
+    // For color-transfer, add the reference image
+    if (action === "color-transfer" && actionParams?.referenceImage) {
+      content.push({ type: "image_url", image_url: { url: actionParams.referenceImage } });
+    }
+
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
