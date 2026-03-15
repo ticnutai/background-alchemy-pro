@@ -826,6 +826,52 @@ const Gallery = () => {
                           <span className="flex items-center gap-0.5"><Copy className="h-3 w-3" /><Pencil className="h-3 w-3" /></span>
                         </button>
                         <div className="w-px h-4 bg-border" />
+                        {/* Folder assignment */}
+                        <div className="relative">
+                          <button
+                            onClick={e => { e.stopPropagation(); setFolderMenuItemId(folderMenuItemId === item.id ? null : item.id); }}
+                            className="rounded-full p-1.5 text-muted-foreground hover:text-gold hover:bg-gold/10 transition-colors"
+                            title="העבר לתיקייה"
+                          >
+                            <FolderInput className="h-3.5 w-3.5" />
+                          </button>
+                          {folderMenuItemId === item.id && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-20 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
+                              <button
+                                onClick={e => { e.stopPropagation(); moveToFolder(item.id, null); setFolderMenuItemId(null); }}
+                                className="w-full text-right px-3 py-1.5 text-xs hover:bg-secondary transition-colors text-muted-foreground"
+                              >ללא תיקייה</button>
+                              {folders.map(f => (
+                                <button
+                                  key={f.id}
+                                  onClick={e => { e.stopPropagation(); moveToFolder(item.id, f.id); setFolderMenuItemId(null); }}
+                                  className={`w-full text-right px-3 py-1.5 text-xs hover:bg-secondary transition-colors flex items-center gap-1.5 ${item.folder_id === f.id ? 'text-gold font-semibold' : 'text-foreground'}`}
+                                >
+                                  <Folder className="h-3 w-3" style={{ color: f.color || undefined }} />
+                                  {f.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="w-px h-4 bg-border" />
+                        {/* Open in Collage */}
+                        <button
+                          onClick={e => { e.stopPropagation(); navigate(`/collage?importImage=${encodeURIComponent(item.result_image_url)}`); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          title="פתח בקולאז׳"
+                        >
+                          <LayoutGrid className="h-3.5 w-3.5" />
+                        </button>
+                        {/* Open in Catalog */}
+                        <button
+                          onClick={e => { e.stopPropagation(); navigate(`/catalog?importImage=${encodeURIComponent(item.result_image_url)}`); }}
+                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                          title="פתח בקטלוג"
+                        >
+                          <BookOpen className="h-3.5 w-3.5" />
+                        </button>
+                        <div className="w-px h-4 bg-border" />
                         <button
                           onClick={e => { e.stopPropagation(); confirmDeleteItem(item.id); }}
                           className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
