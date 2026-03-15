@@ -1509,24 +1509,33 @@ export default function CollageBuilder() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">לחץ על הקולאז׳ שאתה רוצה — הלייאאוט ייבחר אוטומטית</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className={`grid gap-4 ${
+                  comparePreviews.length <= 2 ? 'grid-cols-2' :
+                  comparePreviews.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'
+                }`}>
                   {comparePreviews.map((preview) => (
                     <button
                       key={preview.layout}
                       onClick={() => selectCompareLayout(preview.layout)}
-                      className={`group relative rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] ${
-                        layout === preview.layout ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'
+                      className={`group relative rounded-xl border-2 overflow-hidden transition-all hover:shadow-xl hover:scale-[1.02] bg-card ${
+                        layout === preview.layout ? 'border-primary ring-2 ring-primary/30 shadow-lg' : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <img src={preview.dataUrl} alt={preview.label} className="w-full aspect-square object-contain bg-muted/30" />
-                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                        <span className="text-white text-xs font-semibold">{preview.label}</span>
+                      <div className="w-full p-3 bg-muted/20">
+                        <img
+                          src={preview.dataUrl}
+                          alt={preview.label}
+                          className="w-full h-auto max-h-[300px] object-contain mx-auto rounded-md"
+                        />
                       </div>
-                      {layout === preview.layout && (
-                        <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center">
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                      )}
+                      <div className="p-2.5 bg-card border-t border-border flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">{preview.label}</span>
+                        {layout === preview.layout && (
+                          <div className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>
