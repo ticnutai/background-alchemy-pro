@@ -22,6 +22,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import {
   generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
+  splitImage, type SplitMode, type SplitOptions,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, compositeImages, adjustImage,
   autoEnhance, addVignette, sharpenImage
