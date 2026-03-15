@@ -252,23 +252,23 @@ export async function applyCanvasFilters(
   ctx.putImageData(imageData, 0, 0);
 
   // Step 4: Clarity (unsharp mask on luminosity)
-  if (o.clarity! !== 0) {
-    applyClarity(ctx, w, h, o.clarity!);
+  if (options.clarity! !== 0) {
+    applyClarity(ctx, w, h, options.clarity!);
   }
 
   // Step 5: Sharpness (unsharp mask)
-  if (o.sharpness! > 0) {
-    applyUnsharpMask(ctx, w, h, o.sharpness! / 20);
+  if (options.sharpness! > 0) {
+    applyUnsharpMask(ctx, w, h, options.sharpness! / 20);
   }
 
   // Step 6: Grain
-  if (o.grain! > 0) {
-    applyGrain(ctx, w, h, o.grain!);
+  if (options.grain! > 0) {
+    applyGrain(ctx, w, h, options.grain!);
   }
 
   // Step 7: Vignette
-  if (o.vignette! > 0) {
-    applyVignette(ctx, w, h, o.vignette!);
+  if (options.vignette! > 0) {
+    applyVignette(ctx, w, h, options.vignette!);
   }
 
   return canvas.toDataURL("image/png");
