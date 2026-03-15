@@ -58,6 +58,9 @@ const Index = () => {
   const [selectedPresetType, setSelectedPresetType] = useState<string | null>(null);
   const [showDevSettings, setShowDevSettings] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [saveNewName, setSaveNewName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
