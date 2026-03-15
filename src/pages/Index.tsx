@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook, BookOpen } from "lucide-react";
+import { Sparkles, Phone, Mail, MapPin, Instagram, ArrowLeft, Settings, MessageCircle, Facebook, BookOpen, LayoutGrid } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import studioLogo from "@/assets/studio-logo.png";
@@ -59,6 +59,13 @@ const Index = () => {
             >
               <BookOpen className="h-3.5 w-3.5" />
               מחולל קטלוגים
+            </Link>
+            <Link
+              to="/collage"
+              className="flex items-center gap-2 rounded-full border border-gold/40 px-5 py-2 font-accent text-xs font-semibold text-foreground transition-all hover:bg-gold/10"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              בונה קולאז׳
             </Link>
           </div>
         </div>

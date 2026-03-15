@@ -8,6 +8,7 @@ import Tool from "./pages/Tool.tsx";
 import Gallery from "./pages/Gallery.tsx";
 import Auth from "./pages/Auth.tsx";
 import Catalog from "./pages/Catalog.tsx";
+import Collage from "./pages/Collage.tsx";
 import NotFound from "./pages/NotFound.tsx";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
           <Route path="/gallery" element={<Gallery />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/catalog" element={<Catalog />} />
+          <Route path="/collage" element={<Collage />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

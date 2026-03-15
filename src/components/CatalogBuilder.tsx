@@ -7,7 +7,7 @@ import {
   Sparkles, FileDown, LayoutGrid, Home, Brain, Wand2,
   FolderOpen, ArrowUpCircle, Eraser, Zap, CheckCircle2,
   ChevronDown, ChevronUp, Frame, EyeOff, ALargeSmall, PenLine,
-  Database, CloudDownload, Check, Star,
+  Database, CloudDownload, Check, Star, SunMedium,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,11 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import {
+  colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
+  addDropShadow, extractColorPalette, autoEnhance, sharpenImage,
+  compositeImages, adjustImage,
+} from "@/lib/smart-image-tools";
 import { supabase } from "@/integrations/supabase/client";
 import {
   generateCatalog,
@@ -1485,12 +1490,178 @@ export default function CatalogBuilder() {
 
                       <Separator />
 
+                      <Label className="text-xs font-semibold">🔧 כלים חכמים (ללא AI — בדפדפן)</Label>
+                      <div className="space-y-2">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing || products.length === 0}
+                          onClick={async () => {
+                            setAiProcessing(true);
+                            let count = 0;
+                            for (const p of products) {
+                              try {
+                                const result = await removeWhiteBg(p.image);
+                                setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, noBgImage: result } : pr));
+                                count++;
+                              } catch { /* skip */ }
+                            }
+                            toast.success(`רקע לבן הוסר מ-${count} תמונות (ללא AI)`);
+                            setAiProcessing(false);
+                          }}
+                        >
+                          <Eraser className="h-4 w-4 text-emerald-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">הסר רקע לבן (ללא AI)</span>
+                            <span className="text-[10px] text-muted-foreground">אלגוריתם Luminance — מהיר, בדפדפן</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing || products.length === 0}
+                          onClick={async () => {
+                            setAiProcessing(true);
+                            let count = 0;
+                            for (const p of products) {
+                              try {
+                                const result = await colorBasedRemoveBg(p.image, { tolerance: 35 });
+                                setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, noBgImage: result } : pr));
+                                count++;
+                              } catch { /* skip */ }
+                            }
+                            toast.success(`רקע צבעוני הוסר מ-${count} תמונות (ללא AI)`);
+                            setAiProcessing(false);
+                          }}
+                        >
+                          <Wand2 className="h-4 w-4 text-violet-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">הסר רקע לפי צבע (Chromakey)</span>
+                            <span className="text-[10px] text-muted-foreground">זיהוי צבע שולי — ללא שרת</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing || products.length === 0}
+                          onClick={async () => {
+                            setAiProcessing(true);
+                            let count = 0;
+                            for (const p of products) {
+                              try {
+                                const src = p.noBgImage || p.image;
+                                const result = await addDropShadow(src);
+                                setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, image: result } : pr));
+                                count++;
+                              } catch { /* skip */ }
+                            }
+                            toast.success(`צל נוסף ל-${count} תמונות`);
+                            setAiProcessing(false);
+                          }}
+                        >
+                          <SunMedium className="h-4 w-4 text-amber-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">הוסף צל לכולם</span>
+                            <span className="text-[10px] text-muted-foreground">צל תלת-ממדי אלגוריתמי</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing || products.length === 0}
+                          onClick={async () => {
+                            setAiProcessing(true);
+                            let count = 0;
+                            for (const p of products) {
+                              try {
+                                const result = await autoEnhance(p.image);
+                                setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, image: result } : pr));
+                                count++;
+                              } catch { /* skip */ }
+                            }
+                            toast.success(`${count} תמונות שופרו (Auto-Levels)`);
+                            setAiProcessing(false);
+                          }}
+                        >
+                          <Sparkles className="h-4 w-4 text-cyan-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">שיפור אוטומטי (Auto-Levels)</span>
+                            <span className="text-[10px] text-muted-foreground">התאמת טווח צבעים — Canvas API</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing || products.length === 0}
+                          onClick={async () => {
+                            setAiProcessing(true);
+                            let count = 0;
+                            for (const p of products) {
+                              try {
+                                const result = await sharpenImage(p.image);
+                                setProducts(prev => prev.map(pr => pr.id === p.id ? { ...pr, image: result } : pr));
+                                count++;
+                              } catch { /* skip */ }
+                            }
+                            toast.success(`${count} תמונות חודדו`);
+                            setAiProcessing(false);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 text-indigo-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">חידוד לכולם</span>
+                            <span className="text-[10px] text-muted-foreground">Unsharp Mask — ללא AI</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing || products.length === 0}
+                          onClick={async () => {
+                            if (products.length === 0) return;
+                            setAiProcessing(true);
+                            try {
+                              const colors = await extractColorPalette(products[0].image, { count: 5 });
+                              if (colors.length >= 2) {
+                                setSettings(s => ({
+                                  ...s,
+                                  brandColor: colors[0],
+                                  accentColor: colors[1],
+                                }));
+                                toast.success(`ערכת צבעים חולצה: ${colors.slice(0, 3).join(', ')}`);
+                              }
+                            } catch { toast.error("שגיאה בחילוץ צבעים"); }
+                            setAiProcessing(false);
+                          }}
+                        >
+                          <Palette className="h-4 w-4 text-rose-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">חלץ ערכת צבעים (K-Means)</span>
+                            <span className="text-[10px] text-muted-foreground">ניתוח פיקסלים — ללא AI</span>
+                          </div>
+                        </Button>
+                      </div>
+
+                      <Separator />
+
                       <div className="bg-muted/50 rounded-lg p-2.5 text-[10px] text-muted-foreground space-y-1">
                         <p className="font-medium text-xs text-foreground">מנועי AI בשימוש:</p>
                         <p>🧠 Gemini 2.5 Flash — ניתוח תמונות וטקסט</p>
                         <p>🎨 BRIA RMBG 2.0 — הסרת רקע מדויקת</p>
                         <p>🔍 Real-ESRGAN — שדרוג רזולוציה</p>
                         <p>💬 Gemini — תיאורי מוצרים שיווקיים</p>
+                        <p className="font-medium text-xs text-foreground mt-2">כלים חכמים (ללא AI):</p>
+                        <p>✂️ Chromakey — הסרת רקע לפי צבע</p>
+                        <p>⚡ Luminance — הסרת רקע לבן</p>
+                        <p>🎨 K-Means — חילוץ ערכת צבעים</p>
+                        <p>🔧 Auto-Levels — שיפור אוטומטי</p>
+                        <p>🖼️ Unsharp Mask — חידוד</p>
+                        <p>💡 Drop Shadow — צל אלגוריתמי</p>
                       </div>
                     </>
                   )}
