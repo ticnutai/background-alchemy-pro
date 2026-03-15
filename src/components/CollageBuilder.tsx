@@ -298,6 +298,11 @@ export default function CollageBuilder() {
   const [processing, setProcessing] = useState(false);
   const result = pages[currentPage] || null;
 
+  // Comparison preview
+  const [comparePreviews, setComparePreviews] = useState<{ layout: CollageLayout; label: string; dataUrl: string }[]>([]);
+  const [compareMode, setCompareMode] = useState(false);
+  const [compareProcessing, setCompareProcessing] = useState(false);
+
   // Gallery import
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [galleryTab, setGalleryTab] = useState<"history" | "products">("history");
