@@ -1147,8 +1147,7 @@ export default function CatalogBuilder() {
                         { id: "sans" as const, label: "Sans" },
                         { id: "serif" as const, label: "Serif" },
                         { id: "mono" as const, label: "Mono" },
-                        { id: "decorative" as const, label: "דקורטיבי" },
-                      ]).map(f => (
+                      ] as const).map(f => (
                         <Button
                           key={f.id}
                           size="sm"
@@ -2074,7 +2073,7 @@ export default function CatalogBuilder() {
         )}
 
         {/* Grid / List */}
-        <ScrollArea className="flex-1 h-[55vh]">
+        <ScrollArea className="flex-1 min-h-0 max-h-[55vh] overflow-y-auto">
           {galleryLoading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />

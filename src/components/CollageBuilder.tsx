@@ -484,7 +484,7 @@ export default function CollageBuilder() {
             />
             <span className="text-sm">בחר הכל ({gallerySelected.size}/{galleryItems.length})</span>
           </div>
-          <ScrollArea className="flex-1 h-[55vh]">
+          <ScrollArea className="flex-1 min-h-0 max-h-[55vh] overflow-y-auto">
             {galleryLoading ? (
               <div className="flex items-center justify-center h-full">
                 <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
