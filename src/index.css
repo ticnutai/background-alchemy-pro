@@ -99,6 +99,16 @@
 
   body {
     @apply bg-background text-foreground;
+    direction: rtl;
+    text-align: right;
+  }
+
+  input[type="email"],
+  input[type="url"],
+  input[type="number"],
+  input[type="tel"] {
+    direction: ltr;
+    text-align: left;
   }
 }
 
