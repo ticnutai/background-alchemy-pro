@@ -26,7 +26,8 @@ import {
   generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, compositeImages, adjustImage,
-  autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP
+  autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP,
+  CANVAS_SIZE_PRESETS, calcOptimalCanvasHeight
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
 
@@ -146,7 +147,7 @@ const BG_GRADIENT_PRESETS = [
   { label: "קרח", from: "#e0eafc", to: "#cfdef3" },
 ];
 
-type CollageImage = { id: string; src: string; name: string; cellBgColor?: string };
+type CollageImage = { id: string; src: string; name: string; cellBgColor?: string; fitMode?: 'contain' | 'cover' | 'smart-pad' | null };
 
 interface CollageTemplate {
   id: string;
@@ -157,7 +158,7 @@ interface CollageTemplate {
   borderRadius: number;
   bgColor: string;
   canvasHeight: number;
-  fitMode: 'contain' | 'cover';
+  fitMode: 'contain' | 'cover' | 'smart-pad';
   frameStyle: FrameStyle;
   bgGradientEnabled: boolean;
   bgGradient: { from: string; to: string; angle: number };
@@ -284,7 +285,7 @@ export default function CollageBuilder() {
   const [canvasWidth, setCanvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
   const [selectedPageSize, setSelectedPageSize] = useState<CollagePageSize>("custom");
-  const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
+  const [fitMode, setFitMode] = useState<'contain' | 'cover' | 'smart-pad'>('contain');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
   const [bgGradient, setBgGradient] = useState({ from: "#1a1a2e", to: "#c9a84c", angle: 135 });
@@ -602,6 +603,7 @@ export default function CollageBuilder() {
       for (let p = 0; p < pageCount; p++) {
         const pageSrcs = allSrcs.slice(p * maxPerPage, (p + 1) * maxPerPage);
         const pageCellColors = allCellColors.slice(p * maxPerPage, (p + 1) * maxPerPage);
+        const pagePerImageFit = images.slice(p * maxPerPage, (p + 1) * maxPerPage).map(img => img.fitMode || null);
         const collageOptions: CollageOptions = {
           layout,
           width: canvasWidth,
@@ -615,6 +617,7 @@ export default function CollageBuilder() {
           bgGradient: bgGradientEnabled ? bgGradient : undefined,
           cellBgColors: pageCellColors,
           watermark: watermarkEnabled ? watermark : undefined,
+          perImageFitMode: pagePerImageFit,
         };
         const dataUrl = await generateCollage(pageSrcs, collageOptions);
         results.push(dataUrl);
@@ -755,25 +758,27 @@ export default function CollageBuilder() {
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       {/* Header */}
-      <div className="border-b bg-card p-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="border-b bg-card p-3 sm:p-4">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold">בונה קולאז׳ חכם</h1>
-            <p className="text-sm text-muted-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold">בונה קולאז׳ חכם</h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               קולאז׳ מתקדם עם מסגרות יוקרתיות, טקסט מעוצב וכלים חכמים
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => window.history.back()}>חזור</Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" onClick={() => window.history.back()}>חזור</Button>
             {result && (
               <>
-                <Button variant="outline" onClick={saveToGallery} disabled={savingToGallery}>
+                <Button variant="outline" size="sm" onClick={saveToGallery} disabled={savingToGallery}>
                   {savingToGallery ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
-                  שמור לגלריה
+                  <span className="hidden sm:inline">שמור לגלריה</span>
+                  <span className="sm:hidden">שמור</span>
                 </Button>
-                <Button onClick={downloadCollage}>
+                <Button size="sm" onClick={downloadCollage}>
                   <Download className="h-4 w-4 ml-2" />
-                  הורד קולאז׳
+                  <span className="hidden sm:inline">הורד קולאז׳</span>
+                  <span className="sm:hidden">הורד</span>
                 </Button>
               </>
             )}
@@ -781,17 +786,17 @@ export default function CollageBuilder() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto p-4 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
+      <div className="max-w-7xl mx-auto p-3 sm:p-4 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4">
         {/* Sidebar */}
-        <ScrollArea className="max-h-[calc(100vh-120px)]">
+        <ScrollArea className="max-h-[50vh] lg:max-h-[calc(100vh-120px)]">
           <div className="space-y-3 pr-1">
             <Tabs value={sidebarTab} onValueChange={setSidebarTab}>
-              <TabsList className="w-full grid grid-cols-5">
-                <TabsTrigger value="images" className="text-xs gap-1"><ImageIcon className="h-3.5 w-3.5" />תמונות</TabsTrigger>
-                <TabsTrigger value="design" className="text-xs gap-1"><Palette className="h-3.5 w-3.5" />עיצוב</TabsTrigger>
-                <TabsTrigger value="frames" className="text-xs gap-1"><Frame className="h-3.5 w-3.5" />מסגרות</TabsTrigger>
-                <TabsTrigger value="text" className="text-xs gap-1"><Type className="h-3.5 w-3.5" />טקסט</TabsTrigger>
-                <TabsTrigger value="templates" className="text-xs gap-1"><BookmarkPlus className="h-3.5 w-3.5" />תבניות</TabsTrigger>
+              <TabsList className="w-full grid grid-cols-5 h-auto">
+                <TabsTrigger value="images" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><ImageIcon className="h-3 w-3 sm:h-3.5 sm:w-3.5" />תמונות</TabsTrigger>
+                <TabsTrigger value="design" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><Palette className="h-3 w-3 sm:h-3.5 sm:w-3.5" />עיצוב</TabsTrigger>
+                <TabsTrigger value="frames" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><Frame className="h-3 w-3 sm:h-3.5 sm:w-3.5" />מסגרות</TabsTrigger>
+                <TabsTrigger value="text" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><Type className="h-3 w-3 sm:h-3.5 sm:w-3.5" />טקסט</TabsTrigger>
+                <TabsTrigger value="templates" className="text-[10px] sm:text-xs gap-0.5 sm:gap-1 px-1 sm:px-2"><BookmarkPlus className="h-3 w-3 sm:h-3.5 sm:w-3.5" />תבניות</TabsTrigger>
               </TabsList>
 
               {/* ─── Images Tab ─── */}
@@ -907,6 +912,26 @@ export default function CollageBuilder() {
                           )}
                         </div>
                       </div>
+                      {/* Per-image fit mode override */}
+                      <div className="pt-2 border-t space-y-2">
+                        <Label className="text-xs flex items-center gap-2">
+                          <Frame className="h-3.5 w-3.5" />
+                          התאמת תמונה (לתא זה)
+                        </Label>
+                        <div className="flex gap-1">
+                          {([null, 'contain', 'cover', 'smart-pad'] as const).map((mode) => (
+                            <Button
+                              key={mode ?? 'global'}
+                              size="sm"
+                              variant={images.find(i => i.id === selectedImage)?.fitMode === mode ? "default" : "outline"}
+                              className="flex-1 text-[9px] h-6"
+                              onClick={() => setImages(prev => prev.map(i => i.id === selectedImage ? { ...i, fitMode: mode } : i))}
+                            >
+                              {mode === null ? 'ברירת מחדל' : mode === 'contain' ? 'התאם' : mode === 'cover' ? 'חיתוך' : 'ריפוד'}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 )}
@@ -991,8 +1016,9 @@ export default function CollageBuilder() {
                     <div className="space-y-2">
                       <Label className="text-xs">התאמת תמונה</Label>
                       <div className="flex gap-1">
-                        <Button size="sm" variant={fitMode === "contain" ? "default" : "outline"} onClick={() => setFitMode("contain")} className="flex-1 text-xs">התאם (מלא)</Button>
-                        <Button size="sm" variant={fitMode === "cover" ? "default" : "outline"} onClick={() => setFitMode("cover")} className="flex-1 text-xs">חיתוך למילוי</Button>
+                        <Button size="sm" variant={fitMode === "contain" ? "default" : "outline"} onClick={() => setFitMode("contain")} className="flex-1 text-[10px]">התאם</Button>
+                        <Button size="sm" variant={fitMode === "cover" ? "default" : "outline"} onClick={() => setFitMode("cover")} className="flex-1 text-[10px]">חיתוך</Button>
+                        <Button size="sm" variant={fitMode === "smart-pad" ? "default" : "outline"} onClick={() => setFitMode("smart-pad")} className="flex-1 text-[10px]">ריפוד חכם</Button>
                       </div>
                     </div>
                   </CardContent>

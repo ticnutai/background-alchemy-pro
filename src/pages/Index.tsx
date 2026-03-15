@@ -37,8 +37,8 @@ const Index = () => {
     <div className="min-h-screen bg-background font-body" dir="rtl">
       {/* Navigation */}
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-gold/20 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto max-w-7xl flex items-center justify-between px-6 py-3">
-          <img src={studioLogo} alt="רותי פרל" className="h-14 w-auto" />
+        <div className="mx-auto max-w-7xl flex items-center justify-between px-4 sm:px-6 py-3">
+          <img src={studioLogo} alt="רותי פרל" className="h-12 sm:h-14 w-auto" />
           <div className="hidden md:flex items-center gap-8">
             <a href="#home" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">דף הבית</a>
             <a href="#about" className="font-display text-sm font-medium text-foreground hover:text-gold transition-colors">אודות</a>
@@ -51,6 +51,7 @@ const Index = () => {
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="rounded-lg p-2 hover:bg-secondary transition-colors md:hidden"
+              aria-label="תפריט ניווט"
             >
               {mobileMenuOpen ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </button>
@@ -64,7 +65,7 @@ const Index = () => {
           </div>
         </div>
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gold/20 bg-background/95 backdrop-blur-md px-6 py-4 space-y-3">
+          <div className="md:hidden border-t border-gold/20 bg-background/95 backdrop-blur-md px-4 py-4 space-y-3">
             <a href="#home" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">דף הבית</a>
             <a href="#about" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">אודות</a>
             <a href="#gallery" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">גלריה</a>
@@ -79,7 +80,7 @@ const Index = () => {
 
       {/* Hero Section */}
       <section id="home" className="relative pt-24">
-        <div className="relative h-[85vh] overflow-hidden">
+        <div className="relative h-[55vh] md:h-[85vh] overflow-hidden">
           <img
             src={heroImage}
             alt="מוצרי יוקרה"
@@ -88,11 +89,11 @@ const Index = () => {
           <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent" />
         </div>
         <div className="bg-background py-16">
-          <div className="mx-auto max-w-7xl px-6 text-center">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 text-center">
             <div className="mb-6 inline-block rounded-full border border-gold/40 bg-gold/10 px-4 py-1.5">
               <span className="font-accent text-xs font-semibold text-gold">עיצוב יוקרתי בעבודת יד</span>
             </div>
-            <h1 className="font-display text-5xl md:text-7xl font-bold text-foreground leading-tight">
+            <h1 className="font-display text-4xl sm:text-5xl md:text-7xl font-bold text-foreground leading-tight">
               סטודיו מעצבים
               <br />
               <span className="text-gold italic">רותי פרל</span>
@@ -100,16 +101,16 @@ const Index = () => {
             <p className="mt-6 mx-auto font-body text-lg text-muted-foreground max-w-lg leading-relaxed">
               עיצוב מוצרי יוקרה בעבודת יד, ריקמה אומנותית, וצילום מוצרים מקצועי ברמה הגבוהה ביותר
             </p>
-            <div className="mt-8 flex justify-center gap-4">
+            <div className="mt-8 flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
               <a
                 href="#contact"
-                className="rounded-full bg-gold px-8 py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110"
+                className="rounded-full bg-gold px-6 py-3 sm:px-8 sm:py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 text-center"
               >
                 צור קשר
               </a>
               <a
                 href="#gallery"
-                className="rounded-full border border-border bg-card px-8 py-3.5 font-display text-sm font-semibold text-foreground transition-all hover:border-gold/40"
+                className="rounded-full border border-border bg-card px-6 py-3 sm:px-8 sm:py-3.5 font-display text-sm font-semibold text-foreground transition-all hover:border-gold/40 text-center"
               >
                 צפה בעבודות
               </a>
@@ -119,8 +120,8 @@ const Index = () => {
       </section>
 
       {/* About Section */}
-      <section id="about" className="py-24 bg-card">
-        <div className="mx-auto max-w-7xl px-6">
+      <section id="about" className="py-16 sm:py-24 bg-card">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid md:grid-cols-2 gap-16 items-center">
             <div>
               <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">אודות הסטודיו</span>
@@ -155,9 +156,10 @@ const Index = () => {
                 src={gallery2}
                 alt="ריקמה"
                 className="rounded-2xl shadow-2xl"
+                loading="lazy"
               />
-              <div className="absolute -bottom-6 -left-6 h-48 w-48 rounded-2xl border-4 border-card overflow-hidden shadow-xl">
-                <img src={gallery1} alt="עבודות" className="h-full w-full object-cover" />
+              <div className="absolute -bottom-6 -right-6 h-36 w-36 sm:h-48 sm:w-48 rounded-2xl border-4 border-card overflow-hidden shadow-xl">
+                <img src={gallery1} alt="עבודות" className="h-full w-full object-cover" loading="lazy" />
               </div>
             </div>
           </div>
@@ -165,8 +167,8 @@ const Index = () => {
       </section>
 
       {/* Product Gallery Section */}
-      <section id="gallery" className="py-24 bg-background">
-        <div className="mx-auto max-w-7xl px-6">
+      <section id="gallery" className="py-16 sm:py-24 bg-background">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center mb-16">
             <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">גלריה</span>
             <h2 className="mt-4 font-display text-4xl md:text-5xl font-bold text-foreground">
@@ -193,8 +195,8 @@ const Index = () => {
       {showAdminPanel && <AdminProductForm onClose={() => setShowAdminPanel(false)} />}
 
       {/* Services Section */}
-      <section id="services" className="py-24 bg-card">
-        <div className="mx-auto max-w-7xl px-6">
+      <section id="services" className="py-16 sm:py-24 bg-card">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="text-center mb-16">
             <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">שירותים</span>
             <h2 className="mt-4 font-display text-4xl md:text-5xl font-bold text-foreground">
@@ -233,7 +235,7 @@ const Index = () => {
           </div>
 
           {/* CTA to tool */}
-          <div className="mt-16 rounded-2xl bg-gradient-to-l from-gold/20 via-gold/10 to-transparent border border-gold/20 p-10 flex items-center justify-between">
+          <div className="mt-12 sm:mt-16 rounded-2xl bg-gradient-to-r from-gold/20 via-gold/10 to-transparent border border-gold/20 p-6 sm:p-10 flex flex-col sm:flex-row items-center gap-4 sm:justify-between">
             <div>
               <h3 className="font-display text-2xl font-bold text-foreground">
                 נסו את כלי ה-AI להחלפת רקעים
@@ -255,8 +257,8 @@ const Index = () => {
       </section>
 
       {/* Contact Section */}
-      <section id="contact" className="py-24 bg-foreground text-card">
-        <div className="mx-auto max-w-7xl px-6">
+      <section id="contact" className="py-16 sm:py-24 bg-foreground text-card">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6">
           <div className="grid md:grid-cols-2 gap-16">
             <div>
               <span className="font-accent text-xs font-semibold text-gold uppercase tracking-[0.2em]">צור קשר</span>
@@ -351,7 +353,7 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="border-t border-card/10 bg-foreground py-8">
-        <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <img src={studioLogo} alt="רותי פרל" className="h-10 w-auto brightness-0 invert opacity-60" />
           <p className="font-body text-xs text-card/40">
             © {new Date().getFullYear()} סטודיו מעצבים רותי פרל. כל הזכויות שמורות.

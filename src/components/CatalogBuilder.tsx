@@ -654,45 +654,45 @@ export default function CatalogBuilder() {
     <div dir="rtl" className="min-h-screen bg-background text-foreground">
       {/* ── Header ─────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container flex h-14 items-center gap-3 px-4">
+        <div className="container flex h-auto sm:h-14 flex-wrap items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-0">
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <Home className="h-4 w-4" />
           </Link>
-          <Separator orientation="vertical" className="h-5" />
-          <BookOpen className="h-5 w-5 text-primary" />
-          <h1 className="font-bold text-lg">מחולל קטלוגים</h1>
-          <Badge variant="secondary" className="text-xs">{products.length} מוצרים</Badge>
+          <Separator orientation="vertical" className="h-5 hidden sm:block" />
+          <BookOpen className="h-5 w-5 text-primary hidden sm:block" />
+          <h1 className="font-bold text-base sm:text-lg">מחולל קטלוגים</h1>
+          <Badge variant="secondary" className="text-[10px] sm:text-xs">{products.length} מוצרים</Badge>
           {categories.length > 0 && (
-            <Badge variant="outline" className="text-xs">{categories.length} קטגוריות</Badge>
+            <Badge variant="outline" className="text-[10px] sm:text-xs hidden sm:inline-flex">{categories.length} קטגוריות</Badge>
           )}
           {templateInfo.totalPages > 0 && (
-            <Badge variant="outline" className="text-xs">{templateInfo.totalPages} עמודים</Badge>
+            <Badge variant="outline" className="text-[10px] sm:text-xs hidden sm:inline-flex">{templateInfo.totalPages} עמודים</Badge>
           )}
           <div className="flex-1" />
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
               <Label htmlFor="auto-preview" className="text-xs cursor-pointer">תצוגה אוטומטית</Label>
               <Switch id="auto-preview" checked={autoPreview} onCheckedChange={setAutoPreview} />
             </div>
             <Button variant="outline" size="sm" onClick={generate} disabled={generating || products.length === 0}>
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
-              תצוגה מקדימה
+              <span className="hidden sm:inline">תצוגה מקדימה</span>
             </Button>
             <Button size="sm" onClick={exportPDF} disabled={products.length === 0}>
               <FileDown className="h-4 w-4" />
-              ייצוא PDF
+              <span className="hidden sm:inline">ייצוא PDF</span>
             </Button>
             <Button size="sm" variant="outline" onClick={saveCatalogToGallery} disabled={savingToGallery || pages.length === 0}>
               {savingToGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
-              שמור לגלריה
+              <span className="hidden sm:inline">שמור לגלריה</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="flex h-[calc(100vh-3.5rem)]">
+      <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-3.5rem)]">
         {/* ── Sidebar ──────────────────────────────────────── */}
-        <aside className="w-80 border-l bg-muted/30 flex flex-col">
+        <aside className="w-full lg:w-80 border-r bg-muted/30 flex flex-col">
           {/* Side tabs */}
           <div className="flex border-b overflow-x-auto">
             {[
@@ -1894,7 +1894,7 @@ export default function CatalogBuilder() {
         </aside>
 
         {/* ── Main Preview Area ────────────────────────────── */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-muted/10">
+        <main className="flex-1 min-w-0 flex flex-col overflow-hidden bg-muted/10">
           {/* Progress bar during generation */}
           {generating && (
             <div className="px-4 pt-2">
