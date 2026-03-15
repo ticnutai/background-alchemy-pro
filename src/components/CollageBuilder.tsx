@@ -197,6 +197,7 @@ export default function CollageBuilder() {
         gap,
         bgColor,
         borderRadius,
+        fitMode,
       };
       const dataUrl = await generateCollage(images.map((img) => img.src), collageOptions);
       setResult(dataUrl);
