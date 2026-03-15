@@ -94,7 +94,7 @@ const BG_GRADIENT_PRESETS = [
   { label: "קרח", from: "#e0eafc", to: "#cfdef3" },
 ];
 
-type CollageImage = { id: string; src: string; name: string };
+type CollageImage = { id: string; src: string; name: string; cellBgColor?: string };
 
 let _tid = 0;
 const newTextId = () => `txt_${Date.now()}_${++_tid}`;
