@@ -719,7 +719,8 @@ export async function generateCollage(
     }
 
     if (fitMode === 'contain') {
-      ctx.fillStyle = bgColor;
+      const cellBg = cellBgColors[i] || bgColor;
+      ctx.fillStyle = cellBg;
       ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
       const imgRatio = img.width / img.height;
       const cellRatio = cell.w / cell.h;
