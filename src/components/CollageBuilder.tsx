@@ -150,6 +150,22 @@ export default function CollageBuilder() {
   const [textOverlays, setTextOverlays] = useState<CollageTextOverlay[]>([]);
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
 
+  // Watermark
+  const [watermarkEnabled, setWatermarkEnabled] = useState(false);
+  const [watermark, setWatermark] = useState<CollageWatermark>({
+    type: 'text',
+    text: '',
+    position: 'bottom-right',
+    opacity: 0.3,
+    scale: 0.15,
+    fontFamily: 'hebrew-modern',
+    fontSize: 36,
+    color: '#ffffff',
+    rotation: 0,
+    repeat: false,
+  });
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
   // Result
   const [result, setResult] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
