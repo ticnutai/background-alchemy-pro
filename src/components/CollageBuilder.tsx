@@ -150,6 +150,97 @@ interface CollageTemplate {
 
 const TEMPLATES_STORAGE_KEY = 'collage-templates';
 
+// Built-in smart templates
+const BUILTIN_TEMPLATES: CollageTemplate[] = [
+  {
+    id: 'builtin-luxury-gold', name: '✨ יוקרה זהב', createdAt: 0,
+    layout: 'grid-2x2', gap: 16, borderRadius: 12, bgColor: '#1a1a2e', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'double-gold', bgGradientEnabled: true,
+    bgGradient: { from: '#1a1a2e', to: '#2d1b4e', angle: 135 },
+    textOverlays: [{ id: 'b1', text: 'קולקציה חדשה', x: 0.5, y: 0.08, fontSize: 52, fontFamily: 'luxury', fontWeight: 'bold', color: '#c9a84c', align: 'center', opacity: 1, rotation: 0, shadow: { color: 'rgba(0,0,0,0.5)', blur: 8, offsetX: 2, offsetY: 2 } }],
+  },
+  {
+    id: 'builtin-minimal-white', name: '⬜ מינימל לבן', createdAt: 0,
+    layout: 'grid-3x2', gap: 24, borderRadius: 0, bgColor: '#ffffff', canvasHeight: 1000,
+    fitMode: 'contain', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#fff', to: '#fff', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-instagram-story', name: '📱 סטורי אינסטגרם', createdAt: 0,
+    layout: 'hero-top', gap: 8, borderRadius: 16, bgColor: '#f5f0e8', canvasHeight: 1920,
+    fitMode: 'cover', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#f5e6d3', to: '#e8c7a7', angle: 180 },
+    textOverlays: [{ id: 'b2', text: 'NEW IN', x: 0.5, y: 0.04, fontSize: 40, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#1a1a2e', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-dark-cinema', name: '🎬 קולנועי כהה', createdAt: 0,
+    layout: 'strip', gap: 4, borderRadius: 0, bgColor: '#000000', canvasHeight: 600,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#000', to: '#000', angle: 0 },
+    textOverlays: [{ id: 'b3', text: 'THE COLLECTION', x: 0.5, y: 0.9, fontSize: 48, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.8, rotation: 0 }],
+  },
+  {
+    id: 'builtin-pastel-soft', name: '🌸 פסטל רך', createdAt: 0,
+    layout: 'featured-grid', gap: 14, borderRadius: 20, bgColor: '#fce4ec', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#fce4ec', to: '#f3e5f5', angle: 135 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-neon-night', name: '🌃 ניאון לילי', createdAt: 0,
+    layout: 'diagonal', gap: 0, borderRadius: 8, bgColor: '#0a0a1a', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'neon-glow', bgGradientEnabled: true,
+    bgGradient: { from: '#0a0a1a', to: '#1a0a2e', angle: 135 },
+    textOverlays: [{ id: 'b4', text: 'NIGHT EDITION', x: 0.5, y: 0.5, fontSize: 56, fontFamily: 'modern-sans', fontWeight: 'bold', color: '#00f0ff', align: 'center', opacity: 1, rotation: -15, shadow: { color: '#00f0ff', blur: 25, offsetX: 0, offsetY: 0 } }],
+  },
+  {
+    id: 'builtin-vintage-warm', name: '📜 וינטאג׳ חם', createdAt: 0,
+    layout: 'l-shape', gap: 10, borderRadius: 4, bgColor: '#f5e6d3', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'vintage-border', bgGradientEnabled: false,
+    bgGradient: { from: '#f5e6d3', to: '#f5e6d3', angle: 0 },
+    textOverlays: [{ id: 'b5', text: 'קלאסיקה', x: 0.5, y: 0.06, fontSize: 44, fontFamily: 'hebrew-suez', fontWeight: 'bold', color: '#6b4c3b', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-kids-fun', name: '🎉 ילדים שמח', createdAt: 0,
+    layout: 'grid-2x3', gap: 10, borderRadius: 24, bgColor: '#fff3e0', canvasHeight: 1400,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#fff3e0', to: '#e1f5fe', angle: 135 },
+    textOverlays: [{ id: 'b6', text: '!יום הולדת שמח', x: 0.5, y: 0.05, fontSize: 52, fontFamily: 'hebrew-fredoka', fontWeight: 'bold', color: '#6c5ce7', align: 'center', opacity: 1, rotation: -3 }],
+  },
+  {
+    id: 'builtin-marble-lux', name: '💎 שיש יוקרתי', createdAt: 0,
+    layout: 'hero-side', gap: 12, borderRadius: 8, bgColor: '#f0ece3', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'marble-edge', bgGradientEnabled: false,
+    bgGradient: { from: '#f0ece3', to: '#f0ece3', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-sale-bold', name: '🔥 מבצע בולט', createdAt: 0,
+    layout: 'grid-2x2', gap: 6, borderRadius: 0, bgColor: '#e63946', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#e63946', to: '#d00000', angle: 180 },
+    textOverlays: [
+      { id: 'b7', text: 'SALE', x: 0.5, y: 0.5, fontSize: 120, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.15, rotation: -30 },
+      { id: 'b8', text: '50% הנחה', x: 0.5, y: 0.92, fontSize: 48, fontFamily: 'hebrew-karantina', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 1, rotation: 0 },
+    ],
+  },
+  {
+    id: 'builtin-catalog-pro', name: '📋 קטלוג מקצועי', createdAt: 0,
+    layout: 'grid-4x4', gap: 2, borderRadius: 0, bgColor: '#f8f9fa', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: false,
+    bgGradient: { from: '#f8f9fa', to: '#f8f9fa', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-nature-green', name: '🌿 טבע ירוק', createdAt: 0,
+    layout: 'masonry', gap: 10, borderRadius: 12, bgColor: '#1b4332', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#1b4332', to: '#2d6a4f', angle: 135 },
+    textOverlays: [],
+  },
+];
+
 function loadTemplatesFromStorage(): CollageTemplate[] {
   try {
     const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
