@@ -519,6 +519,7 @@ export interface CollageOptions {
   frameStyle?: FrameStyle;
   textOverlays?: CollageTextOverlay[];
   bgGradient?: { from: string; to: string; angle: number };
+  cellBgColors?: (string | null)[];
 }
 
 const COLLAGE_FONT_MAP: Record<string, string> = {
@@ -682,7 +683,7 @@ export async function generateCollage(
   images: string[],
   options: CollageOptions
 ): Promise<string> {
-  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient } = options;
+  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [] } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -718,7 +719,8 @@ export async function generateCollage(
     }
 
     if (fitMode === 'contain') {
-      ctx.fillStyle = bgColor;
+      const cellBg = cellBgColors[i] || bgColor;
+      ctx.fillStyle = cellBg;
       ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
       const imgRatio = img.width / img.height;
       const cellRatio = cell.w / cell.h;
