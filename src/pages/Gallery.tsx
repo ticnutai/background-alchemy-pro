@@ -291,10 +291,15 @@ const Gallery = () => {
     if (zoomedItem?.id === item.id) setZoomedItem({ ...item, is_favorite: newVal });
   };
 
+  const confirmDeleteItem = (id: string) => {
+    setDeleteConfirmId(id);
+  };
+
   const deleteItem = async (id: string) => {
     await supabase.from("processing_history").delete().eq("id", id);
     setItems(prev => prev.filter(i => i.id !== id));
     if (zoomedItem?.id === id) setZoomedItem(null);
+    setDeleteConfirmId(null);
     toast.success("נמחק");
   };
 
