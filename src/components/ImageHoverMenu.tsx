@@ -100,13 +100,11 @@ const ImageHoverMenu = ({
       {showMenu && (
         <div
           ref={menuRef}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 animate-in fade-in slide-in-from-bottom-2 duration-200"
-          onMouseEnter={() => {
-            cancelHover();
-            setShowMenu(true);
-          }}
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200"
+          onMouseEnter={handleMouseEnterMenu}
           onMouseLeave={handleMouseLeave}
           onClick={(e) => e.stopPropagation()}
+          style={{ pointerEvents: "auto" }}
         >
           <div className="grid grid-cols-4 gap-1 rounded-xl bg-card shadow-xl border border-border p-2 min-w-[180px]">
             {/* Favorite */}
