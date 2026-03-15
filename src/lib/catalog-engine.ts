@@ -59,7 +59,7 @@ export interface CatalogTextOverlay {
   x: number;              // 0-1 relative position
   y: number;
   fontSize: number;       // 12-120
-  fontFamily: "serif" | "sans" | "mono" | "decorative";
+  fontFamily: string;
   fontWeight: "normal" | "bold";
   color: string;
   align: "left" | "center" | "right";
@@ -85,7 +85,7 @@ export interface CatalogSettings {
   accentColor: string;
   bgColor: string;
   textColor: string;
-  fontFamily: "serif" | "sans" | "mono";
+  fontFamily: string;
   template: CatalogTemplate;
   pageSize: PageSize;
   showPrices: boolean;
@@ -146,7 +146,59 @@ const FONT_MAP: Record<string, string> = {
   sans: "Segoe UI, Arial, Helvetica, sans-serif",
   mono: "Consolas, 'Courier New', monospace",
   decorative: "'Segoe Script', 'Brush Script MT', cursive",
+  // Extended Google Fonts (Hebrew-ready)
+  heebo: "Heebo, Arial, sans-serif",
+  assistant: "Assistant, Arial, sans-serif",
+  rubik: "Rubik, Arial, sans-serif",
+  "frank-ruhl": "'Frank Ruhl Libre', Georgia, serif",
+  "open-sans": "'Open Sans', Arial, sans-serif",
+  playfair: "'Playfair Display', Georgia, serif",
+  cormorant: "'Cormorant Garamond', Georgia, serif",
+  poppins: "Poppins, Arial, sans-serif",
 };
+
+// Google Font loader — one-shot per family
+const _loadedFonts = new Set<string>();
+const GOOGLE_FONT_FAMILIES: Record<string, string> = {
+  heebo: "Heebo:wght@300;400;700",
+  assistant: "Assistant:wght@300;400;700",
+  rubik: "Rubik:wght@300;400;700",
+  "frank-ruhl": "Frank+Ruhl+Libre:wght@300;400;700",
+  "open-sans": "Open+Sans:wght@300;400;700",
+  playfair: "Playfair+Display:wght@400;700",
+  cormorant: "Cormorant+Garamond:wght@400;600;700",
+  poppins: "Poppins:wght@300;400;600;700",
+};
+
+export async function loadGoogleFont(family: string): Promise<void> {
+  const spec = GOOGLE_FONT_FAMILIES[family];
+  if (!spec || _loadedFonts.has(family)) return;
+  _loadedFonts.add(family);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${spec}&display=swap`;
+  document.head.appendChild(link);
+  // Wait for font to be ready
+  const fontName = FONT_MAP[family]?.split(",")[0]?.replace(/'/g, "").trim();
+  if (fontName) {
+    try { await document.fonts.load(`16px "${fontName}"`); } catch { /* fallback ok */ }
+  }
+}
+
+export const FONT_OPTIONS: { id: string; label: string; google?: boolean }[] = [
+  { id: "sans", label: "Sans" },
+  { id: "serif", label: "Serif" },
+  { id: "mono", label: "Mono" },
+  { id: "decorative", label: "דקורטיבי" },
+  { id: "heebo", label: "Heebo", google: true },
+  { id: "assistant", label: "Assistant", google: true },
+  { id: "rubik", label: "Rubik", google: true },
+  { id: "frank-ruhl", label: "Frank Ruhl", google: true },
+  { id: "open-sans", label: "Open Sans", google: true },
+  { id: "playfair", label: "Playfair", google: true },
+  { id: "cormorant", label: "Cormorant", google: true },
+  { id: "poppins", label: "Poppins", google: true },
+];
 
 // ─── Helpers ─────────────────────────────────────────────────
 function loadImage(src: string): Promise<HTMLImageElement> {

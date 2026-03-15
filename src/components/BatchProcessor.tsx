@@ -26,8 +26,18 @@ const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchPro
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFiles = useCallback((files: FileList) => {
+    const MAX_SIZE = 10 * 1024 * 1024; // 10MB
+    const MAX_COUNT = 50;
     Array.from(files).forEach((file) => {
       if (!file.type.startsWith("image/")) return;
+      if (file.size > MAX_SIZE) {
+        toast.error(`${file.name} גדול מדי (${(file.size / 1024 / 1024).toFixed(1)}MB). מקסימום 10MB`);
+        return;
+      }
+      if (items.length >= MAX_COUNT) {
+        toast.error(`מקסימום ${MAX_COUNT} תמונות בעיבוד מרובה`);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
         const item: BatchItem = {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Heart, Trash2, Clock, X, Download, Pencil } from "lucide-react";
+import { Heart, Trash2, Clock, X, Download, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import EditableLabel from "@/components/EditableLabel";
 
 interface HistoryItem {
@@ -24,6 +24,8 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 24;
 
   useEffect(() => {
     loadHistory();
@@ -94,6 +96,8 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
   };
 
   const filtered = filter === "favorites" ? items.filter((i) => i.is_favorite) : items;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm p-4" dir="rtl">
@@ -147,7 +151,7 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-              {filtered.map((item) => (
+              {paginated.map((item) => (
                 <div
                   key={item.id}
                   className="group relative rounded-xl border border-border overflow-hidden bg-background transition-all hover:border-gold/40 hover:shadow-lg"
@@ -218,6 +222,29 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {filtered.length > PAGE_SIZE && (
+          <div className="flex items-center justify-center gap-3 px-6 py-3 border-t border-border">
+            <button
+              onClick={() => setPage(p => Math.max(0, p - 1))}
+              disabled={page === 0}
+              className="rounded-lg p-1.5 hover:bg-secondary transition-colors disabled:opacity-30"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+            <span className="font-accent text-xs text-muted-foreground">
+              עמוד {page + 1} מתוך {totalPages}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+              disabled={page >= totalPages - 1}
+              className="rounded-lg p-1.5 hover:bg-secondary transition-colors disabled:opacity-30"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation */}

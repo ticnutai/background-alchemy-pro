@@ -1,14 +1,24 @@
 import { useCallback } from "react";
 import { Upload, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
 
 interface ImageUploaderProps {
   onImageSelect: (base64: string) => void;
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
 const ImageUploader = ({ onImageSelect }: ImageUploaderProps) => {
   const handleFile = useCallback(
     (file: File) => {
-      if (!file.type.startsWith("image/")) return;
+      if (!file.type.startsWith("image/")) {
+        (window as any).__sonnerToast?.("יש לבחור קובץ תמונה בלבד");
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        (window as any).__sonnerToast?.(`הקובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)}MB). מקסימום 10MB`);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
         onImageSelect(e.target?.result as string);

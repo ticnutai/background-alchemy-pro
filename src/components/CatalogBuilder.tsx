@@ -51,6 +51,8 @@ import {
   TEMPLATE_OPTIONS,
   BG_PATTERN_OPTIONS,
   FRAME_STYLE_OPTIONS,
+  FONT_OPTIONS,
+  loadGoogleFont,
   getItemsPerPage,
   type CatalogProduct,
   type CatalogSettings,
@@ -1142,20 +1144,20 @@ export default function CatalogBuilder() {
 
                   <div>
                     <Label className="text-xs">גופן</Label>
-                    <div className="flex gap-1 mt-1">
-                      {([
-                        { id: "sans" as const, label: "Sans" },
-                        { id: "serif" as const, label: "Serif" },
-                        { id: "mono" as const, label: "Mono" },
-                      ] as const).map(f => (
+                    <div className="grid grid-cols-3 gap-1 mt-1">
+                      {FONT_OPTIONS.map(f => (
                         <Button
                           key={f.id}
                           size="sm"
                           variant={settings.fontFamily === f.id ? "default" : "outline"}
-                          onClick={() => updateSetting("fontFamily", f.id)}
-                          className="flex-1"
+                          onClick={async () => {
+                            if (f.google) await loadGoogleFont(f.id);
+                            updateSetting("fontFamily", f.id);
+                          }}
+                          className="text-[10px] h-7 px-1"
                         >
                           {f.label}
+                          {f.google && <span className="text-[8px] opacity-50 mr-0.5">G</span>}
                         </Button>
                       ))}
                     </div>
@@ -1288,13 +1290,16 @@ export default function CatalogBuilder() {
                                 </div>
                               </div>
                               <div className="flex gap-1.5">
-                                <Select value={ov.fontFamily} onValueChange={v => updateOverlay(ov.id, { fontFamily: v as CatalogTextOverlay["fontFamily"] })}>
+                                <Select value={ov.fontFamily} onValueChange={async v => {
+                                  const opt = FONT_OPTIONS.find(f => f.id === v);
+                                  if (opt?.google) await loadGoogleFont(v);
+                                  updateOverlay(ov.id, { fontFamily: v as CatalogTextOverlay["fontFamily"] });
+                                }}>
                                   <SelectTrigger className="h-6 text-[10px] flex-1"><SelectValue /></SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="sans">Sans</SelectItem>
-                                    <SelectItem value="serif">Serif</SelectItem>
-                                    <SelectItem value="mono">Mono</SelectItem>
-                                    <SelectItem value="decorative">דקורטיבי</SelectItem>
+                                    {FONT_OPTIONS.map(f => (
+                                      <SelectItem key={f.id} value={f.id}>{f.label}</SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                                 <Select value={ov.fontWeight} onValueChange={v => updateOverlay(ov.id, { fontWeight: v as "normal" | "bold" })}>
