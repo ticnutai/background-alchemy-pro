@@ -94,7 +94,7 @@ const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchPro
       if (result.status === "fulfilled") {
         setItems((prev) =>
           prev.map((i) =>
-            i.id === item.id ? { ...i, status: "done" as const, resultImage: result.value } : i
+            i.id === item.id ? { ...i, status: "done" as const, resultImage: result.value as string } : i
           )
         );
       } else {

@@ -1054,7 +1054,7 @@ const ToolInner = () => {
                               if (error) throw error;
                               if (data?.error) throw new Error(data.error);
                               if (data?.resultImage) {
-                                setResultImage(data.resultImage);
+                                dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
                                 if (currentImg) setCachedResult(currentImg, "regional-mask", params, data.resultImage);
                                 toast.success("הפילטר האזורי הוחל!");
                               }

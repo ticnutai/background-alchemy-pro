@@ -105,7 +105,7 @@ function buildZip(files: Array<{ name: string; data: Uint8Array }>): Blob {
   ev.setUint16(20, 0, true);
   parts.push(eocd);
 
-  return new Blob(parts, { type: "application/zip" });
+  return new Blob(parts as BlobPart[], { type: "application/zip" });
 }
 
 /** CRC-32 (ISO 3309) */
