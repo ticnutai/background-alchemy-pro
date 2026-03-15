@@ -383,7 +383,7 @@ export default function CollageBuilder() {
       toast.error("שגיאה ביצירת הקולאז׳");
     }
     setProcessing(false);
-  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient]);
+  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
 
   // ── Download ────────────────────────────────────────────────
   const downloadCollage = useCallback(() => {
