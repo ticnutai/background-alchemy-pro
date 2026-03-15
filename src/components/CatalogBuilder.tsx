@@ -682,6 +682,10 @@ export default function CatalogBuilder() {
               <FileDown className="h-4 w-4" />
               ייצוא PDF
             </Button>
+            <Button size="sm" variant="outline" onClick={saveCatalogToGallery} disabled={savingToGallery || pages.length === 0}>
+              {savingToGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+              שמור לגלריה
+            </Button>
           </div>
         </div>
       </header>
