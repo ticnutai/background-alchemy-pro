@@ -39,7 +39,7 @@ interface ToolState {
   preciseMode: boolean;
 
   // UI state
-  activeTab: "backgrounds" | "adjust" | "tools" | "export" | "smart" | "filters";
+  activeTab: "backgrounds" | "adjust" | "tools" | "export" | "smart" | "filters" | "crop";
   showMockup: boolean;
   showBatch: boolean;
   showHistory: boolean;

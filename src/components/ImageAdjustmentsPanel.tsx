@@ -1,9 +1,10 @@
-import { forwardRef, useState, useMemo } from "react";
+import { forwardRef, useState, useMemo, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import {
   Sun, Contrast, Droplets, Focus, Thermometer, Aperture, SunDim,
   Highlighter, Moon, Flower2, CircleDot, Palette, Paintbrush,
   ChevronDown, ChevronUp, Sparkles, EyeOff, Blend, Layers,
+  SlidersHorizontal, BarChart3, Pipette,
 } from "lucide-react";
 
 // ─── Interface ───────────────────────────────────────────────
@@ -36,6 +37,20 @@ export interface ImageAdjustments {
   splitHighlightStrength: number;
   splitShadowColor: string;
   splitShadowStrength: number;
+  // Levels
+  levelsBlack: number;
+  levelsWhite: number;
+  levelsMidtones: number;
+  // Color Balance
+  cbShadowsR: number;
+  cbShadowsG: number;
+  cbShadowsB: number;
+  cbMidtonesR: number;
+  cbMidtonesG: number;
+  cbMidtonesB: number;
+  cbHighlightsR: number;
+  cbHighlightsG: number;
+  cbHighlightsB: number;
 }
 
 export const defaultAdjustments: ImageAdjustments = {
@@ -62,12 +77,20 @@ export const defaultAdjustments: ImageAdjustments = {
   splitHighlightStrength: 0,
   splitShadowColor: "#4a6fa5",
   splitShadowStrength: 0,
+  levelsBlack: 0,
+  levelsWhite: 255,
+  levelsMidtones: 1.0,
+  cbShadowsR: 0, cbShadowsG: 0, cbShadowsB: 0,
+  cbMidtonesR: 0, cbMidtonesG: 0, cbMidtonesB: 0,
+  cbHighlightsR: 0, cbHighlightsG: 0, cbHighlightsB: 0,
 };
 
 interface ImageAdjustmentsProps {
   adjustments: ImageAdjustments;
   onChange: (adjustments: ImageAdjustments) => void;
   onReset: () => void;
+  onApplyLocal?: () => void;
+  isApplying?: boolean;
 }
 
 // ─── Color Presets ───────────────────────────────────────────
@@ -324,13 +347,26 @@ function Section({ title, icon: Icon, children, defaultOpen = true }: {
 
 // ─── Component ───────────────────────────────────────────────
 const ImageAdjustmentsPanel = forwardRef<HTMLDivElement, ImageAdjustmentsProps>(
-  ({ adjustments, onChange, onReset }, ref) => {
+  ({ adjustments, onChange, onReset, onApplyLocal, isApplying }, ref) => {
     const isDefault = useMemo(() => JSON.stringify(adjustments) === JSON.stringify(defaultAdjustments), [adjustments]);
     const [showPresets, setShowPresets] = useState(true);
+    const [presetStrength, setPresetStrength] = useState(100);
+    const [activePresetId, setActivePresetId] = useState<string | null>(null);
 
-    const applyPreset = (preset: ColorPreset) => {
-      onChange({ ...defaultAdjustments, ...preset.adjustments });
-    };
+    const applyPreset = useCallback((preset: ColorPreset) => {
+      setActivePresetId(preset.id);
+      const strength = presetStrength / 100;
+      const blended: Partial<ImageAdjustments> = {};
+      for (const [key, val] of Object.entries(preset.adjustments)) {
+        const defVal = defaultAdjustments[key as keyof ImageAdjustments];
+        if (typeof val === "number" && typeof defVal === "number") {
+          (blended as any)[key] = Math.round(defVal + (val - defVal) * strength);
+        } else {
+          (blended as any)[key] = val;
+        }
+      }
+      onChange({ ...defaultAdjustments, ...blended });
+    }, [presetStrength, onChange]);
 
     const renderSlider = ({ key, label, icon: Icon, min, max }: SliderDef) => (
       <div key={key} className="space-y-1">
@@ -382,17 +418,51 @@ const ImageAdjustmentsPanel = forwardRef<HTMLDivElement, ImageAdjustmentsProps>(
             {showPresets ? <ChevronUp className="h-3 w-3 text-muted-foreground" /> : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
           </button>
           {showPresets && (
-            <div className="mt-2 grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
-              {colorPresets.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => applyPreset(p)}
-                  className="flex items-center gap-1.5 rounded-lg border border-border px-2 py-1.5 text-right transition-all hover:border-gold/50 hover:bg-gold/5 active:scale-95"
-                >
-                  <span className="text-sm shrink-0">{p.icon}</span>
-                  <span className="font-body text-[10px] font-medium text-foreground leading-tight truncate">{p.label}</span>
-                </button>
-              ))}
+            <div className="mt-2 space-y-2">
+              {/* Preset Strength */}
+              <div className="flex items-center gap-2 px-1">
+                <span className="font-body text-[9px] text-muted-foreground shrink-0">עוצמה</span>
+                <Slider
+                  value={[presetStrength]}
+                  onValueChange={([v]) => {
+                    setPresetStrength(v);
+                    if (activePresetId) {
+                      const p = colorPresets.find(pr => pr.id === activePresetId);
+                      if (p) {
+                        const strength = v / 100;
+                        const blended: Partial<ImageAdjustments> = {};
+                        for (const [key, val] of Object.entries(p.adjustments)) {
+                          const defVal = defaultAdjustments[key as keyof ImageAdjustments];
+                          if (typeof val === "number" && typeof defVal === "number") {
+                            (blended as any)[key] = Math.round(defVal + (val - defVal) * strength);
+                          } else {
+                            (blended as any)[key] = val;
+                          }
+                        }
+                        onChange({ ...defaultAdjustments, ...blended });
+                      }
+                    }
+                  }}
+                  min={10}
+                  max={150}
+                  step={5}
+                />
+                <span className="font-accent text-[9px] text-muted-foreground tabular-nums w-8">{presetStrength}%</span>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 max-h-48 overflow-y-auto pr-1">
+                {colorPresets.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => applyPreset(p)}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-right transition-all hover:border-gold/50 hover:bg-gold/5 active:scale-95 ${
+                      activePresetId === p.id ? "border-primary bg-primary/10" : "border-border"
+                    }`}
+                  >
+                    <span className="text-sm shrink-0">{p.icon}</span>
+                    <span className="font-body text-[10px] font-medium text-foreground leading-tight truncate">{p.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
         </div>
@@ -415,6 +485,85 @@ const ImageAdjustmentsPanel = forwardRef<HTMLDivElement, ImageAdjustmentsProps>(
         {/* Effects */}
         <Section title="אפקטים" icon={Sparkles} defaultOpen={false}>
           {effectSliders.map(renderSlider)}
+        </Section>
+
+        {/* Levels */}
+        <Section title="רמות (Levels)" icon={BarChart3} defaultOpen={false}>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-body text-[11px] font-medium text-foreground">נקודה שחורה</span>
+              <span className="font-body text-[10px] text-muted-foreground tabular-nums w-8 text-left">{adjustments.levelsBlack}</span>
+            </div>
+            <Slider value={[adjustments.levelsBlack]} onValueChange={([v]) => onChange({ ...adjustments, levelsBlack: v })} min={0} max={100} step={1} />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-body text-[11px] font-medium text-foreground">אמצע (Gamma)</span>
+              <span className="font-body text-[10px] text-muted-foreground tabular-nums w-8 text-left">{adjustments.levelsMidtones.toFixed(1)}</span>
+            </div>
+            <Slider value={[adjustments.levelsMidtones * 100]} onValueChange={([v]) => onChange({ ...adjustments, levelsMidtones: v / 100 })} min={10} max={400} step={5} />
+          </div>
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-body text-[11px] font-medium text-foreground">נקודה לבנה</span>
+              <span className="font-body text-[10px] text-muted-foreground tabular-nums w-8 text-left">{adjustments.levelsWhite}</span>
+            </div>
+            <Slider value={[adjustments.levelsWhite]} onValueChange={([v]) => onChange({ ...adjustments, levelsWhite: v })} min={155} max={255} step={1} />
+          </div>
+        </Section>
+
+        {/* Color Balance */}
+        <Section title="איזון צבע" icon={Pipette} defaultOpen={false}>
+          <div className="space-y-3">
+            <div>
+              <span className="font-body text-[10px] font-semibold text-muted-foreground mb-1 block">צללים</span>
+              {[
+                { key: "cbShadowsR" as const, label: "ציאן ↔ אדום", color: "text-red-400" },
+                { key: "cbShadowsG" as const, label: "מג׳נטה ↔ ירוק", color: "text-green-400" },
+                { key: "cbShadowsB" as const, label: "צהוב ↔ כחול", color: "text-blue-400" },
+              ].map(({ key, label, color }) => (
+                <div key={key} className="space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-body text-[10px] ${color}`}>{label}</span>
+                    <span className="font-body text-[9px] text-muted-foreground tabular-nums">{adjustments[key]}</span>
+                  </div>
+                  <Slider value={[adjustments[key]]} onValueChange={([v]) => onChange({ ...adjustments, [key]: v })} min={-30} max={30} step={1} />
+                </div>
+              ))}
+            </div>
+            <div>
+              <span className="font-body text-[10px] font-semibold text-muted-foreground mb-1 block">אמצע</span>
+              {[
+                { key: "cbMidtonesR" as const, label: "ציאן ↔ אדום", color: "text-red-400" },
+                { key: "cbMidtonesG" as const, label: "מג׳נטה ↔ ירוק", color: "text-green-400" },
+                { key: "cbMidtonesB" as const, label: "צהוב ↔ כחול", color: "text-blue-400" },
+              ].map(({ key, label, color }) => (
+                <div key={key} className="space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-body text-[10px] ${color}`}>{label}</span>
+                    <span className="font-body text-[9px] text-muted-foreground tabular-nums">{adjustments[key]}</span>
+                  </div>
+                  <Slider value={[adjustments[key]]} onValueChange={([v]) => onChange({ ...adjustments, [key]: v })} min={-30} max={30} step={1} />
+                </div>
+              ))}
+            </div>
+            <div>
+              <span className="font-body text-[10px] font-semibold text-muted-foreground mb-1 block">היילייטס</span>
+              {[
+                { key: "cbHighlightsR" as const, label: "ציאן ↔ אדום", color: "text-red-400" },
+                { key: "cbHighlightsG" as const, label: "מג׳נטה ↔ ירוק", color: "text-green-400" },
+                { key: "cbHighlightsB" as const, label: "צהוב ↔ כחול", color: "text-blue-400" },
+              ].map(({ key, label, color }) => (
+                <div key={key} className="space-y-0.5">
+                  <div className="flex items-center justify-between">
+                    <span className={`font-body text-[10px] ${color}`}>{label}</span>
+                    <span className="font-body text-[9px] text-muted-foreground tabular-nums">{adjustments[key]}</span>
+                  </div>
+                  <Slider value={[adjustments[key]]} onValueChange={([v]) => onChange({ ...adjustments, [key]: v })} min={-30} max={30} step={1} />
+                </div>
+              ))}
+            </div>
+          </div>
         </Section>
 
         {/* Split Toning */}
@@ -462,6 +611,27 @@ const ImageAdjustmentsPanel = forwardRef<HTMLDivElement, ImageAdjustmentsProps>(
             </div>
           </div>
         </Section>
+
+        {/* Apply Locally Button */}
+        {!isDefault && onApplyLocal && (
+          <div className="pt-3 border-t border-border/50">
+            <button
+              onClick={onApplyLocal}
+              disabled={isApplying}
+              className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary py-2.5 font-display text-sm font-semibold text-primary-foreground hover:brightness-110 transition disabled:opacity-50"
+            >
+              {isApplying ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+              ) : (
+                <SlidersHorizontal className="h-4 w-4" />
+              )}
+              החל מקומית (ללא AI)
+            </button>
+            <p className="mt-1.5 font-body text-[9px] text-center text-muted-foreground">
+              מעבד פיקסלים ישירות בדפדפן — תוצאה מדויקת ללא שרת
+            </p>
+          </div>
+        )}
       </div>
     );
   }

@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ import ImageUploader from "@/components/ImageUploader";
 import ImageCanvas from "@/components/ImageCanvas";
 import BackgroundPresets, { type Preset, presets } from "@/components/BackgroundPresets";
 import ImageAdjustmentsPanel, {
+  defaultAdjustments,
   getFilterString,
   getOverlayStyles,
   getSvgFilterId,
@@ -28,6 +29,9 @@ import FilterLayersPanel from "@/components/FilterLayersPanel";
 import ColorTransferPanel from "@/components/ColorTransferPanel";
 import RegionalMaskPanel from "@/components/RegionalMaskPanel";
 import LiveHistogram from "@/components/LiveHistogram";
+import CropTransformPanel from "@/components/CropTransformPanel";
+import FloatingSaveAction from "@/components/FloatingSaveAction";
+import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
 import type { User } from "@supabase/supabase-js";
 
@@ -100,6 +104,7 @@ const ToolInner = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [filterProcessing, setFilterProcessing] = useState(false);
   const [liveFilterCss, setLiveFilterCss] = useState("");
+  const [localApplying, setLocalApplying] = useState(false);
 
   const {
     originalImage, resultImage, adjustments, referenceImages,
@@ -178,6 +183,72 @@ const ToolInner = () => {
       payload: { id: preset.id, prompt: preset.prompt, name: preset.professionalName, type: preset.type || "surface" },
     });
   }, [dispatch]);
+
+  // Apply adjustments locally using Canvas pixel engine (no AI)
+  const handleApplyLocal = useCallback(async () => {
+    const sourceImage = resultImage || originalImage;
+    if (!sourceImage) return;
+    setLocalApplying(true);
+    try {
+      const opts: CanvasFilterOptions = {
+        brightness: adjustments.brightness,
+        contrast: adjustments.contrast,
+        saturation: adjustments.saturation,
+        exposure: adjustments.exposure,
+        highlights: adjustments.highlights,
+        shadows: adjustments.shadows,
+        warmth: adjustments.warmth,
+        tint: adjustments.tint,
+        hue: adjustments.hue,
+        vibrance: adjustments.vibrance,
+        clarity: adjustments.clarity,
+        sharpness: adjustments.sharpness,
+        grain: adjustments.grain,
+        vignette: adjustments.vignette,
+        fade: adjustments.fade,
+        blackAndWhite: adjustments.blackAndWhite,
+        sepiaTone: adjustments.sepiaTone,
+        dehaze: adjustments.dehaze,
+        levelsBlack: adjustments.levelsBlack,
+        levelsWhite: adjustments.levelsWhite,
+        levelsMidtones: adjustments.levelsMidtones,
+        cbShadowsR: adjustments.cbShadowsR, cbShadowsG: adjustments.cbShadowsG, cbShadowsB: adjustments.cbShadowsB,
+        cbMidtonesR: adjustments.cbMidtonesR, cbMidtonesG: adjustments.cbMidtonesG, cbMidtonesB: adjustments.cbMidtonesB,
+        cbHighlightsR: adjustments.cbHighlightsR, cbHighlightsG: adjustments.cbHighlightsG, cbHighlightsB: adjustments.cbHighlightsB,
+      };
+      const result = await applyCanvasFilters(sourceImage, opts);
+      dispatch({ type: "SET_RESULT_IMAGE", payload: result });
+      dispatch({ type: "RESET_ADJUSTMENTS" });
+      toast.success("ההתאמות הוחלו מקומית!");
+    } catch {
+      toast.error("שגיאה בהחלת ההתאמות");
+    } finally {
+      setLocalApplying(false);
+    }
+  }, [resultImage, originalImage, adjustments, dispatch]);
+
+  // Floating save — Save as New (to gallery)
+  const handleFloatingSaveNew = useCallback(() => {
+    setSaveNewName(suggestedName || "");
+    setShowSaveDialog(true);
+  }, [suggestedName]);
+
+  // Floating save — Replace (apply current adjustments and keep as result)
+  const handleFloatingReplace = useCallback(async () => {
+    const sourceImage = resultImage || originalImage;
+    if (!sourceImage) return;
+    const hasAdj = JSON.stringify(adjustments) !== JSON.stringify(defaultAdjustments);
+    if (hasAdj) {
+      await handleApplyLocal();
+    }
+    toast.success("השינויים נשמרו!");
+  }, [resultImage, originalImage, adjustments, handleApplyLocal]);
+
+  // Check if there are unsaved changes
+  const hasUnsavedChanges = useMemo(() => {
+    const hasAdj = JSON.stringify(adjustments) !== JSON.stringify(defaultAdjustments);
+    return resultImage !== null || hasAdj;
+  }, [adjustments, resultImage]);
 
   const handleProcess = useCallback(async () => {
     if (!originalImage) return toast.error("יש להעלות תמונה קודם");
@@ -628,12 +699,20 @@ const ToolInner = () => {
           {/* Canvas */}
           <div className="flex-1 space-y-6">
             {originalImage ? (
-              <ImageCanvas
-                originalImage={originalImage}
-                resultImage={resultImage}
-                isProcessing={isProcessing || isEnhancing}
-                adjustments={adjustments}
-              />
+              <div className="relative">
+                <ImageCanvas
+                  originalImage={originalImage}
+                  resultImage={resultImage}
+                  isProcessing={isProcessing || isEnhancing}
+                  adjustments={adjustments}
+                />
+                <FloatingSaveAction
+                  visible={!!originalImage && hasUnsavedChanges && !!user}
+                  onSaveNew={handleFloatingSaveNew}
+                  onReplace={handleFloatingReplace}
+                  isSaving={isSaving || localApplying}
+                />
+              </div>
             ) : (
               <ImageUploader onImageSelect={handleImageSelect} />
             )}
@@ -879,11 +958,12 @@ const ToolInner = () => {
             <div className="w-80 shrink-0">
               <div className="sticky top-8 space-y-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Tabs */}
-                <div className="flex border-b border-border">
+                <div className="flex flex-wrap border-b border-border">
                   {[
                     { key: "backgrounds" as const, label: "רקעים" },
                     { key: "smart" as const, label: "🧠 חכם" },
                     { key: "filters" as const, label: "⚡ פילטרים" },
+                    { key: "crop" as const, label: "✂️ חיתוך" },
                     { key: "tools" as const, label: "כלים" },
                     { key: "adjust" as const, label: "התאמות" },
                     { key: "export" as const, label: "ייצוא" },
@@ -1082,11 +1162,20 @@ const ToolInner = () => {
                       </div>
                     </div>
                   )}
+                  {activeTab === "crop" && (
+                    <CropTransformPanel
+                      currentImage={resultImage || originalImage}
+                      onApply={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                      isProcessing={isProcessing}
+                    />
+                  )}
                   {activeTab === "adjust" && (
                     <ImageAdjustmentsPanel
                       adjustments={adjustments}
                       onChange={(a) => dispatch({ type: "SET_ADJUSTMENTS", payload: a })}
                       onReset={() => dispatch({ type: "RESET_ADJUSTMENTS" })}
+                      onApplyLocal={handleApplyLocal}
+                      isApplying={localApplying}
                     />
                   )}
                   {activeTab === "export" && (
