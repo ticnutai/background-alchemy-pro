@@ -211,6 +211,7 @@ const Gallery = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [newFolderName, setNewFolderName] = useState("");
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   // Zoom / comparison state
   const [zoomedItem, setZoomedItem] = useState<HistoryItem | null>(null);
