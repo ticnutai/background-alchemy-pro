@@ -1042,7 +1042,7 @@ const ToolInner = () => {
                             const params = { region, filterType, intensity };
                             const cached = currentImg ? getCachedResult(currentImg, "regional-mask", params) : null;
                             if (cached) {
-                              setResultImage(cached);
+                              dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
                               toast.success("נטען מ-cache!");
                               setFilterProcessing(false);
                               return;
