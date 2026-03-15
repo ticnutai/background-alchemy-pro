@@ -1,0 +1,836 @@
+/**
+ * Catalog Engine — Canvas-based multi-page catalog generator.
+ * Renders professional product catalogs with multiple templates/layouts.
+ */
+
+// ─── Types ───────────────────────────────────────────────────
+export interface CatalogProduct {
+  id: string;
+  image: string;          // base64 or URL
+  name: string;
+  description?: string;
+  price?: string;
+  sku?: string;
+  badge?: string;         // "חדש", "מבצע", etc.
+}
+
+export interface CatalogSettings {
+  title: string;
+  subtitle?: string;
+  logo?: string;          // base64 or URL
+  brandColor: string;
+  accentColor: string;
+  bgColor: string;
+  textColor: string;
+  fontFamily: "serif" | "sans" | "mono";
+  template: CatalogTemplate;
+  pageSize: PageSize;
+  showPrices: boolean;
+  showSku: boolean;
+  showDescriptions: boolean;
+  showPageNumbers: boolean;
+  showHeader: boolean;
+  watermark?: string;
+  contactInfo?: string;
+  columns: 1 | 2 | 3 | 4;
+}
+
+export type CatalogTemplate =
+  | "grid-clean"      // Clean grid with subtle borders
+  | "grid-shadow"     // Cards with drop shadows
+  | "magazine"        // Alternating large/small layout
+  | "minimal"         // Ultra-minimal, lots of whitespace
+  | "luxury"          // Dark theme, gold accents
+  | "catalog-pro"     // Classic catalog with header/footer
+  | "lookbook"        // Full-bleed images with overlay text
+  | "showcase";       // Single product per page, large
+
+export type PageSize = "A4" | "A3" | "letter" | "square" | "landscape";
+
+export interface CatalogPage {
+  pageNumber: number;
+  canvas: HTMLCanvasElement;
+  dataUrl: string;
+}
+
+// ─── Constants ───────────────────────────────────────────────
+const PAGE_SIZES: Record<PageSize, { w: number; h: number }> = {
+  A4: { w: 2480, h: 3508 },       // 210mm × 297mm at 300dpi
+  A3: { w: 3508, h: 4961 },
+  letter: { w: 2550, h: 3300 },
+  square: { w: 3000, h: 3000 },
+  landscape: { w: 3508, h: 2480 },
+};
+
+const FONT_MAP: Record<string, string> = {
+  serif: "Georgia, 'Times New Roman', serif",
+  sans: "Segoe UI, Arial, Helvetica, sans-serif",
+  mono: "Consolas, 'Courier New', monospace",
+};
+
+// ─── Helpers ─────────────────────────────────────────────────
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+function drawRoundedRect(
+  ctx: CanvasRenderingContext2D,
+  x: number, y: number, w: number, h: number, r: number,
+) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function wrapText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxWidth: number,
+  lineHeight: number,
+  maxLines = 3,
+): number {
+  const words = text.split(" ");
+  let line = "";
+  let lineCount = 0;
+
+  for (let i = 0; i < words.length; i++) {
+    const testLine = line + words[i] + " ";
+    const metrics = ctx.measureText(testLine);
+    if (metrics.width > maxWidth && i > 0) {
+      lineCount++;
+      if (lineCount > maxLines) break;
+      ctx.fillText(line.trim(), x, y);
+      line = words[i] + " ";
+      y += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  if (lineCount <= maxLines) {
+    ctx.fillText(line.trim(), x, y);
+    y += lineHeight;
+  }
+  return y;
+}
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+// ─── Page Renderers ──────────────────────────────────────────
+
+/** Items per page based on template and columns */
+function getItemsPerPage(template: CatalogTemplate, columns: number): number {
+  switch (template) {
+    case "showcase": return 1;
+    case "lookbook": return 2;
+    case "magazine": return columns <= 2 ? 3 : 5;
+    default: return columns * Math.ceil(columns * 0.75);
+  }
+}
+
+async function drawHeader(
+  ctx: CanvasRenderingContext2D,
+  settings: CatalogSettings,
+  pageW: number,
+  _pageH: number,
+): Promise<number> {
+  if (!settings.showHeader) return 40;
+
+  const padding = pageW * 0.04;
+  const headerH = pageW * 0.08;
+  const font = FONT_MAP[settings.fontFamily];
+
+  // Header background
+  ctx.fillStyle = settings.brandColor;
+  ctx.fillRect(0, 0, pageW, headerH);
+
+  // Logo
+  let textX = padding;
+  if (settings.logo) {
+    try {
+      const logoImg = await loadImage(settings.logo);
+      const logoH = headerH * 0.6;
+      const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
+      ctx.drawImage(logoImg, padding, (headerH - logoH) / 2, logoW, logoH);
+      textX = padding + logoW + padding * 0.5;
+    } catch { /* no logo */ }
+  }
+
+  // Title
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${headerH * 0.35}px ${font}`;
+  ctx.textAlign = "right";
+  ctx.textBaseline = "middle";
+  ctx.fillText(settings.title, pageW - padding, headerH * 0.4);
+
+  // Subtitle
+  if (settings.subtitle) {
+    ctx.font = `${headerH * 0.2}px ${font}`;
+    ctx.fillStyle = hexToRgba("#ffffff", 0.8);
+    ctx.fillText(settings.subtitle, pageW - padding, headerH * 0.72);
+  }
+
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+
+  return headerH + padding * 0.5;
+}
+
+function drawFooter(
+  ctx: CanvasRenderingContext2D,
+  settings: CatalogSettings,
+  pageW: number,
+  pageH: number,
+  pageNum: number,
+  totalPages: number,
+) {
+  const padding = pageW * 0.04;
+  const footerH = pageW * 0.03;
+  const footerY = pageH - footerH - padding * 0.5;
+  const font = FONT_MAP[settings.fontFamily];
+
+  // Separator line
+  ctx.strokeStyle = hexToRgba(settings.brandColor, 0.3);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(padding, footerY);
+  ctx.lineTo(pageW - padding, footerY);
+  ctx.stroke();
+
+  // Contact info
+  if (settings.contactInfo) {
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.5);
+    ctx.font = `${footerH * 0.5}px ${font}`;
+    ctx.textAlign = "right";
+    ctx.fillText(settings.contactInfo, pageW - padding, footerY + footerH * 0.7);
+  }
+
+  // Page number
+  if (settings.showPageNumbers) {
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.4);
+    ctx.font = `${footerH * 0.5}px ${font}`;
+    ctx.textAlign = "left";
+    ctx.fillText(`${pageNum} / ${totalPages}`, padding, footerY + footerH * 0.7);
+  }
+
+  ctx.textAlign = "start";
+}
+
+function drawWatermark(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  pageW: number,
+  pageH: number,
+  font: string,
+) {
+  ctx.save();
+  ctx.translate(pageW / 2, pageH / 2);
+  ctx.rotate(-Math.PI / 6);
+  ctx.fillStyle = "rgba(0,0,0,0.04)";
+  ctx.font = `bold ${pageW * 0.08}px ${font}`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+
+// ─── Product Card Renderers ──────────────────────────────────
+
+async function drawProductCard(
+  ctx: CanvasRenderingContext2D,
+  product: CatalogProduct,
+  x: number, y: number, w: number, h: number,
+  settings: CatalogSettings,
+  template: CatalogTemplate,
+) {
+  const font = FONT_MAP[settings.fontFamily];
+  const padding = w * 0.05;
+  const imageArea = h * 0.65;
+  const textArea = h - imageArea;
+
+  // Card background
+  if (template === "grid-shadow") {
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.15)";
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetX = 4;
+    ctx.shadowOffsetY = 4;
+    drawRoundedRect(ctx, x, y, w, h, 12);
+    ctx.fillStyle = settings.bgColor === "#1a1a2e" ? "#222240" : "#ffffff";
+    ctx.fill();
+    ctx.restore();
+  } else if (template === "luxury") {
+    drawRoundedRect(ctx, x, y, w, h, 8);
+    ctx.fillStyle = "#1c1c30";
+    ctx.fill();
+    ctx.strokeStyle = hexToRgba(settings.accentColor, 0.3);
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  } else if (template === "grid-clean") {
+    ctx.strokeStyle = hexToRgba(settings.textColor, 0.1);
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x, y, w, h);
+  } else if (template === "minimal") {
+    // No card border, just spacing
+  }
+
+  // Product image
+  try {
+    const img = await loadImage(product.image);
+    const imgX = x + padding;
+    const imgY = y + padding;
+    const imgW = w - padding * 2;
+    const imgH = imageArea - padding * 2;
+
+    // Fit image maintaining aspect ratio
+    const scale = Math.min(imgW / img.naturalWidth, imgH / img.naturalHeight);
+    const drawW = img.naturalWidth * scale;
+    const drawH = img.naturalHeight * scale;
+    const drawX = imgX + (imgW - drawW) / 2;
+    const drawY = imgY + (imgH - drawH) / 2;
+
+    if (template === "grid-shadow" || template === "luxury") {
+      ctx.save();
+      drawRoundedRect(ctx, imgX, imgY, imgW, imgH, 8);
+      ctx.clip();
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.restore();
+    } else {
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    }
+  } catch {
+    // Placeholder if image fails
+    ctx.fillStyle = hexToRgba(settings.brandColor, 0.1);
+    ctx.fillRect(x + padding, y + padding, w - padding * 2, imageArea - padding * 2);
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.3);
+    ctx.font = `${w * 0.06}px ${font}`;
+    ctx.textAlign = "center";
+    ctx.fillText("תמונה לא זמינה", x + w / 2, y + imageArea / 2);
+    ctx.textAlign = "start";
+  }
+
+  // Badge
+  if (product.badge) {
+    const badgeH = h * 0.04;
+    const badgePad = badgeH * 0.6;
+    ctx.font = `bold ${badgeH}px ${font}`;
+    const badgeW = ctx.measureText(product.badge).width + badgePad * 2;
+    const badgeX = x + w - padding - badgeW;
+    const badgeY = y + padding;
+    drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH + badgePad, badgeH * 0.3);
+    ctx.fillStyle = settings.accentColor;
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.fillText(product.badge, badgeX + badgeW / 2, badgeY + badgeH * 0.9);
+    ctx.textAlign = "start";
+  }
+
+  // Text area
+  const textX = x + padding;
+  const textMaxW = w - padding * 2;
+  let textY = y + imageArea + padding * 0.5;
+
+  // Product name
+  ctx.fillStyle = template === "luxury" ? "#ffffff" : settings.textColor;
+  ctx.font = `bold ${h * 0.035}px ${font}`;
+  textY = wrapText(ctx, product.name, textX, textY, textMaxW, h * 0.04, 2);
+
+  // Description
+  if (settings.showDescriptions && product.description) {
+    ctx.fillStyle = template === "luxury"
+      ? hexToRgba("#ffffff", 0.6)
+      : hexToRgba(settings.textColor, 0.6);
+    ctx.font = `${h * 0.025}px ${font}`;
+    textY = wrapText(ctx, product.description, textX, textY + h * 0.01, textMaxW, h * 0.03, 2);
+  }
+
+  // Price + SKU row
+  const bottomY = y + h - padding;
+  if (settings.showPrices && product.price) {
+    ctx.fillStyle = settings.brandColor;
+    ctx.font = `bold ${h * 0.035}px ${font}`;
+    ctx.textAlign = "right";
+    ctx.fillText(product.price, x + w - padding, bottomY);
+    ctx.textAlign = "start";
+  }
+  if (settings.showSku && product.sku) {
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.35);
+    ctx.font = `${h * 0.02}px ${font}`;
+    ctx.fillText(`מק״ט: ${product.sku}`, textX, bottomY);
+  }
+}
+
+async function drawShowcaseProduct(
+  ctx: CanvasRenderingContext2D,
+  product: CatalogProduct,
+  startY: number,
+  pageW: number,
+  pageH: number,
+  settings: CatalogSettings,
+) {
+  const font = FONT_MAP[settings.fontFamily];
+  const padding = pageW * 0.06;
+  const availH = pageH - startY - pageW * 0.1;
+  const imageH = availH * 0.7;
+
+  // Large product image
+  try {
+    const img = await loadImage(product.image);
+    const imgW = pageW - padding * 2;
+    const scale = Math.min(imgW / img.naturalWidth, imageH / img.naturalHeight);
+    const drawW = img.naturalWidth * scale;
+    const drawH = img.naturalHeight * scale;
+    const drawX = (pageW - drawW) / 2;
+    const drawY = startY + (imageH - drawH) / 2;
+
+    // Subtle shadow behind image
+    ctx.save();
+    ctx.shadowColor = "rgba(0,0,0,0.2)";
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = 10;
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    ctx.restore();
+  } catch { /* skip */ }
+
+  // Product info
+  const infoY = startY + imageH + padding;
+  ctx.textAlign = "center";
+  ctx.fillStyle = settings.textColor;
+  ctx.font = `bold ${pageW * 0.04}px ${font}`;
+  ctx.fillText(product.name, pageW / 2, infoY);
+
+  if (settings.showDescriptions && product.description) {
+    ctx.font = `${pageW * 0.02}px ${font}`;
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.6);
+    wrapText(ctx, product.description, pageW * 0.15, infoY + pageW * 0.05, pageW * 0.7, pageW * 0.028, 3);
+  }
+
+  if (settings.showPrices && product.price) {
+    ctx.font = `bold ${pageW * 0.05}px ${font}`;
+    ctx.fillStyle = settings.brandColor;
+    ctx.fillText(product.price, pageW / 2, infoY + pageW * 0.13);
+  }
+
+  if (settings.showSku && product.sku) {
+    ctx.font = `${pageW * 0.015}px ${font}`;
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.35);
+    ctx.fillText(`מק״ט: ${product.sku}`, pageW / 2, infoY + pageW * 0.17);
+  }
+
+  ctx.textAlign = "start";
+}
+
+async function drawLookbookProduct(
+  ctx: CanvasRenderingContext2D,
+  product: CatalogProduct,
+  x: number, y: number, w: number, h: number,
+  settings: CatalogSettings,
+) {
+  const font = FONT_MAP[settings.fontFamily];
+
+  // Full-bleed image
+  try {
+    const img = await loadImage(product.image);
+    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+    const drawW = img.naturalWidth * scale;
+    const drawH = img.naturalHeight * scale;
+    const drawX = x + (w - drawW) / 2;
+    const drawY = y + (h - drawH) / 2;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.drawImage(img, drawX, drawY, drawW, drawH);
+    ctx.restore();
+  } catch { /* skip */ }
+
+  // Gradient overlay at bottom
+  const gradH = h * 0.4;
+  const grad = ctx.createLinearGradient(x, y + h - gradH, x, y + h);
+  grad.addColorStop(0, "rgba(0,0,0,0)");
+  grad.addColorStop(1, "rgba(0,0,0,0.7)");
+  ctx.fillStyle = grad;
+  ctx.fillRect(x, y + h - gradH, w, gradH);
+
+  // Text on overlay
+  const padding = w * 0.06;
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${w * 0.045}px ${font}`;
+  ctx.textAlign = "right";
+  ctx.fillText(product.name, x + w - padding, y + h - padding * 2.5);
+
+  if (settings.showPrices && product.price) {
+    ctx.font = `bold ${w * 0.055}px ${font}`;
+    ctx.fillStyle = settings.accentColor;
+    ctx.fillText(product.price, x + w - padding, y + h - padding);
+  }
+  ctx.textAlign = "start";
+}
+
+// ─── Render Cover Page ───────────────────────────────────────
+async function renderCoverPage(
+  settings: CatalogSettings,
+  products: CatalogProduct[],
+  totalPages: number,
+): Promise<HTMLCanvasElement> {
+  const { w: pageW, h: pageH } = PAGE_SIZES[settings.pageSize];
+  const canvas = document.createElement("canvas");
+  canvas.width = pageW;
+  canvas.height = pageH;
+  const ctx = canvas.getContext("2d")!;
+  const font = FONT_MAP[settings.fontFamily];
+
+  // Background
+  if (settings.template === "luxury") {
+    ctx.fillStyle = "#0d0d1a";
+    ctx.fillRect(0, 0, pageW, pageH);
+    // Gold border
+    ctx.strokeStyle = settings.accentColor;
+    ctx.lineWidth = 8;
+    ctx.strokeRect(60, 60, pageW - 120, pageH - 120);
+    ctx.strokeStyle = hexToRgba(settings.accentColor, 0.3);
+    ctx.lineWidth = 2;
+    ctx.strokeRect(80, 80, pageW - 160, pageH - 160);
+  } else {
+    ctx.fillStyle = settings.bgColor;
+    ctx.fillRect(0, 0, pageW, pageH);
+    // Brand stripe
+    ctx.fillStyle = settings.brandColor;
+    ctx.fillRect(0, 0, pageW, pageH * 0.45);
+  }
+
+  // Logo
+  if (settings.logo) {
+    try {
+      const logoImg = await loadImage(settings.logo);
+      const logoH = pageH * 0.08;
+      const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
+      ctx.drawImage(logoImg, (pageW - logoW) / 2, pageH * 0.12, logoW, logoH);
+    } catch { /* skip */ }
+  }
+
+  // Title
+  ctx.textAlign = "center";
+  const titleColor = settings.template === "luxury" ? settings.accentColor : "#ffffff";
+  ctx.fillStyle = titleColor;
+  ctx.font = `bold ${pageW * 0.06}px ${font}`;
+  ctx.fillText(settings.title, pageW / 2, pageH * 0.3);
+
+  // Subtitle
+  if (settings.subtitle) {
+    ctx.fillStyle = hexToRgba(titleColor, 0.7);
+    ctx.font = `${pageW * 0.025}px ${font}`;
+    ctx.fillText(settings.subtitle, pageW / 2, pageH * 0.36);
+  }
+
+  // Product thumbnails grid on cover (up to 6)
+  const thumbCount = Math.min(products.length, 6);
+  if (thumbCount > 0) {
+    const thumbCols = Math.min(thumbCount, 3);
+    const thumbRows = Math.ceil(thumbCount / thumbCols);
+    const thumbAreaW = pageW * 0.7;
+    const thumbAreaH = pageH * 0.35;
+    const thumbW = (thumbAreaW - (thumbCols - 1) * 20) / thumbCols;
+    const thumbH = (thumbAreaH - (thumbRows - 1) * 20) / thumbRows;
+    const thumbStartX = (pageW - thumbAreaW) / 2;
+    const thumbStartY = pageH * 0.48;
+
+    for (let i = 0; i < thumbCount; i++) {
+      const col = i % thumbCols;
+      const row = Math.floor(i / thumbCols);
+      const tx = thumbStartX + col * (thumbW + 20);
+      const ty = thumbStartY + row * (thumbH + 20);
+
+      try {
+        const img = await loadImage(products[i].image);
+        ctx.save();
+        drawRoundedRect(ctx, tx, ty, thumbW, thumbH, 12);
+        ctx.clip();
+        const scale = Math.max(thumbW / img.naturalWidth, thumbH / img.naturalHeight);
+        const dw = img.naturalWidth * scale;
+        const dh = img.naturalHeight * scale;
+        ctx.drawImage(img, tx + (thumbW - dw) / 2, ty + (thumbH - dh) / 2, dw, dh);
+        ctx.restore();
+      } catch { /* skip */ }
+    }
+  }
+
+  // Product count + page count
+  ctx.fillStyle = hexToRgba(settings.textColor, 0.4);
+  ctx.font = `${pageW * 0.018}px ${font}`;
+  ctx.fillText(`${products.length} מוצרים · ${totalPages} עמודים`, pageW / 2, pageH * 0.92);
+
+  // Contact info
+  if (settings.contactInfo) {
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.5);
+    ctx.font = `${pageW * 0.015}px ${font}`;
+    ctx.fillText(settings.contactInfo, pageW / 2, pageH * 0.95);
+  }
+
+  ctx.textAlign = "start";
+  return canvas;
+}
+
+// ─── Main Render Function ────────────────────────────────────
+export async function generateCatalog(
+  products: CatalogProduct[],
+  settings: CatalogSettings,
+  onProgress?: (page: number, total: number) => void,
+): Promise<CatalogPage[]> {
+  const { w: pageW, h: pageH } = PAGE_SIZES[settings.pageSize];
+  const itemsPerPage = getItemsPerPage(settings.template, settings.columns);
+  const productPages = Math.ceil(products.length / itemsPerPage);
+  const totalPages = 1 + productPages; // cover + product pages
+
+  const pages: CatalogPage[] = [];
+
+  // Cover page
+  onProgress?.(0, totalPages);
+  const coverCanvas = await renderCoverPage(settings, products, totalPages);
+  pages.push({
+    pageNumber: 0,
+    canvas: coverCanvas,
+    dataUrl: coverCanvas.toDataURL("image/png"),
+  });
+
+  // Product pages
+  for (let p = 0; p < productPages; p++) {
+    onProgress?.(p + 1, totalPages);
+    const pageProducts = products.slice(p * itemsPerPage, (p + 1) * itemsPerPage);
+    const canvas = document.createElement("canvas");
+    canvas.width = pageW;
+    canvas.height = pageH;
+    const ctx = canvas.getContext("2d")!;
+
+    // Background
+    ctx.fillStyle = settings.template === "luxury" ? "#0d0d1a" : settings.bgColor;
+    ctx.fillRect(0, 0, pageW, pageH);
+
+    // Header
+    const contentTop = await drawHeader(ctx, settings, pageW, pageH);
+
+    // Watermark
+    if (settings.watermark) {
+      drawWatermark(ctx, settings.watermark, pageW, pageH, FONT_MAP[settings.fontFamily]);
+    }
+
+    // Footer
+    drawFooter(ctx, settings, pageW, pageH, p + 2, totalPages);
+
+    const padding = pageW * 0.04;
+    const contentBottom = pageH - pageW * 0.06;
+    const contentH = contentBottom - contentTop;
+    const contentW = pageW - padding * 2;
+
+    // Render products based on template
+    if (settings.template === "showcase") {
+      if (pageProducts[0]) {
+        await drawShowcaseProduct(ctx, pageProducts[0], contentTop, pageW, pageH, settings);
+      }
+    } else if (settings.template === "lookbook") {
+      const halfH = contentH / 2;
+      for (let i = 0; i < Math.min(pageProducts.length, 2); i++) {
+        await drawLookbookProduct(
+          ctx, pageProducts[i],
+          padding, contentTop + i * halfH, contentW, halfH - 10,
+          settings,
+        );
+      }
+    } else {
+      // Grid-based layouts
+      const cols = settings.columns;
+      const rows = Math.ceil(pageProducts.length / cols);
+      const gap = pageW * 0.02;
+      const cardW = (contentW - (cols - 1) * gap) / cols;
+      const cardH = (contentH - (rows - 1) * gap) / rows;
+
+      for (let i = 0; i < pageProducts.length; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const cardX = padding + col * (cardW + gap);
+        const cardY = contentTop + row * (cardH + gap);
+        await drawProductCard(
+          ctx, pageProducts[i],
+          cardX, cardY, cardW, cardH,
+          settings, settings.template,
+        );
+      }
+    }
+
+    // Luxury border
+    if (settings.template === "luxury") {
+      ctx.strokeStyle = hexToRgba(settings.accentColor, 0.2);
+      ctx.lineWidth = 2;
+      ctx.strokeRect(padding, padding, pageW - padding * 2, pageH - padding * 2);
+    }
+
+    pages.push({
+      pageNumber: p + 1,
+      canvas,
+      dataUrl: canvas.toDataURL("image/png"),
+    });
+  }
+
+  return pages;
+}
+
+// ─── PDF Export ──────────────────────────────────────────────
+export async function catalogToPDF(pages: CatalogPage[]): Promise<Blob> {
+  // Multi-page PDF from canvas pages
+  const enc = new TextEncoder();
+  const allParts: Uint8Array[] = [];
+  const offsets: number[] = [];
+  let byteOffset = 0;
+
+  const header = enc.encode("%PDF-1.4\n");
+  allParts.push(header);
+  byteOffset += header.length;
+
+  const objCount = 2 + pages.length * 3; // catalog + pages-tree + (page + stream + image) per page
+  let objIndex = 1;
+
+  // Object 1: Catalog
+  offsets.push(byteOffset);
+  const catalogObj = enc.encode(`${objIndex} 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
+  allParts.push(catalogObj);
+  byteOffset += catalogObj.length;
+  objIndex++;
+
+  // Object 2: Pages tree (filled after we know page objects)
+  const pageObjIds: number[] = [];
+  offsets.push(byteOffset);
+  // Placeholder — we'll build it properly
+  const pagesPlaceholder = `2 0 obj\n<< /Type /Pages /Kids [${pages.map((_, i) => `${3 + i * 3} 0 R`).join(" ")}] /Count ${pages.length} >>\nendobj\n`;
+  const pagesObj = enc.encode(pagesPlaceholder);
+  allParts.push(pagesObj);
+  byteOffset += pagesObj.length;
+  objIndex++;
+
+  // Per page: Page obj, Content stream obj, Image XObject
+  for (let i = 0; i < pages.length; i++) {
+    const page = pages[i];
+    const w = page.canvas.width;
+    const h = page.canvas.height;
+
+    // Convert to JPEG for smaller PDF
+    const jpegDataUrl = page.canvas.toDataURL("image/jpeg", 0.85);
+    const jpegBase64 = jpegDataUrl.split(",")[1];
+    const jpegBinary = atob(jpegBase64);
+    const jpegBytes = new Uint8Array(jpegBinary.length);
+    for (let j = 0; j < jpegBinary.length; j++) jpegBytes[j] = jpegBinary.charCodeAt(j);
+
+    // Scale to PDF points (A4 = 595×842 pt)
+    const pdfScale = Math.min(595 / w, 842 / h);
+    const pw = Math.round(w * pdfScale);
+    const ph = Math.round(h * pdfScale);
+
+    const pageObjId = objIndex;
+    const streamObjId = objIndex + 1;
+    const imageObjId = objIndex + 2;
+
+    // Page object
+    offsets.push(byteOffset);
+    const pageObj = enc.encode(
+      `${pageObjId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pw} ${ph}] /Contents ${streamObjId} 0 R /Resources << /XObject << /Img${i} ${imageObjId} 0 R >> >> >>\nendobj\n`
+    );
+    allParts.push(pageObj);
+    byteOffset += pageObj.length;
+
+    // Content stream
+    const stream = `q ${pw} 0 0 ${ph} 0 0 cm /Img${i} Do Q`;
+    offsets.push(byteOffset);
+    const streamObj = enc.encode(
+      `${streamObjId} 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`
+    );
+    allParts.push(streamObj);
+    byteOffset += streamObj.length;
+
+    // Image XObject
+    offsets.push(byteOffset);
+    const imgHeader = enc.encode(
+      `${imageObjId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`
+    );
+    const imgFooter = enc.encode(`\nendstream\nendobj\n`);
+    allParts.push(imgHeader);
+    byteOffset += imgHeader.length;
+    allParts.push(jpegBytes);
+    byteOffset += jpegBytes.length;
+    allParts.push(imgFooter);
+    byteOffset += imgFooter.length;
+
+    objIndex += 3;
+  }
+
+  // Cross-reference table
+  const xrefStart = byteOffset;
+  const totalObjs = objIndex;
+  let xref = `xref\n0 ${totalObjs}\n0000000000 65535 f \n`;
+  for (const off of offsets) {
+    xref += `${String(off).padStart(10, "0")} 00000 n \n`;
+  }
+  const trailer = `trailer\n<< /Size ${totalObjs} /Root 1 0 R >>\nstartxref\n${xrefStart}\n%%EOF`;
+  const xrefData = enc.encode(xref + trailer);
+  allParts.push(xrefData);
+
+  // Merge all parts
+  const totalLen = allParts.reduce((s, p) => s + p.length, 0);
+  const result = new Uint8Array(totalLen);
+  let pos = 0;
+  for (const part of allParts) {
+    result.set(part, pos);
+    pos += part.length;
+  }
+
+  return new Blob([result], { type: "application/pdf" });
+}
+
+// ─── Default Settings ────────────────────────────────────────
+export const defaultCatalogSettings: CatalogSettings = {
+  title: "קטלוג מוצרים",
+  subtitle: "",
+  brandColor: "#6366f1",
+  accentColor: "#f59e0b",
+  bgColor: "#ffffff",
+  textColor: "#1a1a2e",
+  fontFamily: "sans",
+  template: "grid-shadow",
+  pageSize: "A4",
+  showPrices: true,
+  showSku: true,
+  showDescriptions: true,
+  showPageNumbers: true,
+  showHeader: true,
+  columns: 2,
+};
+
+export const TEMPLATE_OPTIONS: { id: CatalogTemplate; label: string; icon: string; desc: string }[] = [
+  { id: "grid-clean", label: "גריד נקי", icon: "📐", desc: "רשת נקייה עם מסגרות עדינות" },
+  { id: "grid-shadow", label: "גריד צללים", icon: "🎴", desc: "כרטיסים עם צללים מעוצבים" },
+  { id: "magazine", label: "מגזין", icon: "📰", desc: "פריסה מגזינית מקצועית" },
+  { id: "minimal", label: "מינימלי", icon: "◻️", desc: "עיצוב נקי עם הרבה רווח" },
+  { id: "luxury", label: "יוקרה", icon: "👑", desc: "רקע כהה עם מבטאי זהב" },
+  { id: "catalog-pro", label: "קטלוג Pro", icon: "📋", desc: "קטלוג קלאסי מקצועי" },
+  { id: "lookbook", label: "לוקבוק", icon: "📸", desc: "תמונות מלאות עם טקסט שקוף" },
+  { id: "showcase", label: "תצוגה", icon: "🖼️", desc: "מוצר אחד גדול בעמוד" },
+];
