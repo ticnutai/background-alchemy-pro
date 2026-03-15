@@ -21,13 +21,25 @@ interface BatchProcessorProps {
   onClose: () => void;
 }
 
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const MAX_FILES = 50;
+
 const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchProcessorProps) => {
   const [items, setItems] = useState<BatchItem[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFiles = useCallback((files: FileList) => {
-    Array.from(files).forEach((file) => {
+    const incoming = Array.from(files);
+    if (items.length + incoming.length > MAX_FILES) {
+      toast.error(`ניתן להעלות עד ${MAX_FILES} תמונות בלבד.`);
+      return;
+    }
+    incoming.forEach((file) => {
       if (!file.type.startsWith("image/")) return;
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`הקובץ ${file.name} חורג מ-10MB ולא נוסף.`);
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
         const item: BatchItem = {

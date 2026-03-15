@@ -1,5 +1,8 @@
 import { useCallback } from "react";
 import { Upload, ImageIcon } from "lucide-react";
+import { toast } from "sonner";
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 interface ImageUploaderProps {
   onImageSelect: (base64: string) => void;
@@ -8,7 +11,14 @@ interface ImageUploaderProps {
 const ImageUploader = ({ onImageSelect }: ImageUploaderProps) => {
   const handleFile = useCallback(
     (file: File) => {
-      if (!file.type.startsWith("image/")) return;
+      if (!file.type.startsWith("image/")) {
+        toast.error("יש להעלות קובץ תמונה בלבד (PNG, JPG, WEBP)");
+        return;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error("גודל הקובץ חורג מ-10MB. נסה תמונה קטנה יותר.");
+        return;
+      }
       const reader = new FileReader();
       reader.onload = (e) => {
         onImageSelect(e.target?.result as string);
