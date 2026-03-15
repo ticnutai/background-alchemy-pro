@@ -547,6 +547,7 @@ export default function CollageBuilder() {
         case "auto-enhance": newSrc = await autoEnhance(img.src); break;
         case "sharpen": newSrc = await sharpenImage(img.src); break;
         case "vignette": newSrc = await addVignette(img.src); break;
+        case "ai-upscale": newSrc = await aiUpscaleImage(img.src, 2); break;
       }
       if (newSrc) {
         setImages((prev) => prev.map((i) => (i.id === imageId ? { ...i, src: newSrc! } : i)));
