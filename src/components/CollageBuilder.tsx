@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle,
+  generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, compositeImages, adjustImage,
   autoEnhance, addVignette, sharpenImage
