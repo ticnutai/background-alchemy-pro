@@ -698,8 +698,9 @@ const ToolInner = () => {
                     hebrewName={suggestedName}
                     englishName={selectedPresetName || suggestedName}
                     onSave={(he, en) => {
-                      setSuggestedName(he);
-                      setSelectedPresetName(en);
+                      dispatch({ type: "SET_SUGGESTED_NAME", payload: he });
+                      dispatch({ type: "SET_CUSTOM_PROMPT", payload: "" });
+                      dispatch({ type: "APPLY_BACKGROUND", payload: { prompt: state.activePrompt, name: en } });
                     }}
                     size="md"
                   />
