@@ -374,6 +374,7 @@ export default function CollageBuilder() {
         textOverlays,
         bgGradient: bgGradientEnabled ? bgGradient : undefined,
         cellBgColors: images.map(img => img.cellBgColor || null),
+        watermark: watermarkEnabled ? watermark : undefined,
       };
       const dataUrl = await generateCollage(images.map((img) => img.src), collageOptions);
       setResult(dataUrl);
