@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { Monitor, Smartphone, Frame, ShoppingBag, X } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Monitor, Smartphone, Frame, ShoppingBag, X, Download } from "lucide-react";
+import { toast } from "sonner";
 
 interface MockupPreviewProps {
   imageUrl: string;
@@ -18,6 +19,89 @@ const mockups: { id: MockupType; label: string; icon: typeof Frame }[] = [
 const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
   const [activeMockup, setActiveMockup] = useState<MockupType>("frame");
 
+  const downloadMockup = useCallback(async () => {
+    try {
+      const SIZE = 1200;
+      const canvas = document.createElement("canvas");
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      const ctx = canvas.getContext("2d")!;
+
+      const img = await new Promise<HTMLImageElement>((res, rej) => {
+        const i = new Image();
+        i.crossOrigin = "anonymous";
+        i.onload = () => res(i);
+        i.onerror = rej;
+        i.src = imageUrl;
+      });
+
+      const iw = img.naturalWidth, ih = img.naturalHeight;
+      const scale = Math.min(SIZE * 0.7 / iw, SIZE * 0.7 / ih);
+      const dw = iw * scale, dh = ih * scale;
+      const dx = (SIZE - dw) / 2, dy = (SIZE - dh) / 2;
+
+      if (activeMockup === "frame") {
+        ctx.fillStyle = "#f5f0eb";
+        ctx.fillRect(0, 0, SIZE, SIZE);
+        const pad = 40;
+        ctx.fillStyle = "#8b7355";
+        ctx.fillRect(dx - pad, dy - pad, dw + pad * 2, dh + pad * 2);
+        ctx.fillStyle = "#d4b896";
+        ctx.fillRect(dx - pad + 8, dy - pad + 8, dw + pad * 2 - 16, dh + pad * 2 - 16);
+        ctx.drawImage(img, dx, dy, dw, dh);
+      } else if (activeMockup === "phone") {
+        ctx.fillStyle = "#f0f0f0";
+        ctx.fillRect(0, 0, SIZE, SIZE);
+        const pw = 360, ph = 720;
+        const px = (SIZE - pw) / 2, py = (SIZE - ph) / 2;
+        ctx.fillStyle = "#1a1a1a";
+        ctx.beginPath();
+        ctx.roundRect(px, py, pw, ph, 40);
+        ctx.fill();
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(px + 12, py + 60, pw - 24, ph - 120, 8);
+        ctx.clip();
+        ctx.drawImage(img, px + 12, py + 60, pw - 24, ph - 120);
+        ctx.restore();
+      } else if (activeMockup === "monitor") {
+        ctx.fillStyle = "#e8e8e8";
+        ctx.fillRect(0, 0, SIZE, SIZE);
+        const mw = SIZE * 0.8, mh = mw * 0.6;
+        const mx = (SIZE - mw) / 2, my = SIZE * 0.08;
+        ctx.fillStyle = "#222";
+        ctx.fillRect(mx, my, mw, mh);
+        ctx.drawImage(img, mx + 16, my + 16, mw - 32, mh - 32);
+        ctx.fillStyle = "#222";
+        ctx.fillRect(SIZE / 2 - 40, my + mh, 80, 50);
+        ctx.fillRect(SIZE / 2 - 100, my + mh + 50, 200, 10);
+      } else {
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, SIZE, SIZE);
+        const cw = SIZE * 0.4, ch = cw * 1.3;
+        const positions = [[SIZE * 0.05, SIZE * 0.05], [SIZE * 0.55, SIZE * 0.05], [SIZE * 0.05, SIZE * 0.52], [SIZE * 0.55, SIZE * 0.52]];
+        for (const [cx, cy] of positions) {
+          ctx.fillStyle = "#fafafa";
+          ctx.strokeStyle = "#e0e0e0";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(cx, cy, cw, ch, 12);
+          ctx.fill();
+          ctx.stroke();
+          ctx.drawImage(img, cx + 8, cy + 8, cw - 16, cw - 16);
+        }
+      }
+
+      const link = document.createElement("a");
+      link.download = `mockup-${activeMockup}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      toast.success("המוקאפ הורד בהצלחה!");
+    } catch {
+      toast.error("שגיאה ביצירת המוקאפ");
+    }
+  }, [imageUrl, activeMockup]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-sm" onClick={onClose}>
       <div
@@ -27,9 +111,18 @@ const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="font-display text-lg font-bold text-foreground">תצוגה מקדימה — מוקאפ</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-secondary transition-colors">
-            <X className="h-5 w-5 text-muted-foreground" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={downloadMockup}
+              className="flex items-center gap-1.5 rounded-lg bg-gold px-3 py-1.5 font-accent text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+            >
+              <Download className="h-3.5 w-3.5" />
+              הורד מוקאפ
+            </button>
+            <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-secondary transition-colors">
+              <X className="h-5 w-5 text-muted-foreground" />
+            </button>
+          </div>
         </div>
 
         {/* Mockup selector */}

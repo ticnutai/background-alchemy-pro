@@ -19,7 +19,7 @@ import {
   AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
   BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram,
   Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
-  FileDown, FilePlus2, X, ArrowUpCircle, Maximize2
+  FileDown, FilePlus2, X
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -29,23 +29,6 @@ import {
   autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
-import { aiUpscaleImage } from "@/lib/catalog-ai";
-
-// ─── Canvas Size Presets ────────────────────────────────────────
-const CANVAS_SIZE_PRESETS: { id: string; label: string; w: number; h: number; icon?: string }[] = [
-  { id: "square", label: "ריבוע 1:1", w: 1200, h: 1200, icon: "⬜" },
-  { id: "ig-post", label: "אינסטגרם פוסט", w: 1080, h: 1080, icon: "📱" },
-  { id: "ig-story", label: "אינסטגרם סטורי", w: 1080, h: 1920, icon: "📲" },
-  { id: "ig-landscape", label: "אינסטגרם רוחב", w: 1080, h: 566, icon: "🖼️" },
-  { id: "fb-post", label: "פייסבוק פוסט", w: 1200, h: 630, icon: "📘" },
-  { id: "fb-cover", label: "פייסבוק כיסוי", w: 820, h: 312, icon: "🏞️" },
-  { id: "pinterest", label: "פינטרסט", w: 1000, h: 1500, icon: "📌" },
-  { id: "a4-portrait", label: "A4 לאורך", w: 2480, h: 3508, icon: "📄" },
-  { id: "a4-landscape", label: "A4 לרוחב", w: 3508, h: 2480, icon: "📃" },
-  { id: "hd", label: "HD 1920×1080", w: 1920, h: 1080, icon: "🖥️" },
-  { id: "4k", label: "4K", w: 3840, h: 2160, icon: "🎬" },
-  { id: "custom", label: "מותאם אישית", w: 0, h: 0, icon: "✏️" },
-];
 
 // ─── Constants ──────────────────────────────────────────────────
 const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number }[] = [
@@ -73,7 +56,6 @@ const SMART_TOOLS = [
   { id: "auto-enhance", label: "שיפור אוטומטי", icon: <Sparkles className="h-4 w-4" /> },
   { id: "sharpen", label: "חידוד", icon: <Contrast className="h-4 w-4" /> },
   { id: "vignette", label: "וינייט", icon: <Palette className="h-4 w-4" /> },
-  { id: "ai-upscale", label: "הגדל עם AI", icon: <ArrowUpCircle className="h-4 w-4" /> },
 ];
 
 const FRAME_PRESETS: { id: FrameStyle; label: string; description: string }[] = [
@@ -158,7 +140,6 @@ interface CollageTemplate {
   gap: number;
   borderRadius: number;
   bgColor: string;
-  canvasWidth: number;
   canvasHeight: number;
   fitMode: 'contain' | 'cover';
   frameStyle: FrameStyle;
@@ -173,70 +154,70 @@ const TEMPLATES_STORAGE_KEY = 'collage-templates';
 const BUILTIN_TEMPLATES: CollageTemplate[] = [
   {
     id: 'builtin-luxury-gold', name: '✨ יוקרה זהב', createdAt: 0,
-    layout: 'grid-2x2', gap: 16, borderRadius: 12, bgColor: '#1a1a2e', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'grid-2x2', gap: 16, borderRadius: 12, bgColor: '#1a1a2e', canvasHeight: 1200,
     fitMode: 'contain', frameStyle: 'double-gold', bgGradientEnabled: true,
     bgGradient: { from: '#1a1a2e', to: '#2d1b4e', angle: 135 },
     textOverlays: [{ id: 'b1', text: 'קולקציה חדשה', x: 0.5, y: 0.08, fontSize: 52, fontFamily: 'luxury', fontWeight: 'bold', color: '#c9a84c', align: 'center', opacity: 1, rotation: 0, shadow: { color: 'rgba(0,0,0,0.5)', blur: 8, offsetX: 2, offsetY: 2 } }],
   },
   {
     id: 'builtin-minimal-white', name: '⬜ מינימל לבן', createdAt: 0,
-    layout: 'grid-3x2', gap: 24, borderRadius: 0, bgColor: '#ffffff', canvasWidth: 1200, canvasHeight: 1000,
+    layout: 'grid-3x2', gap: 24, borderRadius: 0, bgColor: '#ffffff', canvasHeight: 1000,
     fitMode: 'contain', frameStyle: 'none', bgGradientEnabled: false,
     bgGradient: { from: '#fff', to: '#fff', angle: 0 },
     textOverlays: [],
   },
   {
     id: 'builtin-instagram-story', name: '📱 סטורי אינסטגרם', createdAt: 0,
-    layout: 'hero-top', gap: 8, borderRadius: 16, bgColor: '#f5f0e8', canvasWidth: 1080, canvasHeight: 1920,
+    layout: 'hero-top', gap: 8, borderRadius: 16, bgColor: '#f5f0e8', canvasHeight: 1920,
     fitMode: 'cover', frameStyle: 'shadow-float', bgGradientEnabled: true,
     bgGradient: { from: '#f5e6d3', to: '#e8c7a7', angle: 180 },
     textOverlays: [{ id: 'b2', text: 'NEW IN', x: 0.5, y: 0.04, fontSize: 40, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#1a1a2e', align: 'center', opacity: 1, rotation: 0 }],
   },
   {
     id: 'builtin-dark-cinema', name: '🎬 קולנועי כהה', createdAt: 0,
-    layout: 'strip', gap: 4, borderRadius: 0, bgColor: '#000000', canvasWidth: 1920, canvasHeight: 600,
+    layout: 'strip', gap: 4, borderRadius: 0, bgColor: '#000000', canvasHeight: 600,
     fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
     bgGradient: { from: '#000', to: '#000', angle: 0 },
     textOverlays: [{ id: 'b3', text: 'THE COLLECTION', x: 0.5, y: 0.9, fontSize: 48, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.8, rotation: 0 }],
   },
   {
     id: 'builtin-pastel-soft', name: '🌸 פסטל רך', createdAt: 0,
-    layout: 'featured-grid', gap: 14, borderRadius: 20, bgColor: '#fce4ec', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'featured-grid', gap: 14, borderRadius: 20, bgColor: '#fce4ec', canvasHeight: 1200,
     fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: true,
     bgGradient: { from: '#fce4ec', to: '#f3e5f5', angle: 135 },
     textOverlays: [],
   },
   {
     id: 'builtin-neon-night', name: '🌃 ניאון לילי', createdAt: 0,
-    layout: 'diagonal', gap: 0, borderRadius: 8, bgColor: '#0a0a1a', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'diagonal', gap: 0, borderRadius: 8, bgColor: '#0a0a1a', canvasHeight: 1200,
     fitMode: 'cover', frameStyle: 'neon-glow', bgGradientEnabled: true,
     bgGradient: { from: '#0a0a1a', to: '#1a0a2e', angle: 135 },
     textOverlays: [{ id: 'b4', text: 'NIGHT EDITION', x: 0.5, y: 0.5, fontSize: 56, fontFamily: 'modern-sans', fontWeight: 'bold', color: '#00f0ff', align: 'center', opacity: 1, rotation: -15, shadow: { color: '#00f0ff', blur: 25, offsetX: 0, offsetY: 0 } }],
   },
   {
     id: 'builtin-vintage-warm', name: '📜 וינטאג׳ חם', createdAt: 0,
-    layout: 'l-shape', gap: 10, borderRadius: 4, bgColor: '#f5e6d3', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'l-shape', gap: 10, borderRadius: 4, bgColor: '#f5e6d3', canvasHeight: 1200,
     fitMode: 'contain', frameStyle: 'vintage-border', bgGradientEnabled: false,
     bgGradient: { from: '#f5e6d3', to: '#f5e6d3', angle: 0 },
     textOverlays: [{ id: 'b5', text: 'קלאסיקה', x: 0.5, y: 0.06, fontSize: 44, fontFamily: 'hebrew-suez', fontWeight: 'bold', color: '#6b4c3b', align: 'center', opacity: 1, rotation: 0 }],
   },
   {
     id: 'builtin-kids-fun', name: '🎉 ילדים שמח', createdAt: 0,
-    layout: 'grid-2x3', gap: 10, borderRadius: 24, bgColor: '#fff3e0', canvasWidth: 1200, canvasHeight: 1400,
+    layout: 'grid-2x3', gap: 10, borderRadius: 24, bgColor: '#fff3e0', canvasHeight: 1400,
     fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
     bgGradient: { from: '#fff3e0', to: '#e1f5fe', angle: 135 },
     textOverlays: [{ id: 'b6', text: '!יום הולדת שמח', x: 0.5, y: 0.05, fontSize: 52, fontFamily: 'hebrew-fredoka', fontWeight: 'bold', color: '#6c5ce7', align: 'center', opacity: 1, rotation: -3 }],
   },
   {
     id: 'builtin-marble-lux', name: '💎 שיש יוקרתי', createdAt: 0,
-    layout: 'hero-side', gap: 12, borderRadius: 8, bgColor: '#f0ece3', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'hero-side', gap: 12, borderRadius: 8, bgColor: '#f0ece3', canvasHeight: 1200,
     fitMode: 'contain', frameStyle: 'marble-edge', bgGradientEnabled: false,
     bgGradient: { from: '#f0ece3', to: '#f0ece3', angle: 0 },
     textOverlays: [],
   },
   {
     id: 'builtin-sale-bold', name: '🔥 מבצע בולט', createdAt: 0,
-    layout: 'grid-2x2', gap: 6, borderRadius: 0, bgColor: '#e63946', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'grid-2x2', gap: 6, borderRadius: 0, bgColor: '#e63946', canvasHeight: 1200,
     fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
     bgGradient: { from: '#e63946', to: '#d00000', angle: 180 },
     textOverlays: [
@@ -246,14 +227,14 @@ const BUILTIN_TEMPLATES: CollageTemplate[] = [
   },
   {
     id: 'builtin-catalog-pro', name: '📋 קטלוג מקצועי', createdAt: 0,
-    layout: 'grid-4x4', gap: 2, borderRadius: 0, bgColor: '#f8f9fa', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'grid-4x4', gap: 2, borderRadius: 0, bgColor: '#f8f9fa', canvasHeight: 1200,
     fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: false,
     bgGradient: { from: '#f8f9fa', to: '#f8f9fa', angle: 0 },
     textOverlays: [],
   },
   {
     id: 'builtin-nature-green', name: '🌿 טבע ירוק', createdAt: 0,
-    layout: 'masonry', gap: 10, borderRadius: 12, bgColor: '#1b4332', canvasWidth: 1200, canvasHeight: 1200,
+    layout: 'masonry', gap: 10, borderRadius: 12, bgColor: '#1b4332', canvasHeight: 1200,
     fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
     bgGradient: { from: '#1b4332', to: '#2d6a4f', angle: 135 },
     textOverlays: [],
@@ -284,9 +265,8 @@ export default function CollageBuilder() {
   const [gap, setGap] = useState(12);
   const [borderRadius, setBorderRadius] = useState(8);
   const [bgColor, setBgColor] = useState("#ffffff");
-  const [canvasWidth, setCanvasWidth] = useState(1200);
+  const [canvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
-  const [canvasSizePreset, setCanvasSizePreset] = useState("square");
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
@@ -364,7 +344,6 @@ export default function CollageBuilder() {
       gap,
       borderRadius,
       bgColor,
-      canvasWidth,
       canvasHeight,
       fitMode,
       frameStyle,
@@ -377,16 +356,14 @@ export default function CollageBuilder() {
     saveTemplatesToStorage(updated);
     setTemplateName("");
     toast.success(`תבנית "${name}" נשמרה בהצלחה`);
-  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasWidth, canvasHeight, fitMode, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
+  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasHeight, fitMode, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
 
   const loadTemplate = useCallback((template: CollageTemplate) => {
     setLayout(template.layout);
     setGap(template.gap);
     setBorderRadius(template.borderRadius);
     setBgColor(template.bgColor);
-    setCanvasWidth(template.canvasWidth || 1200);
     setCanvasHeight(template.canvasHeight);
-    setCanvasSizePreset("custom");
     setFitMode(template.fitMode);
     setFrameStyle(template.frameStyle);
     setBgGradientEnabled(template.bgGradientEnabled);
@@ -551,7 +528,6 @@ export default function CollageBuilder() {
         case "auto-enhance": newSrc = await autoEnhance(img.src); break;
         case "sharpen": newSrc = await sharpenImage(img.src); break;
         case "vignette": newSrc = await addVignette(img.src); break;
-        case "ai-upscale": newSrc = await aiUpscaleImage(img.src, 2); break;
       }
       if (newSrc) {
         setImages((prev) => prev.map((i) => (i.id === imageId ? { ...i, src: newSrc! } : i)));
@@ -942,46 +918,6 @@ export default function CollageBuilder() {
                 <Card>
                   <CardContent className="p-4 space-y-4">
                     <h3 className="font-semibold text-sm">עיצוב כללי</h3>
-
-                    {/* Canvas Size Presets */}
-                    <div className="space-y-2">
-                      <Label className="text-xs flex items-center gap-1"><Maximize2 className="h-3 w-3" /> גודל קנבס</Label>
-                      <div className="grid grid-cols-3 gap-1">
-                        {CANVAS_SIZE_PRESETS.map(preset => (
-                          <Button
-                            key={preset.id}
-                            size="sm"
-                            variant={canvasSizePreset === preset.id ? "default" : "outline"}
-                            onClick={() => {
-                              setCanvasSizePreset(preset.id);
-                              if (preset.id !== "custom" && preset.w > 0) {
-                                setCanvasWidth(preset.w);
-                                setCanvasHeight(preset.h);
-                              }
-                            }}
-                            className="text-[10px] h-7 px-1"
-                          >
-                            {preset.icon} {preset.label}
-                          </Button>
-                        ))}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground text-center">
-                        {canvasWidth} × {canvasHeight} px
-                      </div>
-                      {canvasSizePreset === "custom" && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div className="space-y-1">
-                            <Label className="text-[10px]">רוחב</Label>
-                            <Input type="number" value={canvasWidth} onChange={e => setCanvasWidth(Math.max(200, +e.target.value))} className="h-7 text-xs" min={200} max={6000} />
-                          </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px]">גובה</Label>
-                            <Input type="number" value={canvasHeight} onChange={e => setCanvasHeight(Math.max(200, +e.target.value))} className="h-7 text-xs" min={200} max={6000} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
                     <div className="space-y-2">
                       <Label className="text-xs">מרווח: {gap}px</Label>
                       <Slider value={[gap]} onValueChange={([v]) => setGap(v)} min={0} max={40} step={2} />
@@ -989,6 +925,10 @@ export default function CollageBuilder() {
                     <div className="space-y-2">
                       <Label className="text-xs">רדיוס פינות: {borderRadius}px</Label>
                       <Slider value={[borderRadius]} onValueChange={([v]) => setBorderRadius(v)} min={0} max={30} step={2} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">גובה: {canvasHeight}px</Label>
+                      <Slider value={[canvasHeight]} onValueChange={([v]) => setCanvasHeight(v)} min={600} max={2400} step={100} />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">התאמת תמונה</Label>
@@ -1569,24 +1509,33 @@ export default function CollageBuilder() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground">לחץ על הקולאז׳ שאתה רוצה — הלייאאוט ייבחר אוטומטית</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className={`grid gap-4 ${
+                  comparePreviews.length <= 2 ? 'grid-cols-2' :
+                  comparePreviews.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'
+                }`}>
                   {comparePreviews.map((preview) => (
                     <button
                       key={preview.layout}
                       onClick={() => selectCompareLayout(preview.layout)}
-                      className={`group relative rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] ${
-                        layout === preview.layout ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'
+                      className={`group relative rounded-xl border-2 overflow-hidden transition-all hover:shadow-xl hover:scale-[1.02] bg-card ${
+                        layout === preview.layout ? 'border-primary ring-2 ring-primary/30 shadow-lg' : 'border-border hover:border-primary/50'
                       }`}
                     >
-                      <img src={preview.dataUrl} alt={preview.label} className="w-full aspect-square object-contain bg-muted/30" />
-                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                        <span className="text-white text-xs font-semibold">{preview.label}</span>
+                      <div className="w-full p-3 bg-muted/20">
+                        <img
+                          src={preview.dataUrl}
+                          alt={preview.label}
+                          className="w-full h-auto max-h-[300px] object-contain mx-auto rounded-md"
+                        />
                       </div>
-                      {layout === preview.layout && (
-                        <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center">
-                          <Check className="h-3.5 w-3.5" />
-                        </div>
-                      )}
+                      <div className="p-2.5 bg-card border-t border-border flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">{preview.label}</span>
+                        {layout === preview.layout && (
+                          <div className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center">
+                            <Check className="h-3 w-3" />
+                          </div>
+                        )}
+                      </div>
                     </button>
                   ))}
                 </div>

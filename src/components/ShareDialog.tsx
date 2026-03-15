@@ -1,8 +1,9 @@
 import { useState, useRef } from "react";
 import { QRCodeSVG } from "qrcode-react";
-import { X, Copy, Download, Share2, Check } from "lucide-react";
+import { X, Copy, Download, Share2, Check, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ShareDialogProps {
   imageUrl: string;
@@ -12,9 +13,32 @@ interface ShareDialogProps {
 
 const ShareDialog = ({ imageUrl, title, onClose }: ShareDialogProps) => {
   const [copied, setCopied] = useState(false);
+  const [shortUrl, setShortUrl] = useState<string | null>(null);
+  const [shortening, setShortening] = useState(false);
   const qrRef = useRef<HTMLDivElement>(null);
 
-  const shareUrl = imageUrl;
+  const shareUrl = shortUrl || imageUrl;
+
+  const createShortUrl = async () => {
+    setShortening(true);
+    try {
+      // Upload the image as a small redirect file in Supabase Storage
+      const id = crypto.randomUUID().slice(0, 8);
+      const fileName = `shared/${id}.html`;
+      const html = `<!DOCTYPE html><html><head><meta http-equiv="refresh" content="0;url=${imageUrl}"></head></html>`;
+      const { data, error } = await supabase.storage
+        .from("processing-results")
+        .upload(fileName, new Blob([html], { type: "text/html" }), { upsert: true });
+      if (error) throw error;
+      const { data: pub } = supabase.storage.from("processing-results").getPublicUrl(fileName);
+      setShortUrl(pub.publicUrl);
+      toast.success("קישור קצר נוצר!");
+    } catch {
+      toast.error("שגיאה ביצירת קישור קצר");
+    } finally {
+      setShortening(false);
+    }
+  };
 
   const copyLink = async () => {
     await navigator.clipboard.writeText(shareUrl);
@@ -96,6 +120,17 @@ const ShareDialog = ({ imageUrl, title, onClose }: ShareDialogProps) => {
           </div>
 
           {/* Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={createShortUrl}
+              disabled={shortening || !!shortUrl}
+              className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 font-accent text-xs font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
+            >
+              <Link2 className="h-3.5 w-3.5" />
+              {shortUrl ? "✓ קישור קצר" : shortening ? "יוצר..." : "צור קישור קצר"}
+            </button>
+          </div>
+
           <div className="flex gap-2">
             <button
               onClick={shareNative}
