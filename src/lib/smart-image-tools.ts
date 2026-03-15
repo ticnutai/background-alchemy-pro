@@ -508,6 +508,20 @@ export interface CollageTextOverlay {
 
 export type FrameStyle = 'none' | 'thin-gold' | 'double-gold' | 'luxury-dark' | 'ornate-corners' | 'shadow-float' | 'neon-glow' | 'vintage-border' | 'marble-edge';
 
+export interface CollageWatermark {
+  type: 'text' | 'image';
+  text?: string;
+  imageSrc?: string;
+  position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'center';
+  opacity: number;
+  scale: number; // 0.05 - 0.5
+  fontFamily?: string;
+  fontSize?: number;
+  color?: string;
+  rotation?: number;
+  repeat?: boolean;
+}
+
 export interface CollageOptions {
   layout: CollageLayout;
   width: number;
@@ -520,6 +534,7 @@ export interface CollageOptions {
   textOverlays?: CollageTextOverlay[];
   bgGradient?: { from: string; to: string; angle: number };
   cellBgColors?: (string | null)[];
+  watermark?: CollageWatermark;
 }
 
 const COLLAGE_FONT_MAP: Record<string, string> = {
@@ -683,7 +698,7 @@ export async function generateCollage(
   images: string[],
   options: CollageOptions
 ): Promise<string> {
-  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [] } = options;
+  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [], watermark } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -761,7 +776,88 @@ export async function generateCollage(
     drawCollageTextOverlay(ctx, overlay, width, height);
   }
 
+  // Watermark
+  if (watermark) {
+    await drawCollageWatermark(ctx, watermark, width, height);
+  }
+
   return canvasToDataUrl(canvas);
+}
+
+async function drawCollageWatermark(
+  ctx: CanvasRenderingContext2D,
+  wm: CollageWatermark,
+  canvasW: number,
+  canvasH: number
+) {
+  ctx.save();
+  ctx.globalAlpha = wm.opacity;
+
+  if (wm.type === 'text' && wm.text) {
+    const fontSize = wm.fontSize || Math.round(canvasW * wm.scale * 0.5);
+    const fontFace = COLLAGE_FONT_MAP[wm.fontFamily || 'hebrew-modern'] || COLLAGE_FONT_MAP['hebrew-modern'];
+    ctx.font = `700 ${fontSize}px ${fontFace}`;
+    ctx.fillStyle = wm.color || 'rgba(255,255,255,0.5)';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (wm.repeat) {
+      // Tiled watermark
+      const stepX = canvasW / 3;
+      const stepY = canvasH / 3;
+      ctx.rotate(((wm.rotation || -30) * Math.PI) / 180);
+      for (let y = -canvasH * 0.5; y < canvasH * 1.5; y += stepY) {
+        for (let x = -canvasW * 0.5; x < canvasW * 1.5; x += stepX) {
+          ctx.fillText(wm.text, x, y);
+        }
+      }
+    } else {
+      const { px, py } = getWatermarkPosition(wm.position, canvasW, canvasH, fontSize);
+      if (wm.rotation) {
+        ctx.translate(px, py);
+        ctx.rotate((wm.rotation * Math.PI) / 180);
+        ctx.fillText(wm.text, 0, 0);
+      } else {
+        ctx.fillText(wm.text, px, py);
+      }
+    }
+  } else if (wm.type === 'image' && wm.imageSrc) {
+    try {
+      const img = await loadImage(wm.imageSrc);
+      const maxDim = canvasW * wm.scale;
+      const ratio = Math.min(maxDim / img.width, maxDim / img.height);
+      const iw = img.width * ratio;
+      const ih = img.height * ratio;
+
+      if (wm.repeat) {
+        const stepX = iw * 2;
+        const stepY = ih * 2;
+        for (let y = 0; y < canvasH; y += stepY) {
+          for (let x = 0; x < canvasW; x += stepX) {
+            ctx.drawImage(img, x, y, iw, ih);
+          }
+        }
+      } else {
+        const { px, py } = getWatermarkPosition(wm.position, canvasW, canvasH, Math.max(iw, ih));
+        ctx.drawImage(img, px - iw / 2, py - ih / 2, iw, ih);
+      }
+    } catch {
+      // silently fail if image can't load
+    }
+  }
+
+  ctx.restore();
+}
+
+function getWatermarkPosition(position: CollageWatermark['position'], w: number, h: number, size: number) {
+  const margin = size * 0.5;
+  switch (position) {
+    case 'top-left': return { px: margin + size / 2, py: margin };
+    case 'top-right': return { px: w - margin - size / 2, py: margin };
+    case 'bottom-left': return { px: margin + size / 2, py: h - margin };
+    case 'bottom-right': return { px: w - margin - size / 2, py: h - margin };
+    case 'center': default: return { px: w / 2, py: h / 2 };
+  }
 }
 
 function getMaxImages(layout: CollageLayout): number {
