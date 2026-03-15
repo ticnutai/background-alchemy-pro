@@ -18,6 +18,56 @@ export interface CatalogProduct {
   noBgImage?: string;     // Background-removed version
   upscaledImage?: string; // AI-upscaled version
   colors?: string[];      // Detected dominant colors
+  frameStyle?: FrameStyle;         // Per-product frame override
+  hideElements?: ElementToggle;    // Per-product element visibility
+  customFontSize?: number;         // Override name font scale (0.5-2.0)
+}
+
+// ─── Frame Types ─────────────────────────────────────────────
+export type FrameStyle =
+  | "none"             // No frame
+  | "thin"             // Thin simple line
+  | "rounded"          // Rounded corners with border
+  | "shadow-box"       // Drop shadow box
+  | "double"           // Double line border
+  | "modern-float"     // Floating card with large shadow
+  | "curated-arch"     // Top arch / museum style
+  | "curated-oval"     // Oval/elliptical clip
+  | "polaroid"         // Polaroid photo style
+  | "film-strip"       // Film strip border
+  | "ornate-gold"      // Ornate golden decorative frame
+  | "ornate-classic"   // Classic ornate with corners
+  | "brush-stroke"     // Artistic brush stroke edge
+  | "torn-paper"       // Torn paper effect
+  | "neon-glow"        // Neon glow border
+  | "gradient-border"; // Gradient colored border
+
+export interface ElementToggle {
+  showImage?: boolean;
+  showName?: boolean;
+  showDescription?: boolean;
+  showPrice?: boolean;
+  showSku?: boolean;
+  showBadge?: boolean;
+}
+
+// ─── Text Overlay Types ──────────────────────────────────────
+export interface CatalogTextOverlay {
+  id: string;
+  text: string;
+  page: number;           // -1 = all pages, 0 = cover, etc.
+  x: number;              // 0-1 relative position
+  y: number;
+  fontSize: number;       // 12-120
+  fontFamily: "serif" | "sans" | "mono" | "decorative";
+  fontWeight: "normal" | "bold";
+  color: string;
+  align: "left" | "center" | "right";
+  opacity: number;        // 0-1
+  rotation: number;       // degrees
+  maxWidth?: number;      // 0-1 relative
+  backgroundColor?: string;
+  borderColor?: string;
 }
 
 export interface CatalogCategory {
@@ -52,6 +102,13 @@ export interface CatalogSettings {
   columns: 1 | 2 | 3 | 4;
   bgPattern: BgPattern;
   coverStyle: CoverStyle;
+  // Frame & overlay settings
+  globalFrame: FrameStyle;
+  productNameSize: number;    // 0.5-2.0 scale factor
+  productDescSize: number;
+  productPriceSize: number;
+  textOverlays: CatalogTextOverlay[];
+  globalElementToggle: ElementToggle;
 }
 
 export type CatalogTemplate =
@@ -88,6 +145,7 @@ const FONT_MAP: Record<string, string> = {
   serif: "Georgia, 'Times New Roman', serif",
   sans: "Segoe UI, Arial, Helvetica, sans-serif",
   mono: "Consolas, 'Courier New', monospace",
+  decorative: "'Segoe Script', 'Brush Script MT', cursive",
 };
 
 // ─── Helpers ─────────────────────────────────────────────────
@@ -331,6 +389,348 @@ function drawBgPattern(
       break;
   }
   ctx.restore();
+}
+
+// ─── Frame Renderer ──────────────────────────────────────────
+
+function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  frame: FrameStyle,
+  x: number, y: number, w: number, h: number,
+  brandColor: string, accentColor: string,
+) {
+  if (frame === "none") return;
+
+  ctx.save();
+  const bw = Math.max(2, w * 0.008); // base border width
+
+  switch (frame) {
+    case "thin": {
+      ctx.strokeStyle = hexToRgba(brandColor, 0.5);
+      ctx.lineWidth = bw;
+      ctx.strokeRect(x, y, w, h);
+      break;
+    }
+    case "rounded": {
+      const r = w * 0.03;
+      drawRoundedRect(ctx, x, y, w, h, r);
+      ctx.strokeStyle = brandColor;
+      ctx.lineWidth = bw * 1.5;
+      ctx.stroke();
+      break;
+    }
+    case "shadow-box": {
+      ctx.shadowColor = "rgba(0,0,0,0.25)";
+      ctx.shadowBlur = w * 0.03;
+      ctx.shadowOffsetX = w * 0.008;
+      ctx.shadowOffsetY = w * 0.008;
+      drawRoundedRect(ctx, x, y, w, h, w * 0.015);
+      ctx.strokeStyle = hexToRgba(brandColor, 0.3);
+      ctx.lineWidth = bw;
+      ctx.stroke();
+      ctx.shadowColor = "transparent";
+      break;
+    }
+    case "double": {
+      const gap = bw * 2.5;
+      ctx.strokeStyle = brandColor;
+      ctx.lineWidth = bw;
+      ctx.strokeRect(x, y, w, h);
+      ctx.strokeRect(x + gap, y + gap, w - gap * 2, h - gap * 2);
+      break;
+    }
+    case "modern-float": {
+      ctx.shadowColor = "rgba(0,0,0,0.3)";
+      ctx.shadowBlur = w * 0.05;
+      ctx.shadowOffsetY = w * 0.02;
+      const r = w * 0.02;
+      drawRoundedRect(ctx, x + w * 0.01, y + w * 0.01, w - w * 0.02, h - w * 0.02, r);
+      ctx.fillStyle = "rgba(255,255,255,0.02)";
+      ctx.fill();
+      ctx.strokeStyle = hexToRgba(brandColor, 0.15);
+      ctx.lineWidth = bw;
+      ctx.stroke();
+      ctx.shadowColor = "transparent";
+      break;
+    }
+    case "curated-arch": {
+      // Top arch
+      const archR = w * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      ctx.lineTo(x, y + archR * 0.3);
+      ctx.arc(x + w / 2, y + archR * 0.3, w / 2, Math.PI, 0, false);
+      ctx.lineTo(x + w, y + h);
+      ctx.closePath();
+      ctx.strokeStyle = brandColor;
+      ctx.lineWidth = bw * 2;
+      ctx.stroke();
+      break;
+    }
+    case "curated-oval": {
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      ctx.beginPath();
+      ctx.ellipse(cx, cy, w / 2 - bw, h / 2 - bw, 0, 0, Math.PI * 2);
+      ctx.strokeStyle = brandColor;
+      ctx.lineWidth = bw * 2;
+      ctx.stroke();
+      break;
+    }
+    case "polaroid": {
+      const padSide = w * 0.04;
+      const padTop = w * 0.04;
+      const padBot = w * 0.15;
+      ctx.fillStyle = "#ffffff";
+      ctx.shadowColor = "rgba(0,0,0,0.2)";
+      ctx.shadowBlur = w * 0.03;
+      ctx.shadowOffsetY = w * 0.01;
+      ctx.fillRect(x - padSide, y - padTop, w + padSide * 2, h + padTop + padBot);
+      ctx.shadowColor = "transparent";
+      ctx.strokeStyle = "rgba(0,0,0,0.08)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - padSide, y - padTop, w + padSide * 2, h + padTop + padBot);
+      break;
+    }
+    case "film-strip": {
+      ctx.strokeStyle = "#333333";
+      ctx.lineWidth = bw * 2;
+      ctx.strokeRect(x, y, w, h);
+      // Sprocket holes
+      const holeSize = w * 0.025;
+      const holeGap = w * 0.06;
+      ctx.fillStyle = "#333333";
+      for (let hx = x + holeGap; hx < x + w - holeGap; hx += holeGap) {
+        drawRoundedRect(ctx, hx - holeSize / 2, y - holeSize * 1.2, holeSize, holeSize, 2);
+        ctx.fill();
+        drawRoundedRect(ctx, hx - holeSize / 2, y + h + holeSize * 0.2, holeSize, holeSize, 2);
+        ctx.fill();
+      }
+      break;
+    }
+    case "ornate-gold": {
+      const gold = "#c9a84c";
+      ctx.strokeStyle = gold;
+      ctx.lineWidth = bw * 3;
+      ctx.strokeRect(x, y, w, h);
+      ctx.strokeStyle = hexToRgba(gold, 0.5);
+      ctx.lineWidth = bw;
+      ctx.strokeRect(x + bw * 5, y + bw * 5, w - bw * 10, h - bw * 10);
+      // Corner ornaments
+      const cs = w * 0.06;
+      for (const [cx, cy] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.fillStyle = gold;
+        ctx.beginPath();
+        ctx.arc(0, 0, cs, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = hexToRgba(gold, 0.3);
+        ctx.beginPath();
+        ctx.arc(0, 0, cs * 1.4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      break;
+    }
+    case "ornate-classic": {
+      ctx.strokeStyle = brandColor;
+      ctx.lineWidth = bw * 2;
+      ctx.strokeRect(x, y, w, h);
+      // Inner border
+      const inset = w * 0.025;
+      ctx.strokeStyle = hexToRgba(brandColor, 0.4);
+      ctx.lineWidth = bw;
+      ctx.strokeRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
+      // Corner L shapes
+      const cLen = w * 0.08;
+      ctx.strokeStyle = brandColor;
+      ctx.lineWidth = bw * 1.5;
+      for (const [cx, cy, dx, dy] of [
+        [x, y, 1, 1], [x + w, y, -1, 1],
+        [x, y + h, 1, -1], [x + w, y + h, -1, -1],
+      ]) {
+        ctx.beginPath();
+        ctx.moveTo(cx + dx * cLen, cy);
+        ctx.lineTo(cx, cy);
+        ctx.lineTo(cx, cy + dy * cLen);
+        ctx.stroke();
+      }
+      break;
+    }
+    case "brush-stroke": {
+      ctx.strokeStyle = hexToRgba(brandColor, 0.6);
+      ctx.lineWidth = bw * 4;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      const noise = w * 0.01;
+      ctx.beginPath();
+      ctx.moveTo(x + noise, y - noise);
+      ctx.lineTo(x + w - noise, y + noise);
+      ctx.lineTo(x + w + noise, y + h + noise);
+      ctx.lineTo(x - noise, y + h - noise);
+      ctx.closePath();
+      ctx.stroke();
+      break;
+    }
+    case "torn-paper": {
+      ctx.strokeStyle = hexToRgba(brandColor, 0.2);
+      ctx.lineWidth = 1;
+      // Top torn edge
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      for (let tx = x; tx <= x + w; tx += w * 0.02) {
+        const jitter = (Math.random() - 0.5) * w * 0.015;
+        ctx.lineTo(tx, y + jitter);
+      }
+      ctx.stroke();
+      // Bottom torn edge
+      ctx.beginPath();
+      ctx.moveTo(x, y + h);
+      for (let tx = x; tx <= x + w; tx += w * 0.02) {
+        const jitter = (Math.random() - 0.5) * w * 0.015;
+        ctx.lineTo(tx, y + h + jitter);
+      }
+      ctx.stroke();
+      // Subtle shadow
+      ctx.shadowColor = "rgba(0,0,0,0.1)";
+      ctx.shadowBlur = bw * 3;
+      ctx.shadowOffsetY = bw * 2;
+      ctx.strokeStyle = "transparent";
+      ctx.strokeRect(x, y, w, h);
+      ctx.shadowColor = "transparent";
+      break;
+    }
+    case "neon-glow": {
+      for (let i = 3; i >= 0; i--) {
+        ctx.shadowColor = accentColor;
+        ctx.shadowBlur = bw * (i + 1) * 4;
+        ctx.strokeStyle = i === 0 ? accentColor : "transparent";
+        ctx.lineWidth = bw;
+        drawRoundedRect(ctx, x, y, w, h, w * 0.015);
+        ctx.stroke();
+      }
+      ctx.shadowColor = "transparent";
+      break;
+    }
+    case "gradient-border": {
+      const grad = ctx.createLinearGradient(x, y, x + w, y + h);
+      grad.addColorStop(0, brandColor);
+      grad.addColorStop(0.5, accentColor);
+      grad.addColorStop(1, brandColor);
+      ctx.strokeStyle = grad;
+      ctx.lineWidth = bw * 3;
+      drawRoundedRect(ctx, x, y, w, h, w * 0.015);
+      ctx.stroke();
+      break;
+    }
+  }
+  ctx.restore();
+}
+
+// ─── Frame clip path (for curated frames that clip the image) ─
+function applyFrameClip(
+  ctx: CanvasRenderingContext2D,
+  frame: FrameStyle,
+  x: number, y: number, w: number, h: number,
+): boolean {
+  if (frame === "curated-arch") {
+    const archR = w * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h);
+    ctx.lineTo(x, y + archR * 0.3);
+    ctx.arc(x + w / 2, y + archR * 0.3, w / 2, Math.PI, 0, false);
+    ctx.lineTo(x + w, y + h);
+    ctx.closePath();
+    ctx.clip();
+    return true;
+  }
+  if (frame === "curated-oval") {
+    ctx.beginPath();
+    ctx.ellipse(x + w / 2, y + h / 2, w / 2, h / 2, 0, 0, Math.PI * 2);
+    ctx.clip();
+    return true;
+  }
+  return false;
+}
+
+// ─── Text Overlay Renderer ───────────────────────────────────
+function drawTextOverlays(
+  ctx: CanvasRenderingContext2D,
+  overlays: CatalogTextOverlay[],
+  pageIndex: number,
+  pageW: number,
+  pageH: number,
+) {
+  for (const ov of overlays) {
+    if (ov.page !== -1 && ov.page !== pageIndex) continue;
+    if (!ov.text.trim()) continue;
+
+    ctx.save();
+    const px = ov.x * pageW;
+    const py = ov.y * pageH;
+    const font = FONT_MAP[ov.fontFamily] || FONT_MAP.sans;
+    const fontSize = Math.round(ov.fontSize * (pageW / 2480)); // scale relative to A4
+
+    ctx.globalAlpha = ov.opacity;
+    ctx.translate(px, py);
+    if (ov.rotation) ctx.rotate((ov.rotation * Math.PI) / 180);
+
+    ctx.font = `${ov.fontWeight} ${fontSize}px ${font}`;
+    ctx.textAlign = ov.align as CanvasTextAlign;
+    ctx.textBaseline = "top";
+
+    const maxW = ov.maxWidth ? ov.maxWidth * pageW : pageW * 0.8;
+    const lines: string[] = [];
+    const words = ov.text.split(" ");
+    let currentLine = "";
+    for (const word of words) {
+      const test = currentLine ? `${currentLine} ${word}` : word;
+      if (ctx.measureText(test).width > maxW && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = test;
+      }
+    }
+    if (currentLine) lines.push(currentLine);
+
+    const lineH = fontSize * 1.3;
+    const totalH = lines.length * lineH;
+
+    // Background box
+    if (ov.backgroundColor) {
+      const maxLine = Math.max(...lines.map(l => ctx.measureText(l).width));
+      const pad = fontSize * 0.3;
+      let boxX = -pad;
+      if (ov.align === "center") boxX = -maxLine / 2 - pad;
+      else if (ov.align === "right") boxX = -maxLine - pad;
+      ctx.fillStyle = ov.backgroundColor;
+      drawRoundedRect(ctx, boxX, -pad, maxLine + pad * 2, totalH + pad * 2, pad);
+      ctx.fill();
+    }
+
+    // Border
+    if (ov.borderColor) {
+      const maxLine = Math.max(...lines.map(l => ctx.measureText(l).width));
+      const pad = fontSize * 0.3;
+      let boxX = -pad;
+      if (ov.align === "center") boxX = -maxLine / 2 - pad;
+      else if (ov.align === "right") boxX = -maxLine - pad;
+      ctx.strokeStyle = ov.borderColor;
+      ctx.lineWidth = 2;
+      drawRoundedRect(ctx, boxX, -pad, maxLine + pad * 2, totalH + pad * 2, pad);
+      ctx.stroke();
+    }
+
+    // Text
+    ctx.fillStyle = ov.color;
+    for (let i = 0; i < lines.length; i++) {
+      ctx.fillText(lines[i], 0, i * lineH);
+    }
+
+    ctx.restore();
+  }
 }
 
 // ─── TOC Page ────────────────────────────────────────────────
@@ -701,7 +1101,24 @@ async function drawProductCard(
   const font = FONT_MAP[settings.fontFamily];
   const padding = w * 0.05;
   const imageArea = h * 0.65;
-  const textArea = h - imageArea;
+
+  // Resolve element visibility (per-product overrides global)
+  const elVis = {
+    showImage: product.hideElements?.showImage ?? settings.globalElementToggle?.showImage ?? true,
+    showName: product.hideElements?.showName ?? settings.globalElementToggle?.showName ?? true,
+    showDescription: product.hideElements?.showDescription ?? settings.globalElementToggle?.showDescription ?? true,
+    showPrice: product.hideElements?.showPrice ?? settings.globalElementToggle?.showPrice ?? true,
+    showSku: product.hideElements?.showSku ?? settings.globalElementToggle?.showSku ?? true,
+    showBadge: product.hideElements?.showBadge ?? settings.globalElementToggle?.showBadge ?? true,
+  };
+
+  // Resolve frame style (per-product overrides global)
+  const frame: FrameStyle = product.frameStyle || settings.globalFrame || "none";
+
+  // Font size multipliers
+  const nameScale = (product.customFontSize ?? settings.productNameSize) || 1;
+  const descScale = settings.productDescSize || 1;
+  const priceScale = settings.productPriceSize || 1;
 
   // Card background
   if (template === "grid-shadow") {
@@ -730,42 +1147,47 @@ async function drawProductCard(
   }
 
   // Product image
-  try {
-    const img = await loadImage(product.image);
-    const imgX = x + padding;
-    const imgY = y + padding;
-    const imgW = w - padding * 2;
-    const imgH = imageArea - padding * 2;
+  if (elVis.showImage) {
+    try {
+      const img = await loadImage(product.image);
+      const imgX = x + padding;
+      const imgY = y + padding;
+      const imgW = w - padding * 2;
+      const imgH = imageArea - padding * 2;
 
-    // Fit image maintaining aspect ratio
-    const scale = Math.min(imgW / img.naturalWidth, imgH / img.naturalHeight);
-    const drawW = img.naturalWidth * scale;
-    const drawH = img.naturalHeight * scale;
-    const drawX = imgX + (imgW - drawW) / 2;
-    const drawY = imgY + (imgH - drawH) / 2;
+      const scale = Math.min(imgW / img.naturalWidth, imgH / img.naturalHeight);
+      const drawW = img.naturalWidth * scale;
+      const drawH = img.naturalHeight * scale;
+      const drawX = imgX + (imgW - drawW) / 2;
+      const drawY = imgY + (imgH - drawH) / 2;
 
-    if (template === "grid-shadow" || template === "luxury") {
       ctx.save();
-      drawRoundedRect(ctx, imgX, imgY, imgW, imgH, 8);
-      ctx.clip();
+      // Apply clip for curated frames
+      const clipped = applyFrameClip(ctx, frame, imgX, imgY, imgW, imgH);
+      if (!clipped && (template === "grid-shadow" || template === "luxury")) {
+        drawRoundedRect(ctx, imgX, imgY, imgW, imgH, 8);
+        ctx.clip();
+      }
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
       ctx.restore();
-    } else {
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+
+      // Draw decorative frame around image area
+      if (frame !== "none") {
+        drawFrame(ctx, frame, imgX, imgY, imgW, imgH, settings.brandColor, settings.accentColor);
+      }
+    } catch {
+      ctx.fillStyle = hexToRgba(settings.brandColor, 0.1);
+      ctx.fillRect(x + padding, y + padding, w - padding * 2, imageArea - padding * 2);
+      ctx.fillStyle = hexToRgba(settings.textColor, 0.3);
+      ctx.font = `${w * 0.06}px ${font}`;
+      ctx.textAlign = "center";
+      ctx.fillText("תמונה לא זמינה", x + w / 2, y + imageArea / 2);
+      ctx.textAlign = "start";
     }
-  } catch {
-    // Placeholder if image fails
-    ctx.fillStyle = hexToRgba(settings.brandColor, 0.1);
-    ctx.fillRect(x + padding, y + padding, w - padding * 2, imageArea - padding * 2);
-    ctx.fillStyle = hexToRgba(settings.textColor, 0.3);
-    ctx.font = `${w * 0.06}px ${font}`;
-    ctx.textAlign = "center";
-    ctx.fillText("תמונה לא זמינה", x + w / 2, y + imageArea / 2);
-    ctx.textAlign = "start";
   }
 
   // Badge
-  if (product.badge) {
+  if (elVis.showBadge && product.badge) {
     const badgeH = h * 0.04;
     const badgePad = badgeH * 0.6;
     ctx.font = `bold ${badgeH}px ${font}`;
@@ -787,29 +1209,31 @@ async function drawProductCard(
   let textY = y + imageArea + padding * 0.5;
 
   // Product name
-  ctx.fillStyle = template === "luxury" ? "#ffffff" : settings.textColor;
-  ctx.font = `bold ${h * 0.035}px ${font}`;
-  textY = wrapText(ctx, product.name, textX, textY, textMaxW, h * 0.04, 2);
+  if (elVis.showName) {
+    ctx.fillStyle = template === "luxury" ? "#ffffff" : settings.textColor;
+    ctx.font = `bold ${h * 0.035 * nameScale}px ${font}`;
+    textY = wrapText(ctx, product.name, textX, textY, textMaxW, h * 0.04 * nameScale, 2);
+  }
 
   // Description
-  if (settings.showDescriptions && product.description) {
+  if (elVis.showDescription && settings.showDescriptions && product.description) {
     ctx.fillStyle = template === "luxury"
       ? hexToRgba("#ffffff", 0.6)
       : hexToRgba(settings.textColor, 0.6);
-    ctx.font = `${h * 0.025}px ${font}`;
-    textY = wrapText(ctx, product.description, textX, textY + h * 0.01, textMaxW, h * 0.03, 2);
+    ctx.font = `${h * 0.025 * descScale}px ${font}`;
+    textY = wrapText(ctx, product.description, textX, textY + h * 0.01, textMaxW, h * 0.03 * descScale, 2);
   }
 
   // Price + SKU row
   const bottomY = y + h - padding;
-  if (settings.showPrices && product.price) {
+  if (elVis.showPrice && settings.showPrices && product.price) {
     ctx.fillStyle = settings.brandColor;
-    ctx.font = `bold ${h * 0.035}px ${font}`;
+    ctx.font = `bold ${h * 0.035 * priceScale}px ${font}`;
     ctx.textAlign = "right";
     ctx.fillText(product.price, x + w - padding, bottomY);
     ctx.textAlign = "start";
   }
-  if (settings.showSku && product.sku) {
+  if (elVis.showSku && settings.showSku && product.sku) {
     ctx.fillStyle = hexToRgba(settings.textColor, 0.35);
     ctx.font = `${h * 0.02}px ${font}`;
     ctx.fillText(`מק״ט: ${product.sku}`, textX, bottomY);
@@ -829,45 +1253,68 @@ async function drawShowcaseProduct(
   const availH = pageH - startY - pageW * 0.1;
   const imageH = availH * 0.7;
 
-  // Large product image
-  try {
-    const img = await loadImage(product.image);
-    const imgW = pageW - padding * 2;
-    const scale = Math.min(imgW / img.naturalWidth, imageH / img.naturalHeight);
-    const drawW = img.naturalWidth * scale;
-    const drawH = img.naturalHeight * scale;
-    const drawX = (pageW - drawW) / 2;
-    const drawY = startY + (imageH - drawH) / 2;
+  const elVis = {
+    showImage: product.hideElements?.showImage ?? settings.globalElementToggle?.showImage ?? true,
+    showName: product.hideElements?.showName ?? settings.globalElementToggle?.showName ?? true,
+    showDescription: product.hideElements?.showDescription ?? settings.globalElementToggle?.showDescription ?? true,
+    showPrice: product.hideElements?.showPrice ?? settings.globalElementToggle?.showPrice ?? true,
+    showSku: product.hideElements?.showSku ?? settings.globalElementToggle?.showSku ?? true,
+  };
+  const frame: FrameStyle = product.frameStyle || settings.globalFrame || "none";
+  const nameScale = (product.customFontSize ?? settings.productNameSize) || 1;
+  const priceScale = settings.productPriceSize || 1;
+  const descScale = settings.productDescSize || 1;
 
-    // Subtle shadow behind image
-    ctx.save();
-    ctx.shadowColor = "rgba(0,0,0,0.2)";
-    ctx.shadowBlur = 40;
-    ctx.shadowOffsetY = 10;
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    ctx.restore();
-  } catch { /* skip */ }
+  // Large product image
+  if (elVis.showImage) {
+    try {
+      const img = await loadImage(product.image);
+      const imgW = pageW - padding * 2;
+      const scale = Math.min(imgW / img.naturalWidth, imageH / img.naturalHeight);
+      const drawW = img.naturalWidth * scale;
+      const drawH = img.naturalHeight * scale;
+      const drawX = (pageW - drawW) / 2;
+      const drawY = startY + (imageH - drawH) / 2;
+
+      ctx.save();
+      const clipped = applyFrameClip(ctx, frame, drawX, drawY, drawW, drawH);
+      if (!clipped) {
+        ctx.shadowColor = "rgba(0,0,0,0.2)";
+        ctx.shadowBlur = 40;
+        ctx.shadowOffsetY = 10;
+      }
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.restore();
+
+      if (frame !== "none") {
+        drawFrame(ctx, frame, drawX, drawY, drawW, drawH, settings.brandColor, settings.accentColor);
+      }
+    } catch { /* skip */ }
+  }
 
   // Product info
   const infoY = startY + imageH + padding;
   ctx.textAlign = "center";
-  ctx.fillStyle = settings.textColor;
-  ctx.font = `bold ${pageW * 0.04}px ${font}`;
-  ctx.fillText(product.name, pageW / 2, infoY);
 
-  if (settings.showDescriptions && product.description) {
-    ctx.font = `${pageW * 0.02}px ${font}`;
-    ctx.fillStyle = hexToRgba(settings.textColor, 0.6);
-    wrapText(ctx, product.description, pageW * 0.15, infoY + pageW * 0.05, pageW * 0.7, pageW * 0.028, 3);
+  if (elVis.showName) {
+    ctx.fillStyle = settings.textColor;
+    ctx.font = `bold ${pageW * 0.04 * nameScale}px ${font}`;
+    ctx.fillText(product.name, pageW / 2, infoY);
   }
 
-  if (settings.showPrices && product.price) {
-    ctx.font = `bold ${pageW * 0.05}px ${font}`;
+  if (elVis.showDescription && settings.showDescriptions && product.description) {
+    ctx.font = `${pageW * 0.02 * descScale}px ${font}`;
+    ctx.fillStyle = hexToRgba(settings.textColor, 0.6);
+    wrapText(ctx, product.description, pageW * 0.15, infoY + pageW * 0.05, pageW * 0.7, pageW * 0.028 * descScale, 3);
+  }
+
+  if (elVis.showPrice && settings.showPrices && product.price) {
+    ctx.font = `bold ${pageW * 0.05 * priceScale}px ${font}`;
     ctx.fillStyle = settings.brandColor;
     ctx.fillText(product.price, pageW / 2, infoY + pageW * 0.13);
   }
 
-  if (settings.showSku && product.sku) {
+  if (elVis.showSku && settings.showSku && product.sku) {
     ctx.font = `${pageW * 0.015}px ${font}`;
     ctx.fillStyle = hexToRgba(settings.textColor, 0.35);
     ctx.fillText(`מק״ט: ${product.sku}`, pageW / 2, infoY + pageW * 0.17);
@@ -883,22 +1330,39 @@ async function drawLookbookProduct(
   settings: CatalogSettings,
 ) {
   const font = FONT_MAP[settings.fontFamily];
+  const elVis = {
+    showImage: product.hideElements?.showImage ?? settings.globalElementToggle?.showImage ?? true,
+    showName: product.hideElements?.showName ?? settings.globalElementToggle?.showName ?? true,
+    showPrice: product.hideElements?.showPrice ?? settings.globalElementToggle?.showPrice ?? true,
+  };
+  const frame: FrameStyle = product.frameStyle || settings.globalFrame || "none";
+  const nameScale = (product.customFontSize ?? settings.productNameSize) || 1;
+  const priceScale = settings.productPriceSize || 1;
 
   // Full-bleed image
-  try {
-    const img = await loadImage(product.image);
-    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
-    const drawW = img.naturalWidth * scale;
-    const drawH = img.naturalHeight * scale;
-    const drawX = x + (w - drawW) / 2;
-    const drawY = y + (h - drawH) / 2;
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x, y, w, h);
-    ctx.clip();
-    ctx.drawImage(img, drawX, drawY, drawW, drawH);
-    ctx.restore();
-  } catch { /* skip */ }
+  if (elVis.showImage) {
+    try {
+      const img = await loadImage(product.image);
+      const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
+      const drawW = img.naturalWidth * scale;
+      const drawH = img.naturalHeight * scale;
+      const drawX = x + (w - drawW) / 2;
+      const drawY = y + (h - drawH) / 2;
+      ctx.save();
+      const clipped = applyFrameClip(ctx, frame, x, y, w, h);
+      if (!clipped) {
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+      }
+      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      ctx.restore();
+
+      if (frame !== "none") {
+        drawFrame(ctx, frame, x, y, w, h, settings.brandColor, settings.accentColor);
+      }
+    } catch { /* skip */ }
+  }
 
   // Gradient overlay at bottom
   const gradH = h * 0.4;
@@ -910,14 +1374,17 @@ async function drawLookbookProduct(
 
   // Text on overlay
   const padding = w * 0.06;
-  ctx.fillStyle = "#ffffff";
-  ctx.font = `bold ${w * 0.045}px ${font}`;
-  ctx.textAlign = "right";
-  ctx.fillText(product.name, x + w - padding, y + h - padding * 2.5);
+  if (elVis.showName) {
+    ctx.fillStyle = "#ffffff";
+    ctx.font = `bold ${w * 0.045 * nameScale}px ${font}`;
+    ctx.textAlign = "right";
+    ctx.fillText(product.name, x + w - padding, y + h - padding * 2.5);
+  }
 
-  if (settings.showPrices && product.price) {
-    ctx.font = `bold ${w * 0.055}px ${font}`;
+  if (elVis.showPrice && settings.showPrices && product.price) {
+    ctx.font = `bold ${w * 0.055 * priceScale}px ${font}`;
     ctx.fillStyle = settings.accentColor;
+    ctx.textAlign = "right";
     ctx.fillText(product.price, x + w - padding, y + h - padding);
   }
   ctx.textAlign = "start";
@@ -1183,6 +1650,11 @@ export async function generateCatalog(
         ctx.strokeRect(padding, padding, pageW - padding * 2, pageH - padding * 2);
       }
 
+      // Text overlays for this page
+      if (settings.textOverlays?.length) {
+        drawTextOverlays(ctx, settings.textOverlays, pageCounter, pageW, pageH);
+      }
+
       pushPage(canvas, "products");
     }
   }
@@ -1340,6 +1812,19 @@ export const defaultCatalogSettings: CatalogSettings = {
   columns: 2,
   bgPattern: "none",
   coverStyle: "modern",
+  globalFrame: "none",
+  productNameSize: 1,
+  productDescSize: 1,
+  productPriceSize: 1,
+  textOverlays: [],
+  globalElementToggle: {
+    showImage: true,
+    showName: true,
+    showDescription: true,
+    showPrice: true,
+    showSku: true,
+    showBadge: true,
+  },
 };
 
 export const TEMPLATE_OPTIONS: { id: CatalogTemplate; label: string; icon: string; desc: string }[] = [
@@ -1360,6 +1845,25 @@ export const BG_PATTERN_OPTIONS: { id: BgPattern; label: string }[] = [
   { id: "grid", label: "רשת" },
   { id: "diagonal", label: "אלכסון" },
   { id: "circles", label: "עיגולים" },
+];
+
+export const FRAME_STYLE_OPTIONS: { id: FrameStyle; label: string; icon: string }[] = [
+  { id: "none", label: "ללא מסגרת", icon: "◻️" },
+  { id: "thin", label: "דקה", icon: "▫️" },
+  { id: "rounded", label: "מעוגלת", icon: "⬜" },
+  { id: "shadow-box", label: "צל תלת-ממד", icon: "🔲" },
+  { id: "double", label: "כפולה", icon: "⏹️" },
+  { id: "modern-float", label: "מודרנית צפה", icon: "💠" },
+  { id: "curated-arch", label: "קשת קיורטית", icon: "🏛️" },
+  { id: "curated-oval", label: "אובלית קיורטית", icon: "🪞" },
+  { id: "polaroid", label: "פולרויד", icon: "📷" },
+  { id: "film-strip", label: "סרט צילום", icon: "🎞️" },
+  { id: "ornate-gold", label: "מוזהבת מפוארת", icon: "🖼️" },
+  { id: "ornate-classic", label: "קלאסית מפוארת", icon: "🎨" },
+  { id: "brush-stroke", label: "משיכת מכחול", icon: "🖌️" },
+  { id: "torn-paper", label: "נייר קרוע", icon: "📜" },
+  { id: "neon-glow", label: "נאון זוהר", icon: "💡" },
+  { id: "gradient-border", label: "גרדיאנט", icon: "🌈" },
 ];
 
 export { getItemsPerPage };

@@ -6,7 +6,7 @@ import {
   FileText, Loader2, Upload, X, RotateCcw, Copy, BookOpen,
   Sparkles, FileDown, LayoutGrid, Home, Brain, Wand2,
   FolderOpen, ArrowUpCircle, Eraser, Zap, CheckCircle2,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Frame, EyeOff, ALargeSmall, PenLine,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
@@ -32,12 +33,15 @@ import {
   defaultCatalogSettings,
   TEMPLATE_OPTIONS,
   BG_PATTERN_OPTIONS,
+  FRAME_STYLE_OPTIONS,
   getItemsPerPage,
   type CatalogProduct,
   type CatalogSettings,
   type CatalogCategory,
   type CatalogPage,
   type CatalogTemplate,
+  type CatalogTextOverlay,
+  type FrameStyle,
   type PageSize,
   type BgPattern,
 } from "@/lib/catalog-engine";
@@ -48,6 +52,8 @@ import {
   aiUpscaleImage,
   aiSuggestTheme,
   aiBatchAnalyze,
+  aiGenerateTextOverlays,
+  aiSuggestLayout,
   type AIBatchProgress,
 } from "@/lib/catalog-ai";
 
@@ -106,6 +112,8 @@ export default function CatalogBuilder() {
   const [aiSingleLoading, setAiSingleLoading] = useState<string | null>(null);
   // Expanded product
   const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  // Text overlay editing
+  const [editingOverlay, setEditingOverlay] = useState<string | null>(null);
   // Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -233,7 +241,9 @@ export default function CatalogBuilder() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products.length, settings.template, settings.columns, settings.pageSize,
       settings.showToc, settings.showBackCover, settings.showPriceList,
-      settings.showCategoryDividers, settings.bgPattern, autoPreview, categories.length]);
+      settings.showCategoryDividers, settings.bgPattern, settings.globalFrame,
+      settings.productNameSize, settings.productDescSize, settings.productPriceSize,
+      autoPreview, categories.length]);
 
   // ─── Export ────────────────────────────────────────────────
   const exportPDF = useCallback(async () => {
@@ -267,6 +277,41 @@ export default function CatalogBuilder() {
   const updateSetting = useCallback(<K extends keyof CatalogSettings>(key: K, val: CatalogSettings[K]) => {
     setSettings(s => ({ ...s, [key]: val }));
   }, []);
+
+  // ─── Text Overlay CRUD ────────────────────────────────────
+  const addTextOverlay = useCallback(() => {
+    const overlay: CatalogTextOverlay = {
+      id: `ov_${Date.now()}_${++idCounter}`,
+      text: "טקסט חדש",
+      page: -1, // all pages
+      x: 0.5,
+      y: 0.5,
+      fontSize: 32,
+      fontFamily: "sans",
+      fontWeight: "normal",
+      color: "#000000",
+      align: "center",
+      opacity: 1,
+      rotation: 0,
+    };
+    setSettings(s => ({ ...s, textOverlays: [...(s.textOverlays || []), overlay] }));
+    setEditingOverlay(overlay.id);
+  }, []);
+
+  const updateOverlay = useCallback((id: string, updates: Partial<CatalogTextOverlay>) => {
+    setSettings(s => ({
+      ...s,
+      textOverlays: (s.textOverlays || []).map(o => o.id === id ? { ...o, ...updates } : o),
+    }));
+  }, []);
+
+  const removeOverlay = useCallback((id: string) => {
+    setSettings(s => ({
+      ...s,
+      textOverlays: (s.textOverlays || []).filter(o => o.id !== id),
+    }));
+    if (editingOverlay === id) setEditingOverlay(null);
+  }, [editingOverlay]);
 
   // ─── AI Operations ────────────────────────────────────────
   const aiAnalyzeSingle = useCallback(async (productId: string) => {
@@ -652,6 +697,67 @@ export default function CatalogBuilder() {
                                         ))}
                                       </div>
                                     )}
+                                    {/* Per-product frame */}
+                                    <div className="space-y-1">
+                                      <Label className="text-[10px] text-muted-foreground">מסגרת מוצר</Label>
+                                      <Select
+                                        value={product.frameStyle || "none"}
+                                        onValueChange={v => updateProduct(product.id, { frameStyle: v as FrameStyle })}
+                                      >
+                                        <SelectTrigger className="h-6 text-[10px]">
+                                          <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          {FRAME_STYLE_OPTIONS.map(f => (
+                                            <SelectItem key={f.id} value={f.id}>
+                                              <span>{f.icon} {f.label}</span>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    </div>
+                                    {/* Per-product font size */}
+                                    <div className="space-y-1">
+                                      <Label className="text-[10px] text-muted-foreground">גודל גופן שם ({((product.customFontSize ?? 1) * 100).toFixed(0)}%)</Label>
+                                      <Slider
+                                        value={[product.customFontSize ?? 1]}
+                                        min={0.5}
+                                        max={2}
+                                        step={0.1}
+                                        onValueChange={([v]) => updateProduct(product.id, { customFontSize: v })}
+                                      />
+                                    </div>
+                                    {/* Per-product element visibility */}
+                                    <div className="space-y-1">
+                                      <Label className="text-[10px] text-muted-foreground flex items-center gap-1"><EyeOff className="h-3 w-3" /> הסתר אלמנטים</Label>
+                                      <div className="flex flex-wrap gap-1">
+                                        {([
+                                          { key: "showImage" as const, label: "תמונה" },
+                                          { key: "showName" as const, label: "שם" },
+                                          { key: "showPrice" as const, label: "מחיר" },
+                                          { key: "showDescription" as const, label: "תיאור" },
+                                          { key: "showBadge" as const, label: "תגית" },
+                                        ]).map(el => {
+                                          const isHidden = product.hideElements?.[el.key] === false;
+                                          return (
+                                            <button
+                                              key={el.key}
+                                              onClick={() => updateProduct(product.id, {
+                                                hideElements: {
+                                                  ...product.hideElements,
+                                                  [el.key]: isHidden ? true : false,
+                                                },
+                                              })}
+                                              className={`px-1.5 py-0.5 rounded text-[10px] border transition-colors ${
+                                                isHidden ? "bg-destructive/10 text-destructive border-destructive/30 line-through" : "bg-muted border-transparent"
+                                              }`}
+                                            >
+                                              {el.label}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
                                   </motion.div>
                                 )}
                               </AnimatePresence>
@@ -869,6 +975,7 @@ export default function CatalogBuilder() {
                         { id: "sans" as const, label: "Sans" },
                         { id: "serif" as const, label: "Serif" },
                         { id: "mono" as const, label: "Mono" },
+                        { id: "decorative" as const, label: "דקורטיבי" },
                       ]).map(f => (
                         <Button
                           key={f.id}
@@ -881,6 +988,177 @@ export default function CatalogBuilder() {
                         </Button>
                       ))}
                     </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Frame selection */}
+                  <div>
+                    <Label className="text-xs font-semibold flex items-center gap-1"><Frame className="h-3 w-3" /> מסגרת מוצרים</Label>
+                    <div className="grid grid-cols-4 gap-1.5 mt-2">
+                      {FRAME_STYLE_OPTIONS.map(f => (
+                        <button
+                          key={f.id}
+                          onClick={() => updateSetting("globalFrame", f.id)}
+                          className={`rounded-md border p-1.5 text-center transition-all ${
+                            settings.globalFrame === f.id
+                              ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                              : "hover:border-primary/30"
+                          }`}
+                        >
+                          <span className="text-base block">{f.icon}</span>
+                          <span className="text-[9px] block mt-0.5 leading-tight">{f.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {/* Font sizes */}
+                  <div className="space-y-3">
+                    <Label className="text-xs font-semibold flex items-center gap-1"><ALargeSmall className="h-3 w-3" /> גדלי טקסט</Label>
+                    {([
+                      { key: "productNameSize" as const, label: "שם מוצר" },
+                      { key: "productDescSize" as const, label: "תיאור" },
+                      { key: "productPriceSize" as const, label: "מחיר" },
+                    ]).map(s => (
+                      <div key={s.key}>
+                        <div className="flex items-center justify-between">
+                          <Label className="text-[10px]">{s.label}</Label>
+                          <span className="text-[10px] text-muted-foreground">{((settings[s.key] || 1) * 100).toFixed(0)}%</span>
+                        </div>
+                        <Slider
+                          value={[settings[s.key] || 1]}
+                          min={0.5}
+                          max={2}
+                          step={0.1}
+                          onValueChange={([v]) => updateSetting(s.key, v)}
+                          className="mt-1"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator />
+
+                  {/* Text overlays */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-semibold flex items-center gap-1"><PenLine className="h-3 w-3" /> שכבות טקסט</Label>
+                      <Button variant="outline" size="sm" className="h-6 text-[10px]" onClick={addTextOverlay}>
+                        <Plus className="h-3 w-3" />
+                        הוסף
+                      </Button>
+                    </div>
+                    {(settings.textOverlays || []).map(ov => (
+                      <div key={ov.id} className="bg-background border rounded-lg p-2 space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                          <Input
+                            value={ov.text}
+                            onChange={e => updateOverlay(ov.id, { text: e.target.value })}
+                            className="h-6 text-xs flex-1"
+                            placeholder="טקסט..."
+                          />
+                          <Button
+                            variant="ghost" size="icon" className="h-5 w-5"
+                            onClick={() => setEditingOverlay(editingOverlay === ov.id ? null : ov.id)}
+                          >
+                            <Settings2 className="h-3 w-3" />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => removeOverlay(ov.id)}>
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                        <AnimatePresence>
+                          {editingOverlay === ov.id && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              className="space-y-1.5 overflow-hidden"
+                            >
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <div>
+                                  <Label className="text-[10px]">X ({(ov.x * 100).toFixed(0)}%)</Label>
+                                  <Slider value={[ov.x]} min={0} max={1} step={0.01} onValueChange={([v]) => updateOverlay(ov.id, { x: v })} />
+                                </div>
+                                <div>
+                                  <Label className="text-[10px]">Y ({(ov.y * 100).toFixed(0)}%)</Label>
+                                  <Slider value={[ov.y]} min={0} max={1} step={0.01} onValueChange={([v]) => updateOverlay(ov.id, { y: v })} />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <div>
+                                  <Label className="text-[10px]">גודל ({ov.fontSize})</Label>
+                                  <Slider value={[ov.fontSize]} min={12} max={120} step={1} onValueChange={([v]) => updateOverlay(ov.id, { fontSize: v })} />
+                                </div>
+                                <div>
+                                  <Label className="text-[10px]">שקיפות ({(ov.opacity * 100).toFixed(0)}%)</Label>
+                                  <Slider value={[ov.opacity]} min={0.05} max={1} step={0.05} onValueChange={([v]) => updateOverlay(ov.id, { opacity: v })} />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                <div>
+                                  <Label className="text-[10px]">סיבוב ({ov.rotation}°)</Label>
+                                  <Slider value={[ov.rotation || 0]} min={-180} max={180} step={1} onValueChange={([v]) => updateOverlay(ov.id, { rotation: v })} />
+                                </div>
+                                <div>
+                                  <Label className="text-[10px]">עמוד</Label>
+                                  <Select value={String(ov.page)} onValueChange={v => updateOverlay(ov.id, { page: Number(v) })}>
+                                    <SelectTrigger className="h-6 text-[10px]"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="-1">כל העמודים</SelectItem>
+                                      {pages.map((_, i) => (
+                                        <SelectItem key={i} value={String(i)}>עמוד {i + 1}</SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div className="flex gap-1.5">
+                                <Select value={ov.fontFamily} onValueChange={v => updateOverlay(ov.id, { fontFamily: v as CatalogTextOverlay["fontFamily"] })}>
+                                  <SelectTrigger className="h-6 text-[10px] flex-1"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="sans">Sans</SelectItem>
+                                    <SelectItem value="serif">Serif</SelectItem>
+                                    <SelectItem value="mono">Mono</SelectItem>
+                                    <SelectItem value="decorative">דקורטיבי</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Select value={ov.fontWeight} onValueChange={v => updateOverlay(ov.id, { fontWeight: v as "normal" | "bold" })}>
+                                  <SelectTrigger className="h-6 text-[10px] w-16"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="normal">רגיל</SelectItem>
+                                    <SelectItem value="bold">בולט</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                                <Select value={ov.align} onValueChange={v => updateOverlay(ov.id, { align: v as "left" | "center" | "right" })}>
+                                  <SelectTrigger className="h-6 text-[10px] w-16"><SelectValue /></SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="right">ימין</SelectItem>
+                                    <SelectItem value="center">מרכז</SelectItem>
+                                    <SelectItem value="left">שמאל</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="flex gap-1.5 items-center">
+                                <input type="color" value={ov.color} onChange={e => updateOverlay(ov.id, { color: e.target.value })} className="w-6 h-6 rounded border cursor-pointer" />
+                                <span className="text-[10px]">צבע</span>
+                                <input type="color" value={ov.backgroundColor || "#ffffff"} onChange={e => updateOverlay(ov.id, { backgroundColor: e.target.value })} className="w-6 h-6 rounded border cursor-pointer" />
+                                <span className="text-[10px]">רקע</span>
+                                <button
+                                  onClick={() => updateOverlay(ov.id, { backgroundColor: ov.backgroundColor ? undefined : "rgba(255,255,255,0.7)" })}
+                                  className={`text-[10px] px-1.5 py-0.5 rounded border ${ov.backgroundColor ? "bg-primary/10 border-primary" : ""}`}
+                                >
+                                  {ov.backgroundColor ? "עם רקע" : "ללא רקע"}
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    ))}
                   </div>
 
                   <Separator />
@@ -1025,6 +1303,77 @@ export default function CatalogBuilder() {
                         </div>
                       </Button>
 
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2 h-9"
+                        disabled={aiProcessing}
+                        onClick={async () => {
+                          setAiProcessing(true);
+                          try {
+                            const layout = await aiSuggestLayout(products);
+                            setSettings(s => ({
+                              ...s,
+                              globalFrame: layout.suggestedFrame as FrameStyle,
+                              fontFamily: layout.suggestedFont as CatalogSettings["fontFamily"],
+                              columns: layout.suggestedColumns as 1 | 2 | 3 | 4,
+                              template: layout.suggestedTemplate as CatalogTemplate,
+                            }));
+                            toast.success("פריסה חכמה הוחלה");
+                          } catch { toast.error("שגיאה בהצעת פריסה"); }
+                          finally { setAiProcessing(false); }
+                        }}
+                      >
+                        <LayoutGrid className="h-4 w-4 text-teal-500" />
+                        <div className="text-right">
+                          <span className="text-xs font-medium block">הצע פריסה חכמה</span>
+                          <span className="text-[10px] text-muted-foreground">AI יבחר תבנית, מסגרת, גופן ועמודות</span>
+                        </div>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2 h-9"
+                        disabled={aiProcessing}
+                        onClick={async () => {
+                          setAiProcessing(true);
+                          try {
+                            const texts = await aiGenerateTextOverlays(settings.title, products);
+                            const newOverlays: CatalogTextOverlay[] = [];
+                            if (texts.tagline) {
+                              newOverlays.push({
+                                id: `ov_${Date.now()}_tag`, text: texts.tagline, page: 0,
+                                x: 0.5, y: 0.88, fontSize: 24, fontFamily: "sans", fontWeight: "bold",
+                                color: settings.brandColor, align: "center", opacity: 0.9, rotation: 0,
+                              });
+                            }
+                            if (texts.slogan) {
+                              newOverlays.push({
+                                id: `ov_${Date.now()}_slo`, text: texts.slogan, page: -1,
+                                x: 0.5, y: 0.03, fontSize: 16, fontFamily: "serif", fontWeight: "normal",
+                                color: settings.textColor, align: "center", opacity: 0.5, rotation: 0,
+                              });
+                            }
+                            if (texts.callToAction) {
+                              newOverlays.push({
+                                id: `ov_${Date.now()}_cta`, text: texts.callToAction, page: -1,
+                                x: 0.85, y: 0.95, fontSize: 18, fontFamily: "sans", fontWeight: "bold",
+                                color: "#ffffff", align: "center", opacity: 0.8, rotation: 0,
+                                backgroundColor: settings.brandColor,
+                              });
+                            }
+                            setSettings(s => ({ ...s, textOverlays: [...(s.textOverlays || []), ...newOverlays] }));
+                            toast.success(`${newOverlays.length} שכבות טקסט נוצרו`);
+                          } catch { toast.error("שגיאה ביצירת טקסטים"); }
+                          finally { setAiProcessing(false); }
+                        }}
+                      >
+                        <Type className="h-4 w-4 text-orange-500" />
+                        <div className="text-right">
+                          <span className="text-xs font-medium block">צור טקסטים שיווקיים</span>
+                          <span className="text-[10px] text-muted-foreground">סלוגן, טאגליין וקריאה לפעולה</span>
+                        </div>
+                      </Button>
+
                       <Separator />
 
                       <div className="bg-muted/50 rounded-lg p-2.5 text-[10px] text-muted-foreground space-y-1">
@@ -1095,6 +1444,29 @@ export default function CatalogBuilder() {
                         <Switch
                           checked={settings[s.key]}
                           onCheckedChange={v => updateSetting(s.key, v)}
+                        />
+                      </div>
+                    ))}
+
+                    <Separator />
+
+                    <Label className="text-xs font-semibold flex items-center gap-1"><EyeOff className="h-3 w-3" /> נראות אלמנטים (גלובלי)</Label>
+                    {([
+                      { key: "showImage" as const, label: "תמונת מוצר" },
+                      { key: "showName" as const, label: "שם מוצר" },
+                      { key: "showDescription" as const, label: "תיאור" },
+                      { key: "showPrice" as const, label: "מחיר" },
+                      { key: "showSku" as const, label: "מק״ט" },
+                      { key: "showBadge" as const, label: "תגית" },
+                    ]).map(el => (
+                      <div key={el.key} className="flex items-center justify-between">
+                        <Label className="text-xs">{el.label}</Label>
+                        <Switch
+                          checked={settings.globalElementToggle?.[el.key] !== false}
+                          onCheckedChange={v => updateSetting("globalElementToggle", {
+                            ...settings.globalElementToggle,
+                            [el.key]: v,
+                          })}
                         />
                       </div>
                     ))}

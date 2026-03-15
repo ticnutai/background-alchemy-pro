@@ -221,3 +221,76 @@ export async function aiBatchAnalyze(
 
   return results;
 }
+
+// ─── AI Text Overlay Generation ──────────────────────────────
+export async function aiGenerateTextOverlays(
+  catalogTitle: string,
+  products: CatalogProduct[],
+  language: "he" | "en" = "he",
+): Promise<{ tagline: string; slogan: string; callToAction: string }> {
+  const productNames = products.slice(0, 10).map(p => p.name).join(", ");
+  const prompt = language === "he"
+    ? `אתה כותב שיווקי. בהנתן קטלוג בשם "${catalogTitle}" עם מוצרים: ${productNames}.
+צור 3 טקסטים קצרים בעברית:
+1. tagline - משפט שיווקי קצר (עד 6 מילים)
+2. slogan - סלוגן מותג (עד 10 מילים)
+3. callToAction - קריאה לפעולה (עד 5 מילים)
+החזר JSON בלבד: {"tagline":"...","slogan":"...","callToAction":"..."}`
+    : `You are a marketing copywriter. Given a catalog "${catalogTitle}" with products: ${productNames}.
+Create 3 short texts:
+1. tagline - short marketing tagline (up to 6 words)
+2. slogan - brand slogan (up to 10 words)
+3. callToAction - call to action (up to 5 words)
+Return JSON only: {"tagline":"...","slogan":"...","callToAction":"..."}`;
+
+  const { data, error } = await supabase.functions.invoke("ai-chat", {
+    body: { messages: [{ role: "user", content: prompt }] },
+  });
+  if (error) throw error;
+
+  const text = data?.reply || data?.message || "";
+  const jsonMatch = text.match(/\{[^}]+\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
+  return { tagline: catalogTitle, slogan: "", callToAction: "צרו קשר" };
+}
+
+// ─── AI Layout Suggestion ────────────────────────────────────
+export async function aiSuggestLayout(
+  products: CatalogProduct[],
+): Promise<{
+  suggestedFrame: string;
+  suggestedFont: string;
+  suggestedColumns: number;
+  suggestedTemplate: string;
+}> {
+  const hasMany = products.length > 20;
+  const hasPrices = products.some(p => p.price);
+  const hasDescriptions = products.some(p => p.description);
+
+  const prompt = `אתה מעצב קטלוגים מקצועי. יש לי ${products.length} מוצרים.
+${hasPrices ? "יש מחירים." : "אין מחירים."}
+${hasDescriptions ? "יש תיאורים." : "אין תיאורים."}
+${hasMany ? "הרבה מוצרים — צריך תצוגה צפופה." : "מעט מוצרים — יכול להיות מרווח."}
+
+הצע פריסה אופטימלית. החזר JSON בלבד:
+{"suggestedFrame":"rounded|shadow-box|polaroid|modern-float|ornate-gold|thin|none","suggestedFont":"sans|serif|mono|decorative","suggestedColumns":2,"suggestedTemplate":"grid-shadow|grid-clean|luxury|minimal|magazine|lookbook|showcase|catalog-pro"}`;
+
+  const { data, error } = await supabase.functions.invoke("ai-chat", {
+    body: { messages: [{ role: "user", content: prompt }] },
+  });
+  if (error) throw error;
+
+  const text = data?.reply || data?.message || "";
+  const jsonMatch = text.match(/\{[^}]+\}/);
+  if (jsonMatch) {
+    return JSON.parse(jsonMatch[0]);
+  }
+  return {
+    suggestedFrame: hasMany ? "thin" : "rounded",
+    suggestedFont: "sans",
+    suggestedColumns: hasMany ? 3 : 2,
+    suggestedTemplate: hasMany ? "grid-clean" : "grid-shadow",
+  };
+}
