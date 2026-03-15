@@ -421,39 +421,17 @@ export default function CollageBuilder() {
     if (splitFileRef.current) splitFileRef.current.value = '';
   }, []);
 
-  const handleSplitExecute = useCallback(async () => {
-    if (!splitSource) return;
-    setSplitProcessing(true);
-    try {
-      const options: SplitOptions = {
-        mode: splitMode,
-        cols: splitMode === 'instagram' ? splitCols : splitCols,
-        rows: splitMode === 'instagram' ? 1 : splitRows,
-        instagramAspect: splitInstagramAspect,
-      };
-      const parts = await splitImage(splitSource, options);
-      const newImages: CollageImage[] = parts.map((src, i) => ({
-        id: `split_${Date.now()}_${i}`,
-        src,
-        name: `חלק ${i + 1}`,
-      }));
-      setImages(prev => [...prev, ...newImages]);
-
-      // Auto-select matching layout
-      const totalCells = options.cols * (options.mode === 'instagram' ? 1 : options.rows);
-      if (totalCells === 4) setLayout('grid-2x2');
-      else if (totalCells === 9) setLayout('grid-3x3');
-      else if (totalCells <= 5 && options.mode === 'instagram') setLayout('strip');
-
-      setSplitDialogOpen(false);
-      setSplitSource(null);
-      toast.success(`התמונה חולקה ל-${parts.length} חלקים`);
-    } catch (err) {
-      toast.error("שגיאה בחלוקת התמונה");
-    } finally {
-      setSplitProcessing(false);
-    }
-  }, [splitSource, splitMode, splitCols, splitRows, splitInstagramAspect]);
+  const handleSplitComplete = useCallback((parts: string[]) => {
+    const newImages: CollageImage[] = parts.map((src, i) => ({
+      id: `split_${Date.now()}_${i}`,
+      src,
+      name: `חלק ${i + 1}`,
+    }));
+    setImages(prev => [...prev, ...newImages]);
+    if (parts.length === 4) setLayout('grid-2x2');
+    else if (parts.length === 9) setLayout('grid-3x3');
+    setSplitSource(null);
+  }, []);
 
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
