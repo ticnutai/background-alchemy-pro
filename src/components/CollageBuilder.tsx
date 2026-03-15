@@ -830,41 +830,59 @@ export default function CollageBuilder() {
                       <ScrollArea className="max-h-[240px]">
                         <div className="grid grid-cols-3 gap-2">
                           {images.map((img, idx) => (
-                            <div
+                            <ImageHoverMenu
                               key={img.id}
-                              draggable
-                              onDragStart={() => { dragItemRef.current = idx; setDragIdx(idx); }}
-                              onDragEnter={() => { dragOverRef.current = idx; }}
-                              onDragOver={(e) => e.preventDefault()}
-                              onDragEnd={() => {
-                                if (dragItemRef.current !== null && dragOverRef.current !== null && dragItemRef.current !== dragOverRef.current) {
-                                  setImages(prev => {
-                                    const updated = [...prev];
-                                    const [dragged] = updated.splice(dragItemRef.current!, 1);
-                                    updated.splice(dragOverRef.current!, 0, dragged);
-                                    return updated;
-                                  });
-                                }
-                                dragItemRef.current = null;
-                                dragOverRef.current = null;
-                                setDragIdx(null);
-                              }}
-                              className={`relative border rounded cursor-grab active:cursor-grabbing overflow-hidden aspect-square transition-all ${
+                              imageUrl={img.src}
+                              hoverDelay={800}
+                              className={`relative border rounded aspect-square transition-all ${
                                 selectedImage === img.id ? "ring-2 ring-primary" : ""
                               } ${dragIdx === idx ? "opacity-50 scale-95" : ""}`}
-                              onClick={() => setSelectedImage(selectedImage === img.id ? null : img.id)}
+                              actions={{
+                                onZoom: () => setSelectedImage(img.id),
+                                onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(img.src)}`),
+                                onDelete: () => setImages(prev => prev.filter(i => i.id !== img.id)),
+                                onCatalog: () => navigate(`/catalog?importImage=${encodeURIComponent(img.src)}`),
+                                onDownload: () => {
+                                  const link = document.createElement("a");
+                                  link.href = img.src;
+                                  link.download = img.name || "image.png";
+                                  link.click();
+                                },
+                              }}
                             >
-                              <img src={img.src} alt={img.name} className="w-full h-full object-cover pointer-events-none" />
-                              <div className="absolute top-0.5 right-0.5 bg-foreground/60 text-background rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
-                                {idx + 1}
-                              </div>
-                              <button
-                                className="absolute top-0.5 left-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
-                                onClick={(e) => { e.stopPropagation(); setImages(prev => prev.filter(i => i.id !== img.id)); }}
+                              <div
+                                draggable
+                                onDragStart={() => { dragItemRef.current = idx; setDragIdx(idx); }}
+                                onDragEnter={() => { dragOverRef.current = idx; }}
+                                onDragOver={(e) => e.preventDefault()}
+                                onDragEnd={() => {
+                                  if (dragItemRef.current !== null && dragOverRef.current !== null && dragItemRef.current !== dragOverRef.current) {
+                                    setImages(prev => {
+                                      const updated = [...prev];
+                                      const [dragged] = updated.splice(dragItemRef.current!, 1);
+                                      updated.splice(dragOverRef.current!, 0, dragged);
+                                      return updated;
+                                    });
+                                  }
+                                  dragItemRef.current = null;
+                                  dragOverRef.current = null;
+                                  setDragIdx(null);
+                                }}
+                                className="w-full h-full cursor-grab active:cursor-grabbing overflow-hidden"
+                                onClick={() => setSelectedImage(selectedImage === img.id ? null : img.id)}
                               >
-                                <Trash2 className="h-3 w-3" />
-                              </button>
-                            </div>
+                                <img src={img.src} alt={img.name} className="w-full h-full object-cover pointer-events-none" />
+                                <div className="absolute top-0.5 right-0.5 bg-foreground/60 text-background rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
+                                  {idx + 1}
+                                </div>
+                                <button
+                                  className="absolute top-0.5 left-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
+                                  onClick={(e) => { e.stopPropagation(); setImages(prev => prev.filter(i => i.id !== img.id)); }}
+                                >
+                                  <Trash2 className="h-3 w-3" />
+                                </button>
+                              </div>
+                            </ImageHoverMenu>
                           ))}
                         </div>
                       </ScrollArea>
