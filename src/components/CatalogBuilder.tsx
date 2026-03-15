@@ -434,6 +434,47 @@ export default function CatalogBuilder() {
     toast.success(`${pages.length} עמודים הורדו`);
   }, [pages, settings.title]);
 
+  // ─── Save to Gallery ──────────────────────────────────────
+  const [savingToGallery, setSavingToGallery] = useState(false);
+
+  const saveCatalogToGallery = useCallback(async () => {
+    if (pages.length === 0) {
+      toast.error("יש ליצור תצוגה מקדימה לפני שמירה");
+      return;
+    }
+    setSavingToGallery(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("יש להתחבר כדי לשמור לגלריה");
+        setSavingToGallery(false);
+        return;
+      }
+      const ts = Date.now();
+      // Save each page
+      for (let i = 0; i < pages.length; i++) {
+        const blob = await fetch(pages[i].dataUrl).then(r => r.blob());
+        const path = `${user.id}/${ts}_catalog_p${i + 1}.png`;
+        const { error: upErr } = await supabase.storage.from("processed-images").upload(path, blob, { contentType: "image/png" });
+        if (upErr) throw upErr;
+        const publicUrl = supabase.storage.from("processed-images").getPublicUrl(path).data.publicUrl;
+        await supabase.from("processing_history").insert({
+          user_id: user.id,
+          original_image_url: publicUrl,
+          result_image_url: publicUrl,
+          background_prompt: `קטלוג — ${settings.title || 'ללא שם'} — עמוד ${i + 1}/${pages.length}`,
+          background_name: `קטלוג: ${settings.title || 'ללא שם'}`,
+        });
+      }
+      toast.success(`${pages.length} עמודי קטלוג נשמרו בגלריה!`);
+    } catch (err) {
+      toast.error("שגיאה בשמירה לגלריה");
+      console.error(err);
+    } finally {
+      setSavingToGallery(false);
+    }
+  }, [pages, settings.title]);
+
   // ─── Setting helpers ──────────────────────────────────────
   const updateSetting = useCallback(<K extends keyof CatalogSettings>(key: K, val: CatalogSettings[K]) => {
     setSettings(s => ({ ...s, [key]: val }));
@@ -640,6 +681,10 @@ export default function CatalogBuilder() {
             <Button size="sm" onClick={exportPDF} disabled={products.length === 0}>
               <FileDown className="h-4 w-4" />
               ייצוא PDF
+            </Button>
+            <Button size="sm" variant="outline" onClick={saveCatalogToGallery} disabled={savingToGallery || pages.length === 0}>
+              {savingToGallery ? <Loader2 className="h-4 w-4 animate-spin" /> : <Star className="h-4 w-4" />}
+              שמור לגלריה
             </Button>
           </div>
         </div>
@@ -1922,6 +1967,10 @@ export default function CatalogBuilder() {
                   <Button variant="ghost" size="sm" className="h-7" onClick={exportPDF}>
                     <FileText className="h-3 w-3" />
                     <span className="text-[10px]">PDF</span>
+                  </Button>
+                  <Button variant="ghost" size="sm" className="h-7" onClick={saveCatalogToGallery} disabled={savingToGallery}>
+                    {savingToGallery ? <Loader2 className="h-3 w-3 animate-spin" /> : <Star className="h-3 w-3" />}
+                    <span className="text-[10px]">גלריה</span>
                   </Button>
                 </div>
               )}
