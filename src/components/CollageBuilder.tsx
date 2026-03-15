@@ -55,6 +55,7 @@ export default function CollageBuilder() {
   const [bgColor, setBgColor] = useState("#ffffff");
   const [canvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
+  const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
 
   // Result
   const [result, setResult] = useState<string | null>(null);
