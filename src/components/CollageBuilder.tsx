@@ -1375,7 +1375,8 @@ export default function CollageBuilder() {
           </ScrollArea>
           <DialogFooter>
             <Button disabled={gallerySelected.size === 0} onClick={importSelected}>
-              <CloudDownload className="h-4 w-4 ml-2" />ייבא {gallerySelected.size} תמונות
+              <CloudDownload className="h-4 w-4 ml-2" />
+              {galleryImportMode === 'split' ? 'בחר לפיצול' : galleryImportMode === 'logo' ? 'בחר כלוגו' : `ייבא ${gallerySelected.size} תמונות`}
             </Button>
           </DialogFooter>
         </DialogContent>
