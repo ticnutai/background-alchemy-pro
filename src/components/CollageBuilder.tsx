@@ -1340,16 +1340,21 @@ export default function CollageBuilder() {
             <Button variant={galleryTab === "history" ? "default" : "outline"} size="sm" onClick={() => { setGalleryTab("history"); loadGalleryItems("history"); }}>תמונות מעובדות</Button>
             <Button variant={galleryTab === "products" ? "default" : "outline"} size="sm" onClick={() => { setGalleryTab("products"); loadGalleryItems("products"); }}>גלריית מוצרים</Button>
           </div>
-          <div className="flex items-center gap-2 mb-2">
-            <Checkbox
-              checked={galleryItems.length > 0 && gallerySelected.size === galleryItems.length}
-              onCheckedChange={(checked) => {
-                if (checked) setGallerySelected(new Set(galleryItems.map((i) => i.id)));
-                else setGallerySelected(new Set());
-              }}
-            />
-            <span className="text-sm">בחר הכל ({gallerySelected.size}/{galleryItems.length})</span>
-          </div>
+          {galleryImportMode === 'collage' && (
+            <div className="flex items-center gap-2 mb-2">
+              <Checkbox
+                checked={galleryItems.length > 0 && gallerySelected.size === galleryItems.length}
+                onCheckedChange={(checked) => {
+                  if (checked) setGallerySelected(new Set(galleryItems.map((i) => i.id)));
+                  else setGallerySelected(new Set());
+                }}
+              />
+              <span className="text-sm">בחר הכל ({gallerySelected.size}/{galleryItems.length})</span>
+            </div>
+          )}
+          {(galleryImportMode === 'split' || galleryImportMode === 'logo') && (
+            <p className="text-xs text-muted-foreground mb-2">בחר תמונה אחת</p>
+          )}
           <ScrollArea className="flex-1 min-h-0 max-h-[55vh] overflow-y-auto">
             {galleryLoading ? (
               <div className="flex items-center justify-center h-full"><RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -1361,7 +1366,14 @@ export default function CollageBuilder() {
                   <div
                     key={item.id}
                     className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/30"}`}
-                    onClick={() => { setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; }); }}
+                    onClick={() => {
+                      if (galleryImportMode === 'split' || galleryImportMode === 'logo') {
+                        // Single selection mode
+                        setGallerySelected(new Set([item.id]));
+                      } else {
+                        setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; });
+                      }
+                    }}
                   >
                     <img src={item.image} alt={item.name} className="w-full aspect-square object-cover" loading="lazy" />
                     {gallerySelected.has(item.id) && (
