@@ -1,13 +1,22 @@
-import { useState } from "react";
-import { Download, FileImage, FileText, Cloud, ZoomIn, Sparkles } from "lucide-react";
+import { useState, memo } from "react";
+import { Download, FileImage, FileText, Cloud, ZoomIn, Sparkles, Type, Proportions } from "lucide-react";
 import { toast } from "sonner";
 import { cloudinaryOptimize, upscaleImage } from "@/lib/ai-tools";
 
 interface ExportPanelProps {
   resultImage: string | null;
   isExporting: boolean;
-  onExport: (format: string, quality: number) => void;
+  onExport: (format: string, quality: number, options?: ExportOptions) => void;
   onResult?: (img: string) => void;
+}
+
+export interface ExportOptions {
+  watermark?: string;
+  watermarkPosition?: "bottom-center" | "bottom-right" | "bottom-left";
+  watermarkOpacity?: number;
+  resizeWidth?: number;
+  resizeHeight?: number;
+  maintainAspect?: boolean;
 }
 
 const formats = [
@@ -25,12 +34,18 @@ const qualityOptions = [
   { value: 80, label: "טובה" },
 ];
 
-const ExportPanel = ({ resultImage, isExporting, onExport, onResult }: ExportPanelProps) => {
+const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: ExportPanelProps) => {
   const [selectedFormat, setSelectedFormat] = useState("png");
   const [quality, setQuality] = useState(100);
   const [isOpen, setIsOpen] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [isUpscaling, setIsUpscaling] = useState(false);
+  const [watermark, setWatermark] = useState("");
+  const [watermarkPosition, setWatermarkPosition] = useState<"bottom-center" | "bottom-right" | "bottom-left">("bottom-center");
+  const [watermarkOpacity, setWatermarkOpacity] = useState(50);
+  const [resizeWidth, setResizeWidth] = useState<number | "">("");
+  const [resizeHeight, setResizeHeight] = useState<number | "">("");
+  const [maintainAspect, setMaintainAspect] = useState(true);
 
   const currentFormat = formats.find((f) => f.id === selectedFormat)!;
 
@@ -136,9 +151,82 @@ const ExportPanel = ({ resultImage, isExporting, onExport, onResult }: ExportPan
         </button>
       </div>
 
+      {/* Watermark */}
+      <div className="space-y-2 border-t border-border pt-3">
+        <span className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Type className="h-3 w-3" /> ווטרמרק
+        </span>
+        <input
+          value={watermark}
+          onChange={(e) => setWatermark(e.target.value)}
+          placeholder="סטודיו רותי פרל"
+          className="w-full rounded-lg border border-border bg-background px-3 py-1.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
+        />
+        {watermark && (
+          <div className="flex gap-2">
+            <select
+              value={watermarkPosition}
+              onChange={(e) => setWatermarkPosition(e.target.value as typeof watermarkPosition)}
+              className="flex-1 rounded-md border border-border bg-background px-2 py-1 font-body text-xs text-foreground"
+            >
+              <option value="bottom-center">מרכז למטה</option>
+              <option value="bottom-right">ימין למטה</option>
+              <option value="bottom-left">שמאל למטה</option>
+            </select>
+            <div className="flex items-center gap-1 flex-1">
+              <span className="font-body text-[10px] text-muted-foreground">שקיפות</span>
+              <input
+                type="range"
+                min={10}
+                max={100}
+                value={watermarkOpacity}
+                onChange={(e) => setWatermarkOpacity(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="font-body text-[10px] text-muted-foreground tabular-nums w-6">{watermarkOpacity}%</span>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Resize */}
+      <div className="space-y-2 border-t border-border pt-3">
+        <span className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Proportions className="h-3 w-3" /> שינוי גודל (אופציונלי)
+        </span>
+        <div className="flex gap-2 items-center">
+          <input
+            type="number"
+            value={resizeWidth}
+            onChange={(e) => setResizeWidth(e.target.value ? Number(e.target.value) : "")}
+            placeholder="רוחב"
+            className="w-20 rounded-md border border-border bg-background px-2 py-1 font-body text-xs text-foreground placeholder:text-muted-foreground"
+          />
+          <span className="text-muted-foreground text-xs">×</span>
+          <input
+            type="number"
+            value={resizeHeight}
+            onChange={(e) => setResizeHeight(e.target.value ? Number(e.target.value) : "")}
+            placeholder="גובה"
+            className="w-20 rounded-md border border-border bg-background px-2 py-1 font-body text-xs text-foreground placeholder:text-muted-foreground"
+          />
+          <label className="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" checked={maintainAspect} onChange={(e) => setMaintainAspect(e.target.checked)} className="rounded border-border" />
+            <span className="font-body text-[10px] text-muted-foreground">שמור יחס</span>
+          </label>
+        </div>
+      </div>
+
       {/* Export button */}
       <button
-        onClick={() => onExport(selectedFormat, quality)}
+        onClick={() => onExport(selectedFormat, quality, {
+          watermark: watermark || undefined,
+          watermarkPosition,
+          watermarkOpacity,
+          resizeWidth: typeof resizeWidth === "number" ? resizeWidth : undefined,
+          resizeHeight: typeof resizeHeight === "number" ? resizeHeight : undefined,
+          maintainAspect,
+        })}
         disabled={!resultImage || isExporting}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
       >
@@ -147,6 +235,8 @@ const ExportPanel = ({ resultImage, isExporting, onExport, onResult }: ExportPan
       </button>
     </div>
   );
-};
+});
+
+ExportPanel.displayName = "ExportPanel";
 
 export default ExportPanel;

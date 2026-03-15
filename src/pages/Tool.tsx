@@ -1,30 +1,27 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
+import { imageProcessingQueue } from "@/lib/job-queue";
+import { compressImage } from "@/lib/image-compress";
+import { useToolState, useToolDispatch, ToolProvider } from "@/lib/tool-context";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { downloadImagesAsZip } from "@/lib/zip-download";
 import ImageUploader from "@/components/ImageUploader";
 import ImageCanvas from "@/components/ImageCanvas";
 import BackgroundPresets, { type Preset, presets } from "@/components/BackgroundPresets";
 import ImageAdjustmentsPanel, {
-  type ImageAdjustments,
-  defaultAdjustments,
   getFilterString,
+  getOverlayStyles,
+  getSvgFilterId,
+  getSvgFilterMarkup,
 } from "@/components/ImageAdjustmentsPanel";
-import ExportPanel from "@/components/ExportPanel";
-import MockupPreview from "@/components/MockupPreview";
-import BatchProcessor from "@/components/BatchProcessor";
-import AIChatDialog from "@/components/AIChatDialog";
-import HistoryPanel from "@/components/HistoryPanel";
-import AdvancedToolsPanel from "@/components/AdvancedToolsPanel";
-import SocialTemplates from "@/components/SocialTemplates";
+import ExportPanel, { type ExportOptions } from "@/components/ExportPanel";
 import ResultsStrip from "@/components/ResultsStrip";
-import SmartSuggestPanel from "@/components/SmartSuggestPanel";
-import ShareDialog from "@/components/ShareDialog";
 import ThemeToggle from "@/components/ThemeToggle";
-import DevSettingsDialog from "@/components/DevSettingsDialog";
 import LiveFilterPanel from "@/components/LiveFilterPanel";
 import FilterLayersPanel from "@/components/FilterLayersPanel";
 import ColorTransferPanel from "@/components/ColorTransferPanel";
@@ -32,42 +29,96 @@ import RegionalMaskPanel from "@/components/RegionalMaskPanel";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
 import type { User } from "@supabase/supabase-js";
 
-const Index = () => {
+// Lazy-load heavy components that aren't needed on initial render
+const MockupPreview = lazy(() => import("@/components/MockupPreview"));
+const BatchProcessor = lazy(() => import("@/components/BatchProcessor"));
+const AIChatDialog = lazy(() => import("@/components/AIChatDialog"));
+const HistoryPanel = lazy(() => import("@/components/HistoryPanel"));
+const AdvancedToolsPanel = lazy(() => import("@/components/AdvancedToolsPanel"));
+const SocialTemplates = lazy(() => import("@/components/SocialTemplates"));
+const SmartSuggestPanel = lazy(() => import("@/components/SmartSuggestPanel"));
+const ShareDialog = lazy(() => import("@/components/ShareDialog"));
+const DevSettingsDialog = lazy(() => import("@/components/DevSettingsDialog"));
+const ComparisonGallery = lazy(() => import("@/components/ComparisonGallery"));
+
+/** Fire-and-forget: save processing result to history without blocking UI */
+function saveToHistoryAsync(
+  user: User,
+  originalImage: string,
+  resultImageUrl: string,
+  prompt: string,
+  name: string | null,
+) {
+  (async () => {
+    try {
+      const uid = user.id;
+      const ts = Date.now();
+      const [origBlob, resultBlob] = await Promise.all([
+        fetch(originalImage).then((r) => r.blob()),
+        fetch(resultImageUrl).then((r) => r.blob()),
+      ]);
+
+      const [origUpload, resultUpload] = await Promise.all([
+        supabase.storage.from("processed-images").upload(`${uid}/${ts}_original.png`, origBlob, { contentType: "image/png" }),
+        supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" }),
+      ]);
+
+      if (origUpload.data && resultUpload.data) {
+        const origUrl = supabase.storage.from("processed-images").getPublicUrl(origUpload.data.path).data.publicUrl;
+        const resultUrl = supabase.storage.from("processed-images").getPublicUrl(resultUpload.data.path).data.publicUrl;
+        await supabase.from("processing_history").insert({
+          user_id: uid,
+          original_image_url: origUrl,
+          result_image_url: resultUrl,
+          background_prompt: prompt,
+          background_name: name,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to save to history:", err);
+    }
+  })();
+}
+
+const LazyFallback = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+  </div>
+);
+
+const ToolInner = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const state = useToolState();
+  const dispatch = useToolDispatch();
   const [user, setUser] = useState<User | null>(null);
-  const [originalImage, setOriginalImage] = useState<string | null>(null);
-  const [resultImage, setResultImage] = useState<string | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isEnhancing, setIsEnhancing] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
-  const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
-  const [customPrompt, setCustomPrompt] = useState("");
-  const [activePrompt, setActivePrompt] = useState("");
-  const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
-  const [activeTab, setActiveTab] = useState<"backgrounds" | "adjust" | "tools" | "export" | "smart" | "filters">("backgrounds");
-  const [filterProcessing, setFilterProcessing] = useState(false);
-  const [liveFilterCss, setLiveFilterCss] = useState("");
-  const [referenceImages, setReferenceImages] = useState<string[]>([]);
-  const [suggestedName, setSuggestedName] = useState<string | null>(null);
-  const [selectedPresetName, setSelectedPresetName] = useState<string | null>(null);
-  const [showMockup, setShowMockup] = useState(false);
-  const [showBatch, setShowBatch] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showSocial, setShowSocial] = useState(false);
-  const [showShare, setShowShare] = useState(false);
-  const [multiSelectMode, setMultiSelectMode] = useState(false);
-  const [selectedPresetIds, setSelectedPresetIds] = useState<string[]>([]);
-  const [batchResults, setBatchResults] = useState<Array<{ name: string; image: string; prompt: string }>>([]);
-  const [batchProcessing, setBatchProcessing] = useState(false);
-  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
-  const [preciseMode, setPreciseMode] = useState(false);
-  const [selectedPresetType, setSelectedPresetType] = useState<string | null>(null);
-  const [showDevSettings, setShowDevSettings] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [saveNewName, setSaveNewName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [filterProcessing, setFilterProcessing] = useState(false);
+  const [liveFilterCss, setLiveFilterCss] = useState("");
+
+  const {
+    originalImage, resultImage, adjustments, referenceImages,
+    isProcessing, isEnhancing, isExporting,
+    selectedPreset, selectedPresetName, selectedPresetType,
+    customPrompt, activePrompt, suggestedName, preciseMode,
+    activeTab, showMockup, showBatch, showHistory, showSocial, showShare, showDevSettings,
+    multiSelectMode, selectedPresetIds, batchResults, batchProcessing, batchProgress,
+    undoStack, redoStack, showComparison, comparisonImages, compareMode,
+  } = state;
+
+  // ─── Keyboard Shortcuts ─────────────────────────────────────
+  const shortcuts = useMemo(() => [
+    { key: "z", ctrl: true, action: () => dispatch({ type: "UNDO" }), description: "בטל" },
+    { key: "z", ctrl: true, shift: true, action: () => dispatch({ type: "REDO" }), description: "בצע שוב" },
+    { key: "y", ctrl: true, action: () => dispatch({ type: "REDO" }), description: "בצע שוב" },
+    { key: "e", ctrl: true, action: () => dispatch({ type: "SET_ACTIVE_TAB", payload: "export" }), description: "ייצוא" },
+    { key: "n", ctrl: true, action: () => { if (originalImage) dispatch({ type: "RESET_IMAGE" }); }, description: "תמונה חדשה" },
+  ], [dispatch, originalImage]);
+
+  useKeyboardShortcuts(shortcuts);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -95,55 +146,49 @@ const Index = () => {
   useEffect(() => {
     const editImageUrl = searchParams.get("editImage");
     if (editImageUrl && !originalImage) {
-      // Fetch the URL and convert to base64
       fetch(editImageUrl)
         .then(res => res.blob())
         .then(blob => {
           const reader = new FileReader();
           reader.onloadend = () => {
-            setOriginalImage(reader.result as string);
-            // If there's also a result image
+            dispatch({ type: "SET_ORIGINAL_IMAGE", payload: reader.result as string });
             const resultUrl = searchParams.get("resultImage");
             if (resultUrl) {
-              setResultImage(resultUrl);
+              dispatch({ type: "SET_RESULT_IMAGE", payload: resultUrl });
             }
           };
           reader.readAsDataURL(blob);
         })
         .catch(() => {
-          // If CORS fails, use the URL directly as result
-          setResultImage(editImageUrl);
-          // Create a placeholder original
-          setOriginalImage(editImageUrl);
+          dispatch({ type: "SET_RESULT_IMAGE", payload: editImageUrl });
+          dispatch({ type: "SET_ORIGINAL_IMAGE", payload: editImageUrl });
         });
     }
   }, [searchParams]);
 
   const handleImageSelect = useCallback((base64: string) => {
-    setOriginalImage(base64);
-    setResultImage(null);
-    setAdjustments(defaultAdjustments);
-  }, []);
+    dispatch({ type: "SET_ORIGINAL_IMAGE", payload: base64 });
+  }, [dispatch]);
 
   const handlePresetSelect = useCallback((preset: Preset) => {
-    setSelectedPreset(preset.id);
-    setActivePrompt(preset.prompt);
-    setCustomPrompt("");
-    setReferenceImages([]);
-    setSelectedPresetName(preset.professionalName);
-    setSuggestedName(null);
-    setSelectedPresetType(preset.type || "surface");
-  }, []);
+    dispatch({
+      type: "SELECT_PRESET",
+      payload: { id: preset.id, prompt: preset.prompt, name: preset.professionalName, type: preset.type || "surface" },
+    });
+  }, [dispatch]);
 
   const handleProcess = useCallback(async () => {
     if (!originalImage) return toast.error("יש להעלות תמונה קודם");
     const prompt = customPrompt.trim() || activePrompt;
     if (!prompt) return toast.error("יש לבחור רקע או לכתוב תיאור");
 
-    setIsProcessing(true);
-    setResultImage(null);
-    setSuggestedName(null);
+    dispatch({ type: "SET_PROCESSING", payload: true });
+    dispatch({ type: "SET_RESULT_IMAGE", payload: null });
+    dispatch({ type: "SET_SUGGESTED_NAME", payload: null });
     try {
+      // Compress image before sending to reduce bandwidth
+      const compressed = await compressImage(originalImage);
+
       const isScene = selectedPresetType === "scene";
       const functionName = isScene
         ? "replace-bg-scene"
@@ -152,62 +197,42 @@ const Index = () => {
           : "replace-background";
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: {
-          imageBase64: originalImage,
+          imageBase64: compressed,
           backgroundPrompt: prompt,
           referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setResultImage(data.resultImage);
+      dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
       toast.success("הרקע הוחלף בהצלחה!");
 
-      // Save to history if user is logged in
+      // Fire-and-forget: save to history without blocking UI
       if (user) {
-        try {
-          // Upload both images to storage
-          const uid = user.id;
-          const ts = Date.now();
-          const origBlob = await fetch(originalImage).then(r => r.blob());
-          const resultBlob = await fetch(data.resultImage).then(r => r.blob());
-
-          const [origUpload, resultUpload] = await Promise.all([
-            supabase.storage.from("processed-images").upload(`${uid}/${ts}_original.png`, origBlob, { contentType: "image/png" }),
-            supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" }),
-          ]);
-
-          if (origUpload.data && resultUpload.data) {
-            const origUrl = supabase.storage.from("processed-images").getPublicUrl(origUpload.data.path).data.publicUrl;
-            const resultUrl = supabase.storage.from("processed-images").getPublicUrl(resultUpload.data.path).data.publicUrl;
-
-            await supabase.from("processing_history").insert({
-              user_id: uid,
-              original_image_url: origUrl,
-              result_image_url: resultUrl,
-              background_prompt: prompt,
-              background_name: selectedPresetName || customPrompt.trim().slice(0, 50) || null,
-            });
-          }
-        } catch (saveErr) {
-          console.error("Failed to save to history:", saveErr);
-        }
+        saveToHistoryAsync(
+          user,
+          originalImage,
+          data.resultImage,
+          prompt,
+          selectedPresetName || customPrompt.trim().slice(0, 50) || null,
+        );
       }
-      // Get professional name suggestion
+      // Get professional name suggestion (non-blocking)
       if (customPrompt.trim() && !selectedPresetName) {
         supabase.functions.invoke("suggest-name", {
           body: { backgroundDescription: customPrompt.trim() },
         }).then(({ data: nameData }) => {
-          if (nameData?.name) setSuggestedName(nameData.name);
+          if (nameData?.name) dispatch({ type: "SET_SUGGESTED_NAME", payload: nameData.name });
         }).catch(() => {});
       } else if (selectedPresetName) {
-        setSuggestedName(selectedPresetName);
+        dispatch({ type: "SET_SUGGESTED_NAME", payload: selectedPresetName });
       }
     } catch (err: any) {
       toast.error(err.message || "שגיאה בעיבוד התמונה");
     } finally {
-      setIsProcessing(false);
+      dispatch({ type: "SET_PROCESSING", payload: false });
     }
-  }, [originalImage, customPrompt, activePrompt]);
+  }, [originalImage, customPrompt, activePrompt, selectedPresetType, preciseMode, referenceImages, user, selectedPresetName, dispatch]);
 
   const handleMultiProcess = useCallback(async () => {
     if (!originalImage || selectedPresetIds.length === 0) {
@@ -215,56 +240,57 @@ const Index = () => {
       return;
     }
     const selectedBgs = selectedPresetIds.map(id => presets.find(p => p.id === id)!).filter(Boolean);
-    setBatchProcessing(true);
-    setBatchResults([]);
-    setBatchProgress({ current: 0, total: selectedBgs.length });
+    dispatch({ type: "SET_BATCH_PROCESSING", payload: true });
+    dispatch({ type: "SET_BATCH_RESULTS", payload: [] });
+    dispatch({ type: "SET_BATCH_PROGRESS", payload: { current: 0, total: selectedBgs.length } });
 
+    // Compress once, reuse for all presets
+    const compressed = await compressImage(originalImage);
+    let completed = 0;
     const results: Array<{ name: string; image: string; prompt: string }> = [];
 
-    for (let i = 0; i < selectedBgs.length; i++) {
-      const preset = selectedBgs[i];
-      setBatchProgress({ current: i + 1, total: selectedBgs.length });
-      try {
+    // Process all presets in parallel via job queue (max 3 concurrent)
+    const jobs = selectedBgs.map((preset) => ({
+      id: preset.id,
+      fn: async () => {
         const { data, error } = await supabase.functions.invoke("replace-background", {
-          body: { imageBase64: originalImage, backgroundPrompt: preset.prompt },
+          body: { imageBase64: compressed, backgroundPrompt: preset.prompt },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
-        results.push({ name: preset.professionalName, image: data.resultImage, prompt: preset.prompt });
-        setBatchResults([...results]);
-
-        // Save to history
-        if (user) {
-          try {
-            const uid = user.id;
-            const ts = Date.now() + i;
-            const resultBlob = await fetch(data.resultImage).then(r => r.blob());
-            const upload = await supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" });
-            if (upload.data) {
-              const resultUrl = supabase.storage.from("processed-images").getPublicUrl(upload.data.path).data.publicUrl;
-              await supabase.from("processing_history").insert({
-                user_id: uid,
-                original_image_url: originalImage.substring(0, 200),
-                result_image_url: resultUrl,
-                background_prompt: preset.prompt,
-                background_name: preset.professionalName,
-              });
-            }
-          } catch {}
+        return { name: preset.professionalName, image: data.resultImage, prompt: preset.prompt };
+      },
+      onProgress: (status: string) => {
+        if (status === "done") {
+          completed++;
+          dispatch({ type: "SET_BATCH_PROGRESS", payload: { current: completed, total: selectedBgs.length } });
         }
-      } catch (err: any) {
-        toast.error(`שגיאה ב-${preset.label}: ${err.message}`);
-      }
-    }
+      },
+    }));
 
-    setBatchProcessing(false);
+    const settled = await imageProcessingQueue.addAll(jobs);
+
+    settled.forEach((result, idx) => {
+      if (result.status === "fulfilled") {
+        results.push(result.value);
+        // Fire-and-forget history save
+        if (user) {
+          saveToHistoryAsync(user, originalImage, result.value.image, result.value.prompt, result.value.name);
+        }
+      } else {
+        toast.error(`שגיאה ב-${selectedBgs[idx].label}: ${(result.reason as Error)?.message}`);
+      }
+    });
+
+    dispatch({ type: "SET_BATCH_RESULTS", payload: results });
+    dispatch({ type: "SET_BATCH_PROCESSING", payload: false });
     toast.success(`הושלמו ${results.length}/${selectedBgs.length} רקעים!`);
-  }, [originalImage, selectedPresetIds, user]);
+  }, [originalImage, selectedPresetIds, user, dispatch]);
 
   const handleEnhance = useCallback(async () => {
     const img = resultImage || originalImage;
     if (!img) return;
-    setIsEnhancing(true);
+    dispatch({ type: "SET_ENHANCING", payload: true });
     try {
       const { data, error } = await supabase.functions.invoke("replace-background", {
         body: {
@@ -274,23 +300,22 @@ const Index = () => {
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
-      setResultImage(data.resultImage);
+      dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
       toast.success("התמונה שופרה!");
     } catch (err: any) {
       toast.error(err.message || "שגיאה בשיפור התמונה");
     } finally {
-      setIsEnhancing(false);
+      dispatch({ type: "SET_ENHANCING", payload: false });
     }
-  }, [resultImage, originalImage]);
+  }, [resultImage, originalImage, dispatch]);
 
   const handleExport = useCallback(
-    async (format: string, quality: number) => {
+    async (format: string, quality: number, options?: ExportOptions) => {
       const img = resultImage || originalImage;
       if (!img) return;
-      setIsExporting(true);
+      dispatch({ type: "SET_EXPORTING", payload: true });
 
       try {
-        // Apply adjustments by drawing to canvas
         const image = new Image();
         image.crossOrigin = "anonymous";
         await new Promise<void>((resolve, reject) => {
@@ -299,12 +324,141 @@ const Index = () => {
           image.src = img;
         });
 
+        const filterStr = getFilterString(adjustments);
+        const overlayStyles = getOverlayStyles(adjustments);
+
+        // Determine final size (resize support)
+        let finalW = image.naturalWidth;
+        let finalH = image.naturalHeight;
+        if (options?.resizeWidth || options?.resizeHeight) {
+          if (options.resizeWidth && options.resizeHeight && !options.maintainAspect) {
+            finalW = options.resizeWidth;
+            finalH = options.resizeHeight;
+          } else if (options.resizeWidth) {
+            finalW = options.resizeWidth;
+            finalH = Math.round(image.naturalHeight * (options.resizeWidth / image.naturalWidth));
+          } else if (options.resizeHeight) {
+            finalH = options.resizeHeight;
+            finalW = Math.round(image.naturalWidth * (options.resizeHeight / image.naturalHeight));
+          }
+        }
+
+        // Try to use Web Worker + OffscreenCanvas for non-blocking export
+        if (format !== "pdf" && format !== "tiff" && typeof OffscreenCanvas !== "undefined" && !options?.watermark && !overlayStyles) {
+          try {
+            const bitmap = await createImageBitmap(image);
+            const worker = new Worker(
+              new URL("@/lib/export-worker.ts", import.meta.url),
+              { type: "module" }
+            );
+
+            const blob = await new Promise<Blob>((resolve, reject) => {
+              worker.onmessage = (e) => {
+                worker.terminate();
+                if (e.data.type === "result") resolve(e.data.blob);
+                else reject(new Error(e.data.error));
+              };
+              worker.postMessage({
+                type: "export",
+                imageData: bitmap,
+                width: finalW,
+                height: finalH,
+                filter: filterStr,
+                format,
+                quality,
+              }, [bitmap]);
+            });
+
+            downloadBlob(blob, `result.${format}`, blob.type);
+            toast.success("התמונה יוצאה בהצלחה!");
+            return;
+          } catch {
+            // Fallback to main thread if worker fails
+          }
+        }
+
+        // Fallback: main thread canvas export
         const canvas = document.createElement("canvas");
-        canvas.width = image.naturalWidth;
-        canvas.height = image.naturalHeight;
+        canvas.width = finalW;
+        canvas.height = finalH;
         const ctx = canvas.getContext("2d")!;
-        ctx.filter = getFilterString(adjustments);
-        ctx.drawImage(image, 0, 0);
+        ctx.filter = filterStr;
+        ctx.drawImage(image, 0, 0, finalW, finalH);
+        ctx.filter = "none";
+
+        // Apply vignette overlay if present
+        if (overlayStyles?.background) {
+          const tempCanvas = document.createElement("canvas");
+          tempCanvas.width = finalW;
+          tempCanvas.height = finalH;
+          const tempCtx = tempCanvas.getContext("2d")!;
+          const gradient = tempCtx.createRadialGradient(
+            finalW / 2, finalH / 2, finalW * 0.3,
+            finalW / 2, finalH / 2, finalW * 0.7
+          );
+          gradient.addColorStop(0, "transparent");
+          gradient.addColorStop(1, `rgba(0,0,0,${(adjustments.vignette || 0) / 100})`);
+          tempCtx.fillStyle = gradient;
+          tempCtx.fillRect(0, 0, finalW, finalH);
+          ctx.globalCompositeOperation = "multiply";
+          ctx.drawImage(tempCanvas, 0, 0);
+          ctx.globalCompositeOperation = "source-over";
+        }
+
+        // Apply grain noise on canvas
+        if (adjustments.grain > 0) {
+          const grainData = ctx.getImageData(0, 0, finalW, finalH);
+          const d = grainData.data;
+          const strength = adjustments.grain * 0.6;
+          for (let i = 0; i < d.length; i += 4) {
+            const noise = (Math.random() - 0.5) * strength;
+            d[i] += noise;
+            d[i + 1] += noise;
+            d[i + 2] += noise;
+          }
+          ctx.putImageData(grainData, 0, 0);
+        }
+
+        // Apply split toning on canvas
+        if (adjustments.splitHighlightStrength > 0) {
+          ctx.globalCompositeOperation = "screen";
+          ctx.fillStyle = adjustments.splitHighlightColor;
+          ctx.globalAlpha = adjustments.splitHighlightStrength / 100;
+          ctx.fillRect(0, 0, finalW, finalH);
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = "source-over";
+        }
+        if (adjustments.splitShadowStrength > 0) {
+          ctx.globalCompositeOperation = "multiply";
+          ctx.fillStyle = adjustments.splitShadowColor;
+          ctx.globalAlpha = adjustments.splitShadowStrength / 100;
+          ctx.fillRect(0, 0, finalW, finalH);
+          ctx.globalAlpha = 1;
+          ctx.globalCompositeOperation = "source-over";
+        }
+
+        // Apply watermark
+        if (options?.watermark) {
+          const fontSize = Math.max(14, Math.round(finalW * 0.03));
+          ctx.font = `${fontSize}px sans-serif`;
+          ctx.fillStyle = `rgba(255,255,255,${(options.watermarkOpacity || 50) / 100})`;
+          ctx.textBaseline = "bottom";
+          const textW = ctx.measureText(options.watermark).width;
+          let x: number;
+          const y = finalH - fontSize * 0.8;
+          switch (options.watermarkPosition) {
+            case "bottom-left": x = fontSize * 0.5; break;
+            case "bottom-right": x = finalW - textW - fontSize * 0.5; break;
+            default: x = (finalW - textW) / 2; break;
+          }
+          // Shadow for readability
+          ctx.shadowColor = "rgba(0,0,0,0.5)";
+          ctx.shadowBlur = 4;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          ctx.fillText(options.watermark, x, y);
+          ctx.shadowColor = "transparent";
+        }
 
         if (format === "pdf") {
           // Simple PDF with embedded image
@@ -327,10 +481,10 @@ const Index = () => {
       } catch (err: any) {
         toast.error("שגיאה בייצוא");
       } finally {
-        setIsExporting(false);
+        dispatch({ type: "SET_EXPORTING", payload: false });
       }
     },
-    [resultImage, originalImage, adjustments]
+    [resultImage, originalImage, adjustments, dispatch]
   );
 
   const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
@@ -410,7 +564,7 @@ const Index = () => {
                   דף הבית
                 </Link>
                 <button
-                  onClick={() => setShowHistory(true)}
+                  onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "history", value: true } })}
                   className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40"
                 >
                   <Clock className="h-3.5 w-3.5" />
@@ -447,7 +601,7 @@ const Index = () => {
             )}
             {isAdmin && (
               <button
-                onClick={() => setShowDevSettings(true)}
+                onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "devSettings", value: true } })}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/5 text-amber-500 transition-colors hover:bg-amber-500/10 hover:border-amber-500/50"
                 title="הגדרות פיתוח"
               >
@@ -484,7 +638,7 @@ const Index = () => {
             {/* Suggested name badge */}
             {user && (
               <ResultsStrip
-                onSelectImage={(url) => setResultImage(url)}
+                onSelectImage={(url) => dispatch({ type: "SET_RESULT_IMAGE", payload: url })}
                 currentResultUrl={resultImage}
               />
             )}
@@ -496,19 +650,29 @@ const Index = () => {
                   <h3 className="font-display text-sm font-bold text-foreground">
                     תוצאות — {batchResults.length} רקעים
                   </h3>
-                  <button
-                    onClick={() => setBatchResults([])}
-                    className="font-accent text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    נקה
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        downloadImagesAsZip(batchResults).then(() => toast.success("ZIP הורד בהצלחה!")).catch(() => toast.error("שגיאה בהורדה"));
+                      }}
+                      className="font-accent text-xs text-primary hover:text-primary/80 font-semibold"
+                    >
+                      📦 הורד ZIP
+                    </button>
+                    <button
+                      onClick={() => dispatch({ type: "SET_BATCH_RESULTS", payload: [] })}
+                      className="font-accent text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      נקה
+                    </button>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {batchResults.map((r, i) => (
                     <div
                       key={i}
                       className="group relative rounded-xl border border-border overflow-hidden bg-card cursor-pointer hover:border-gold/50 hover:shadow-md transition-all"
-                      onClick={() => setResultImage(r.image)}
+                      onClick={() => dispatch({ type: "SET_RESULT_IMAGE", payload: r.image })}
                     >
                       <div className="aspect-square overflow-hidden">
                         <img src={r.image} alt={r.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
@@ -544,6 +708,27 @@ const Index = () => {
 
             {originalImage && (
               <div className="flex flex-wrap items-center gap-3">
+                {/* Undo / Redo */}
+                <div className="flex items-center gap-1 rounded-lg border border-border bg-card">
+                  <button
+                    onClick={() => dispatch({ type: "UNDO" })}
+                    disabled={undoStack.length === 0}
+                    className="flex h-9 w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                    title="בטל (Ctrl+Z)"
+                  >
+                    <Undo2 className="h-4 w-4" />
+                  </button>
+                  <div className="h-5 w-px bg-border" />
+                  <button
+                    onClick={() => dispatch({ type: "REDO" })}
+                    disabled={redoStack.length === 0}
+                    className="flex h-9 w-9 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
+                    title="בצע שוב (Ctrl+Shift+Z)"
+                  >
+                    <Redo2 className="h-4 w-4" />
+                  </button>
+                </div>
+
                 {!multiSelectMode ? (
                   <button
                     onClick={handleProcess}
@@ -574,9 +759,7 @@ const Index = () => {
 
                 <button
                   onClick={() => {
-                    setMultiSelectMode(!multiSelectMode);
-                    setSelectedPresetIds([]);
-                    setBatchResults([]);
+                    dispatch({ type: "SET_MULTI_SELECT_MODE", payload: !multiSelectMode });
                   }}
                   className={`flex items-center gap-2 rounded-lg px-5 py-3 font-display text-sm font-semibold transition-all ${
                     multiSelectMode
@@ -589,7 +772,7 @@ const Index = () => {
                 </button>
 
                 <button
-                  onClick={() => setPreciseMode(!preciseMode)}
+                  onClick={() => dispatch({ type: "SET_PRECISE_MODE", payload: !preciseMode })}
                   className={`flex items-center gap-2 rounded-lg px-5 py-3 font-display text-sm font-semibold transition-all ${
                     preciseMode
                       ? "bg-amber-500 text-white ring-2 ring-amber-300"
@@ -612,7 +795,7 @@ const Index = () => {
 
                 {resultImage && (
                   <button
-                    onClick={() => setShowMockup(true)}
+                  onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "mockup", value: true } })}
                     className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
                   >
                     <Eye className="h-4 w-4" />
@@ -622,7 +805,7 @@ const Index = () => {
 
                 {resultImage && (
                   <button
-                    onClick={() => setShowSocial(true)}
+                    onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "social", value: true } })}
                     className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
                   >
                     <Share2 className="h-4 w-4" />
@@ -632,7 +815,7 @@ const Index = () => {
 
                 {resultImage && (
                   <button
-                    onClick={() => setShowShare(true)}
+                    onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "share", value: true } })}
                     className="flex items-center gap-2 rounded-lg border border-gold/30 bg-gold/5 px-5 py-3 font-display text-sm font-semibold text-gold transition-all hover:bg-gold/10"
                   >
                     <Share2 className="h-4 w-4" />
@@ -650,8 +833,24 @@ const Index = () => {
                   </button>
                 )}
 
+                {resultImage && (
+                  <button
+                    onClick={() => {
+                      dispatch({ type: "ADD_COMPARISON_IMAGE", payload: { image: resultImage, label: suggestedName || selectedPresetName || "גרסה" } });
+                      dispatch({ type: "TOGGLE_COMPARISON", payload: true });
+                    }}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
+                  >
+                    <GitCompare className="h-4 w-4" />
+                    השוואה
+                    {comparisonImages.length > 0 && (
+                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-accent text-[10px] font-bold text-primary">{comparisonImages.length}</span>
+                    )}
+                  </button>
+                )}
+
                 <button
-                  onClick={() => setShowBatch(true)}
+                  onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "batch", value: true } })}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
                 >
                   <Layers className="h-4 w-4" />
@@ -660,9 +859,7 @@ const Index = () => {
 
                 <button
                   onClick={() => {
-                    setOriginalImage(null);
-                    setResultImage(null);
-                    setAdjustments(defaultAdjustments);
+                    dispatch({ type: "RESET_IMAGE" });
                   }}
                   className="flex items-center gap-2 font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -689,7 +886,7 @@ const Index = () => {
                   ].map((tab) => (
                     <button
                       key={tab.key}
-                      onClick={() => setActiveTab(tab.key)}
+                      onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: tab.key })}
                       className={`flex-1 py-3 font-display text-xs font-semibold transition-colors ${
                         activeTab === tab.key
                           ? "text-primary border-b-2 border-primary bg-primary/5"
@@ -708,45 +905,36 @@ const Index = () => {
                       onSelect={handlePresetSelect}
                       customPrompt={customPrompt}
                       onCustomPromptChange={(v) => {
-                        setCustomPrompt(v);
-                        if (v.trim()) {
-                          setSelectedPreset(null);
-                          setSelectedPresetName(null);
-                          setSelectedPresetType(null);
-                        }
+                        dispatch({ type: "SET_CUSTOM_PROMPT", payload: v });
                       }}
                       referenceImages={referenceImages}
-                      onReferenceImagesChange={setReferenceImages}
+                      onReferenceImagesChange={(imgs) => dispatch({ type: "SET_REFERENCE_IMAGES", payload: imgs })}
                       multiSelectMode={multiSelectMode}
                       selectedPresets={selectedPresetIds}
                       onTogglePreset={(preset) => {
-                        setSelectedPresetIds(prev =>
-                          prev.includes(preset.id)
-                            ? prev.filter(id => id !== preset.id)
-                            : [...prev, preset.id]
-                        );
+                        dispatch({ type: "TOGGLE_PRESET_ID", payload: preset.id });
                       }}
                     />
                   )}
                   {activeTab === "tools" && (
-                    <AdvancedToolsPanel
-                      originalImage={originalImage}
-                      resultImage={resultImage}
-                      onResult={setResultImage}
-                    />
+                    <Suspense fallback={<LazyFallback />}>
+                      <AdvancedToolsPanel
+                        originalImage={originalImage}
+                        resultImage={resultImage}
+                        onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                      />
+                    </Suspense>
                   )}
                   {activeTab === "smart" && (
-                    <SmartSuggestPanel
-                      imageBase64={originalImage}
-                      onSelectPrompt={(prompt, name) => {
-                        setCustomPrompt(prompt);
-                        setActivePrompt(prompt);
-                        setSelectedPreset(null);
-                        setSelectedPresetName(name);
-                        setSuggestedName(name);
-                        toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
-                      }}
-                    />
+                    <Suspense fallback={<LazyFallback />}>
+                      <SmartSuggestPanel
+                        imageBase64={originalImage}
+                        onSelectPrompt={(prompt, name) => {
+                          dispatch({ type: "APPLY_BACKGROUND", payload: { prompt, name } });
+                          toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
+                        }}
+                      />
+                    </Suspense>
                   )}
                   {activeTab === "filters" && (
                     <div className="space-y-6">
@@ -882,8 +1070,8 @@ const Index = () => {
                   {activeTab === "adjust" && (
                     <ImageAdjustmentsPanel
                       adjustments={adjustments}
-                      onChange={setAdjustments}
-                      onReset={() => setAdjustments(defaultAdjustments)}
+                      onChange={(a) => dispatch({ type: "SET_ADJUSTMENTS", payload: a })}
+                      onReset={() => dispatch({ type: "RESET_ADJUSTMENTS" })}
                     />
                   )}
                   {activeTab === "export" && (
@@ -891,7 +1079,7 @@ const Index = () => {
                       resultImage={resultImage}
                       isExporting={isExporting}
                       onExport={handleExport}
-                      onResult={setResultImage}
+                      onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
                     />
                   )}
                 </div>
@@ -901,125 +1089,129 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Mockup Modal */}
-      {showMockup && resultImage && (
-        <MockupPreview imageUrl={resultImage} onClose={() => setShowMockup(false)} />
-      )}
+      {/* Lazy-loaded modals — only rendered when shown */}
+      <Suspense fallback={null}>
+        {showMockup && resultImage && (
+          <MockupPreview imageUrl={resultImage} onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "mockup", value: false } })} />
+        )}
 
-      {/* Batch Processing Modal */}
-      {showBatch && (
-        <BatchProcessor
-          backgroundPrompt={customPrompt.trim() || activePrompt}
-          referenceImages={referenceImages}
-          onClose={() => setShowBatch(false)}
-        />
-      )}
+        {showBatch && (
+          <BatchProcessor
+            backgroundPrompt={customPrompt.trim() || activePrompt}
+            referenceImages={referenceImages}
+            onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "batch", value: false } })}
+          />
+        )}
 
-      {/* Social Templates */}
-      {showSocial && resultImage && (
-        <SocialTemplates
-          imageUrl={resultImage}
-          onClose={() => setShowSocial(false)}
-        />
-      )}
+        {showSocial && resultImage && (
+          <SocialTemplates
+            imageUrl={resultImage}
+            onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "social", value: false } })}
+          />
+        )}
 
-      {/* Share Dialog */}
-      {showShare && resultImage && (
-        <ShareDialog
-          imageUrl={resultImage}
-          title={suggestedName || selectedPresetName || undefined}
-          onClose={() => setShowShare(false)}
-        />
-      )}
+        {showShare && resultImage && (
+          <ShareDialog
+            imageUrl={resultImage}
+            title={suggestedName || selectedPresetName || undefined}
+            onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "share", value: false } })}
+          />
+        )}
 
-      <AIChatDialog
-        onApplyBackground={(prompt, name) => {
-          setCustomPrompt(prompt);
-          setActivePrompt(prompt);
-          setSelectedPreset(null);
-          setSelectedPresetName(name);
-          setSuggestedName(name);
-          toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
-        }}
-        onEditWithImages={(productImg, refImg, fidelity, elements) => {
-          // Load product image into editor
-          setOriginalImage(productImg);
-          setReferenceImages([refImg]);
-          setCustomPrompt(
-            `Replace background to match reference image exactly. Fidelity: ${fidelity}. ${elements ? `Include elements: ${elements}` : ""}`
-          );
-          setActivePrompt(
-            `Replace background to match reference image exactly. Fidelity: ${fidelity}. ${elements ? `Include elements: ${elements}` : ""}`
-          );
-          setPreciseMode(true);
-          toast.success("התמונות נטענו — לחץ 'החלף רקע' להחיל!");
-        }}
-      />
-
-      {/* History Panel */}
-      {showHistory && (
-        <HistoryPanel
-          onClose={() => setShowHistory(false)}
-          onSelectImage={(url) => {
-            setResultImage(url);
-            setShowHistory(false);
+        <AIChatDialog
+          onApplyBackground={(prompt, name) => {
+            dispatch({ type: "APPLY_BACKGROUND", payload: { prompt, name } });
+            toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
+          }}
+          onEditWithImages={(productImg, refImg, fidelity, elements) => {
+            dispatch({ type: "SET_ORIGINAL_IMAGE", payload: productImg });
+            dispatch({ type: "SET_REFERENCE_IMAGES", payload: [refImg] });
+            const editPrompt = `Replace background to match reference image exactly. Fidelity: ${fidelity}. ${elements ? `Include elements: ${elements}` : ""}`;
+            dispatch({ type: "SET_CUSTOM_PROMPT", payload: editPrompt });
+            dispatch({ type: "SET_ACTIVE_PROMPT", payload: editPrompt });
+            dispatch({ type: "SET_PRECISE_MODE", payload: true });
+            toast.success("התמונות נטענו — לחץ 'החלף רקע' להחיל!");
           }}
         />
-      )}
 
-      {/* Dev Settings */}
-      <DevSettingsDialog open={showDevSettings} onClose={() => setShowDevSettings(false)} />
+        {showHistory && (
+          <HistoryPanel
+            onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "history", value: false } })}
+            onSelectImage={(url) => {
+              dispatch({ type: "SET_RESULT_IMAGE", payload: url });
+              dispatch({ type: "TOGGLE_MODAL", payload: { modal: "history", value: false } });
+            }}
+          />
+        )}
 
-      {/* Save to Gallery Dialog */}
-      {showSaveDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
-                <Save className="h-5 w-5 text-primary" />
+        {/* Dev Settings */}
+        <DevSettingsDialog open={showDevSettings} onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "devSettings", value: false } })} />
+
+        {/* Save to Gallery Dialog */}
+        {showSaveDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm" dir="rtl">
+            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Save className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-display text-sm font-bold text-foreground">שמירה לגלריה</h3>
+                  <p className="font-body text-xs text-muted-foreground">בחר שם לתמונה ואופן שמירה</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-display text-sm font-bold text-foreground">שמירה לגלריה</h3>
-                <p className="font-body text-xs text-muted-foreground">בחר שם לתמונה ואופן שמירה</p>
-              </div>
-            </div>
 
-            <input
-              value={saveNewName}
-              onChange={e => setSaveNewName(e.target.value)}
-              placeholder="שם התמונה..."
-              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-              dir="rtl"
-              autoFocus
-            />
+              <input
+                value={saveNewName}
+                onChange={e => setSaveNewName(e.target.value)}
+                placeholder="שם התמונה..."
+                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                dir="rtl"
+                autoFocus
+              />
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setShowSaveDialog(false)}
-                className="rounded-lg border border-border px-4 py-2.5 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-              >
-                ביטול
-              </button>
-              {searchParams.get("editImage") && (
+              <div className="flex items-center gap-3">
                 <button
-                  onClick={() => handleSaveToGallery("replace")}
-                  disabled={isSaving}
-                  className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
+                  onClick={() => setShowSaveDialog(false)}
+                  className="rounded-lg border border-border px-4 py-2.5 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
                 >
-                  {isSaving ? "שומר..." : "🔄 החלף קיים"}
+                  ביטול
                 </button>
-              )}
-              <button
-                onClick={() => handleSaveToGallery("new")}
-                disabled={isSaving}
-                className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
-              >
-                {isSaving ? "שומר..." : "💾 שמור חדש"}
-              </button>
+                {searchParams.get("editImage") && (
+                  <button
+                    onClick={() => handleSaveToGallery("replace")}
+                    disabled={isSaving}
+                    className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
+                  >
+                    {isSaving ? "שומר..." : "🔄 החלף קיים"}
+                  </button>
+                )}
+                <button
+                  onClick={() => handleSaveToGallery("new")}
+                  disabled={isSaving}
+                  className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+                >
+                  {isSaving ? "שומר..." : "💾 שמור חדש"}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Comparison Gallery */}
+        {showComparison && (
+          <ComparisonGallery
+            images={comparisonImages}
+            originalImage={originalImage}
+            onClose={() => dispatch({ type: "TOGGLE_COMPARISON", payload: false })}
+            onSelect={(img) => {
+              dispatch({ type: "SET_RESULT_IMAGE", payload: img });
+              dispatch({ type: "TOGGLE_COMPARISON", payload: false });
+            }}
+            onClear={() => dispatch({ type: "CLEAR_COMPARISON" })}
+          />
+        )}
+      </Suspense>
     </div>
   );
 };
@@ -1128,4 +1320,10 @@ async function generatePDF(imageDataUrl: string, w: number, h: number): Promise<
   return new Blob([pdfArray], { type: "application/pdf" });
 }
 
-export default Index;
+const ToolPage = () => (
+  <ToolProvider>
+    <ToolInner />
+  </ToolProvider>
+);
+
+export default ToolPage;

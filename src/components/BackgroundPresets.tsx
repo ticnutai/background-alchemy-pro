@@ -737,6 +737,46 @@ const BackgroundPresets = ({
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [selectedFidelity, setSelectedFidelity] = useState("medium");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("bg-favorites") || "[]"); } catch { return []; }
+  });
+  const [recentlyUsed, setRecentlyUsed] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("bg-recent") || "[]"); } catch { return []; }
+  });
+
+  const toggleFavorite = useCallback((presetId: string) => {
+    setFavorites(prev => {
+      const next = prev.includes(presetId) ? prev.filter(id => id !== presetId) : [...prev, presetId];
+      localStorage.setItem("bg-favorites", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const addToRecent = useCallback((presetId: string) => {
+    setRecentlyUsed(prev => {
+      const next = [presetId, ...prev.filter(id => id !== presetId)].slice(0, 10);
+      localStorage.setItem("bg-recent", JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const handleSelectWithRecent = useCallback((preset: Preset) => {
+    addToRecent(preset.id);
+    onSelect(preset);
+  }, [addToRecent, onSelect]);
+
+  // Search filter
+  const searchResults = searchQuery.trim()
+    ? presets.filter(p =>
+        p.label.includes(searchQuery) ||
+        p.professionalName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.category.includes(searchQuery)
+      )
+    : [];
+
+  const favoritePresets = presets.filter(p => favorites.includes(p.id));
+  const recentPresets = recentlyUsed.map(id => presets.find(p => p.id === id)).filter(Boolean) as Preset[];
 
   const handleAnalyzeImage = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -823,8 +863,89 @@ const BackgroundPresets = ({
         בחר רקע
       </h3>
 
+      {/* Search */}
+      <div className="relative">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="חפש רקע..."
+          className="w-full rounded-lg border border-border bg-background px-3 py-2 pr-8 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
+        />
+        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">🔍</span>
+      </div>
+
+      {/* Search results */}
+      {searchQuery.trim() && searchResults.length > 0 && (
+        <div className="space-y-2">
+          <span className="font-accent text-[10px] text-muted-foreground">
+            {searchResults.length} תוצאות ל-"{searchQuery}"
+          </span>
+          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+            {searchResults.slice(0, 12).map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handleSelectWithRecent(preset)}
+                className={`relative rounded-lg border-2 p-2 text-center transition-all ${
+                  selectedId === preset.id ? "border-gold bg-gold/10" : "border-border hover:border-gold/40"
+                }`}
+              >
+                <div className="text-xs font-display font-semibold text-foreground truncate">{preset.label}</div>
+                <div className="text-[10px] text-muted-foreground truncate">{preset.professionalName}</div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Favorites */}
+      {!searchQuery.trim() && favoritePresets.length > 0 && !activeCategory && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">⭐</span>
+            <span className="font-display text-xs font-bold text-foreground">מועדפים</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {favoritePresets.map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handleSelectWithRecent(preset)}
+                className={`shrink-0 rounded-lg border-2 px-3 py-1.5 transition-all ${
+                  selectedId === preset.id ? "border-gold bg-gold/10" : "border-border hover:border-gold/40"
+                }`}
+              >
+                <span className="font-display text-[10px] font-semibold text-foreground whitespace-nowrap">{preset.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recently Used */}
+      {!searchQuery.trim() && recentPresets.length > 0 && !activeCategory && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm">🕐</span>
+            <span className="font-display text-xs font-bold text-foreground">אחרונים</span>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {recentPresets.slice(0, 6).map((preset) => (
+              <button
+                key={preset.id}
+                onClick={() => handleSelectWithRecent(preset)}
+                className={`shrink-0 rounded-lg border-2 px-3 py-1.5 transition-all ${
+                  selectedId === preset.id ? "border-gold bg-gold/10" : "border-border hover:border-gold/40"
+                }`}
+              >
+                <span className="font-display text-[10px] font-semibold text-foreground whitespace-nowrap">{preset.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Category grid */}
-      {!activeCategory ? (
+      {!activeCategory && !searchQuery.trim() ? (
         <div className="grid grid-cols-2 gap-2">
           {categories.map((cat) => {
             const count = cat === "צבע בלבד" ? colorOnlySwatches.length : presets.filter((p) => p.category === cat).length;
@@ -1226,10 +1347,11 @@ const BackgroundPresets = ({
                 const isSelected = multiSelectMode
                   ? selectedPresets.includes(preset.id)
                   : selectedId === preset.id;
+                const isFav = favorites.includes(preset.id);
                 return (
-                  <div key={preset.id} className="relative">
+                  <div key={preset.id} className="relative group">
                     <button
-                      onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : onSelect(preset)}
+                      onClick={() => multiSelectMode && onTogglePreset ? onTogglePreset(preset) : handleSelectWithRecent(preset)}
                       className={`group relative flex flex-col items-center gap-1 rounded-lg border-2 p-2 transition-all w-full ${
                         isSelected
                           ? "border-primary bg-primary/5 shadow-md"
@@ -1269,6 +1391,15 @@ const BackgroundPresets = ({
                       title="תצוגה מקדימה"
                     >
                       <Eye className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(preset.id); }}
+                      className={`absolute bottom-2 left-1 flex h-6 w-6 items-center justify-center rounded-full border shadow-sm transition-all z-10 ${
+                        isFav ? "bg-gold/20 border-gold/50 opacity-100" : "bg-background/80 border-border opacity-0 group-hover:opacity-100"
+                      }`}
+                      title={isFav ? "הסר ממועדפים" : "הוסף למועדפים"}
+                    >
+                      <span className="text-[10px]">{isFav ? "⭐" : "☆"}</span>
                     </button>
                   </div>
                 );

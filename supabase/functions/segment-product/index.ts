@@ -57,9 +57,11 @@ serve(async (req) => {
 
     let dinoPrediction = await dinoRes.json();
 
-    // Poll for completion
+    // Poll with exponential backoff: 500ms, 1s, 2s, 4s, then cap at 4s
+    let pollDelay = 500;
     while (dinoPrediction.status !== "succeeded" && dinoPrediction.status !== "failed") {
-      await new Promise((r) => setTimeout(r, 2000));
+      await new Promise((r) => setTimeout(r, pollDelay));
+      pollDelay = Math.min(pollDelay * 2, 4000);
       const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${dinoPrediction.id}`, {
         headers: { Authorization: `Bearer ${REPLICATE_API_TOKEN}` },
       });
@@ -96,9 +98,11 @@ serve(async (req) => {
 
     let samPrediction = await samRes.json();
 
-    // Poll for completion
+    // Poll with exponential backoff: 500ms, 1s, 2s, 4s, then cap at 4s
+    let samPollDelay = 500;
     while (samPrediction.status !== "succeeded" && samPrediction.status !== "failed") {
-      await new Promise((r) => setTimeout(r, 2500));
+      await new Promise((r) => setTimeout(r, samPollDelay));
+      samPollDelay = Math.min(samPollDelay * 2, 4000);
       const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${samPrediction.id}`, {
         headers: { Authorization: `Bearer ${REPLICATE_API_TOKEN}` },
       });

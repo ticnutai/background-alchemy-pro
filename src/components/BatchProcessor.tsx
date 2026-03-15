@@ -3,6 +3,8 @@ import { Upload, X, Sparkles, Download, CheckCircle2, AlertCircle, Loader2 } fro
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type Preset } from "@/components/BackgroundPresets";
+import { imageProcessingQueue } from "@/lib/job-queue";
+import { compressImage } from "@/lib/image-compress";
 
 interface BatchItem {
   id: string;
@@ -24,7 +26,6 @@ const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchPro
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleFiles = useCallback((files: FileList) => {
-    const newItems: BatchItem[] = [];
     Array.from(files).forEach((file) => {
       if (!file.type.startsWith("image/")) return;
       const reader = new FileReader();
@@ -60,43 +61,56 @@ const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchPro
     setIsProcessing(true);
     const pending = items.filter((i) => i.status === "pending" || i.status === "error");
 
-    for (const item of pending) {
-      setItems((prev) =>
-        prev.map((i) => (i.id === item.id ? { ...i, status: "processing" as const } : i))
-      );
-
-      try {
+    // Process in parallel using job queue (max 3 concurrent)
+    const jobs = pending.map((item) => ({
+      id: item.id,
+      fn: async () => {
+        // Compress image before sending
+        const compressed = await compressImage(item.originalImage);
         const { data, error } = await supabase.functions.invoke("replace-background", {
           body: {
-            imageBase64: item.originalImage,
+            imageBase64: compressed,
             backgroundPrompt,
             referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
           },
         });
-
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
+        return data.resultImage as string;
+      },
+      onProgress: (status: "pending" | "running" | "done" | "error") => {
+        const mappedStatus = status === "running" ? "processing" : status;
+        setItems((prev) =>
+          prev.map((i) => (i.id === item.id ? { ...i, status: mappedStatus as BatchItem["status"] } : i))
+        );
+      },
+    }));
 
+    const results = await imageProcessingQueue.addAll(jobs);
+
+    // Apply results
+    results.forEach((result, idx) => {
+      const item = pending[idx];
+      if (result.status === "fulfilled") {
         setItems((prev) =>
           prev.map((i) =>
-            i.id === item.id
-              ? { ...i, status: "done" as const, resultImage: data.resultImage }
-              : i
+            i.id === item.id ? { ...i, status: "done" as const, resultImage: result.value } : i
           )
         );
-      } catch (err: any) {
+      } else {
         setItems((prev) =>
           prev.map((i) =>
             i.id === item.id
-              ? { ...i, status: "error" as const, error: err.message }
+              ? { ...i, status: "error" as const, error: (result.reason as Error)?.message || "שגיאה" }
               : i
           )
         );
       }
-    }
+    });
 
     setIsProcessing(false);
-    toast.success("העיבוד הסתיים!");
+    const successCount = results.filter((r) => r.status === "fulfilled").length;
+    toast.success(`הושלמו ${successCount}/${pending.length} תמונות!`);
   }, [items, backgroundPrompt, referenceImages]);
 
   const downloadAll = useCallback(() => {

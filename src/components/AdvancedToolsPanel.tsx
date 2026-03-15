@@ -122,6 +122,10 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
   const currentImage = resultImage || originalImage;
 
   const runTool = async (action: string, actionParams: Record<string, any>) => {
+    if (!currentImage) {
+      toast.error("יש להעלות תמונה קודם");
+      return;
+    }
     setProcessing(true);
     try {
       const { data, error } = await supabase.functions.invoke("image-tools", {

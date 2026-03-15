@@ -62,9 +62,11 @@ serve(async (req) => {
     const prediction = await createRes.json();
     let result = prediction;
 
-    // Poll for completion
+    // Poll with exponential backoff: 500ms, 1s, 2s, 4s, then cap at 4s
+    let pollDelay = 500;
     while (result.status !== "succeeded" && result.status !== "failed") {
-      await new Promise((r) => setTimeout(r, 3000));
+      await new Promise((r) => setTimeout(r, pollDelay));
+      pollDelay = Math.min(pollDelay * 2, 4000);
       const pollRes = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
         headers: { Authorization: `Bearer ${REPLICATE_API_TOKEN}` },
       });

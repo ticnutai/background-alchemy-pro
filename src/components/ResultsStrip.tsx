@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, memo } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { ZoomIn, ArrowLeft, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -16,22 +17,29 @@ interface ResultsStripProps {
   currentResultUrl?: string | null;
 }
 
-const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) => {
-  const [items, setItems] = useState<ResultItem[]>([]);
+async function fetchRecentResults(): Promise<ResultItem[]> {
+  const { data } = await supabase
+    .from("processing_history")
+    .select("id, result_image_url, original_image_url, background_name, created_at")
+    .order("created_at", { ascending: false })
+    .limit(10);
+  return data ?? [];
+}
+
+const ResultsStrip = memo(({ onSelectImage, currentResultUrl }: ResultsStripProps) => {
+  const queryClient = useQueryClient();
   const [zoomedItem, setZoomedItem] = useState<ResultItem | null>(null);
   const [sliderPos, setSliderPos] = useState(50);
   const containerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
-  useEffect(() => {
-    supabase.from("processing_history")
-      .select("id, result_image_url, original_image_url, background_name, created_at")
-      .order("created_at", { ascending: false })
-      .limit(10)
-      .then(({ data }) => {
-        if (data) setItems(data);
-      });
-  }, [currentResultUrl]);
+  // Use React Query with staleTime to avoid redundant refetches
+  const { data: items = [] } = useQuery({
+    queryKey: ["processing-history-strip", currentResultUrl],
+    queryFn: fetchRecentResults,
+    staleTime: 30_000, // Cache for 30 seconds — prevents refetch on every state change
+    refetchOnWindowFocus: false,
+  });
 
   const handleMove = useCallback((clientX: number) => {
     if (!containerRef.current || !isDragging.current) return;
@@ -72,21 +80,23 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
             לגלריה המלאה <ArrowLeft className="h-3 w-3" />
           </Link>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-2">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
           {items.map(item => (
-            <div key={item.id} className="group/thumb relative shrink-0 w-20 h-20">
+            <div key={item.id} className="group/thumb relative">
               <button
                 onClick={() => onSelectImage?.(item.result_image_url)}
-                className="w-full h-full rounded-lg overflow-hidden border border-border hover:border-gold/50 transition-all"
+                className="w-full rounded-lg overflow-hidden border border-border hover:border-gold/50 transition-all"
               >
-                <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover" />
-                <p className="absolute bottom-0 inset-x-0 bg-foreground/60 px-1 py-0.5 font-accent text-[8px] text-card truncate text-center">
+                <div className="aspect-square overflow-hidden">
+                  <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover transition-transform duration-300 group-hover/thumb:scale-105" />
+                </div>
+                <p className="bg-foreground/60 px-1 py-1 font-accent text-[9px] text-card truncate text-center">
                   {item.background_name || "מותאם"}
                 </p>
               </button>
               <button
                 onClick={(e) => { e.stopPropagation(); setZoomedItem(item); setSliderPos(50); }}
-                className="absolute top-1 left-1 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/60 text-card opacity-0 group-hover/thumb:opacity-100 transition-opacity backdrop-blur-sm hover:bg-primary"
+                className="absolute top-1.5 left-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-foreground/60 text-card opacity-0 group-hover/thumb:opacity-100 transition-opacity backdrop-blur-sm hover:bg-primary"
               >
                 <ZoomIn className="h-3 w-3" />
               </button>
@@ -160,6 +170,8 @@ const ResultsStrip = ({ onSelectImage, currentResultUrl }: ResultsStripProps) =>
       )}
     </>
   );
-};
+});
+
+ResultsStrip.displayName = "ResultsStrip";
 
 export default ResultsStrip;
