@@ -631,6 +631,109 @@ export default function CollageBuilder() {
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Watermark / Logo */}
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="font-semibold text-sm flex items-center gap-2">
+                        <Eye className="h-4 w-4" />לוגו / סימן מים
+                      </h3>
+                      <Checkbox checked={watermarkEnabled} onCheckedChange={(v) => setWatermarkEnabled(!!v)} />
+                    </div>
+                    {watermarkEnabled && (
+                      <div className="space-y-3">
+                        <div className="flex gap-1">
+                          <Button size="sm" variant={watermark.type === 'text' ? "default" : "outline"} className="flex-1 text-xs" onClick={() => setWatermark(w => ({ ...w, type: 'text' }))}>
+                            <Type className="h-3 w-3 ml-1" />טקסט
+                          </Button>
+                          <Button size="sm" variant={watermark.type === 'image' ? "default" : "outline"} className="flex-1 text-xs" onClick={() => setWatermark(w => ({ ...w, type: 'image' }))}>
+                            <ImageIcon className="h-3 w-3 ml-1" />לוגו
+                          </Button>
+                        </div>
+
+                        {watermark.type === 'text' ? (
+                          <div className="space-y-2">
+                            <Input
+                              value={watermark.text || ''}
+                              onChange={e => setWatermark(w => ({ ...w, text: e.target.value }))}
+                              placeholder="טקסט סימן מים..."
+                              className="text-sm h-8"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">צבע</Label>
+                                <input type="color" value={watermark.color || '#ffffff'} onChange={e => setWatermark(w => ({ ...w, color: e.target.value }))} className="w-full h-6 rounded border cursor-pointer" />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">גודל: {watermark.fontSize}px</Label>
+                                <Slider value={[watermark.fontSize || 36]} onValueChange={([v]) => setWatermark(w => ({ ...w, fontSize: v }))} min={12} max={120} step={2} />
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            <label className="cursor-pointer">
+                              <Button variant="outline" size="sm" className="w-full text-xs gap-1" asChild>
+                                <span><Plus className="h-3 w-3" />{watermark.imageSrc ? 'החלף לוגו' : 'העלה לוגו'}</span>
+                              </Button>
+                              <input
+                                ref={logoInputRef}
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                onChange={e => {
+                                  const file = e.target.files?.[0];
+                                  if (!file) return;
+                                  const reader = new FileReader();
+                                  reader.onload = ev => setWatermark(w => ({ ...w, imageSrc: ev.target?.result as string }));
+                                  reader.readAsDataURL(file);
+                                }}
+                              />
+                            </label>
+                            {watermark.imageSrc && (
+                              <div className="flex items-center gap-2">
+                                <img src={watermark.imageSrc} alt="logo" className="w-10 h-10 object-contain rounded border bg-muted" />
+                                <span className="text-[10px] text-muted-foreground">לוגו נטען</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Common watermark settings */}
+                        <div className="space-y-2">
+                          <Label className="text-[10px]">מיקום</Label>
+                          <Select value={watermark.position} onValueChange={v => setWatermark(w => ({ ...w, position: v as CollageWatermark['position'] }))}>
+                            <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="top-right" className="text-xs">למעלה ימין</SelectItem>
+                              <SelectItem value="top-left" className="text-xs">למעלה שמאל</SelectItem>
+                              <SelectItem value="bottom-right" className="text-xs">למטה ימין</SelectItem>
+                              <SelectItem value="bottom-left" className="text-xs">למטה שמאל</SelectItem>
+                              <SelectItem value="center" className="text-xs">מרכז</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">שקיפות: {Math.round(watermark.opacity * 100)}%</Label>
+                          <Slider value={[watermark.opacity]} onValueChange={([v]) => setWatermark(w => ({ ...w, opacity: v }))} min={0.05} max={1} step={0.05} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">גודל: {Math.round(watermark.scale * 100)}%</Label>
+                          <Slider value={[watermark.scale]} onValueChange={([v]) => setWatermark(w => ({ ...w, scale: v }))} min={0.05} max={0.5} step={0.01} />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-[10px]">סיבוב: {watermark.rotation || 0}°</Label>
+                          <Slider value={[watermark.rotation || 0]} onValueChange={([v]) => setWatermark(w => ({ ...w, rotation: v }))} min={-45} max={45} step={1} />
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Checkbox checked={!!watermark.repeat} onCheckedChange={(v) => setWatermark(w => ({ ...w, repeat: !!v }))} />
+                          <Label className="text-[10px]">חזור על פני כל הקולאז' (טקסטורה)</Label>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               </TabsContent>
 
               {/* ─── Frames Tab ─── */}
