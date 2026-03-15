@@ -537,7 +537,7 @@ export interface CollageOptions {
   watermark?: CollageWatermark;
 }
 
-const COLLAGE_FONT_MAP: Record<string, string> = {
+export const COLLAGE_FONT_MAP: Record<string, string> = {
   'elegant-serif': '"Playfair Display", "Georgia", serif',
   'modern-sans': '"Montserrat", "Helvetica Neue", sans-serif',
   'classic-serif': '"Cormorant Garamond", "Times New Roman", serif',
