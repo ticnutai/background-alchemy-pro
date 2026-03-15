@@ -353,16 +353,41 @@ export default function CollageBuilder() {
                 {images.length > 0 && (
                   <Card>
                     <CardContent className="p-4 space-y-3">
-                      <h3 className="font-semibold text-sm">תמונות ({images.length})</h3>
-                      <ScrollArea className="max-h-[200px]">
+                      <h3 className="font-semibold text-sm flex items-center justify-between">
+                        <span>תמונות ({images.length})</span>
+                        <span className="text-[10px] text-muted-foreground font-normal">גרור לשינוי סדר</span>
+                      </h3>
+                      <ScrollArea className="max-h-[240px]">
                         <div className="grid grid-cols-3 gap-2">
-                          {images.map((img) => (
+                          {images.map((img, idx) => (
                             <div
                               key={img.id}
-                              className={`relative border rounded cursor-pointer overflow-hidden aspect-square ${selectedImage === img.id ? "ring-2 ring-primary" : ""}`}
+                              draggable
+                              onDragStart={() => { dragItemRef.current = idx; setDragIdx(idx); }}
+                              onDragEnter={() => { dragOverRef.current = idx; }}
+                              onDragOver={(e) => e.preventDefault()}
+                              onDragEnd={() => {
+                                if (dragItemRef.current !== null && dragOverRef.current !== null && dragItemRef.current !== dragOverRef.current) {
+                                  setImages(prev => {
+                                    const updated = [...prev];
+                                    const [dragged] = updated.splice(dragItemRef.current!, 1);
+                                    updated.splice(dragOverRef.current!, 0, dragged);
+                                    return updated;
+                                  });
+                                }
+                                dragItemRef.current = null;
+                                dragOverRef.current = null;
+                                setDragIdx(null);
+                              }}
+                              className={`relative border rounded cursor-grab active:cursor-grabbing overflow-hidden aspect-square transition-all ${
+                                selectedImage === img.id ? "ring-2 ring-primary" : ""
+                              } ${dragIdx === idx ? "opacity-50 scale-95" : ""}`}
                               onClick={() => setSelectedImage(selectedImage === img.id ? null : img.id)}
                             >
-                              <img src={img.src} alt={img.name} className="w-full h-full object-cover" />
+                              <img src={img.src} alt={img.name} className="w-full h-full object-cover pointer-events-none" />
+                              <div className="absolute top-0.5 right-0.5 bg-foreground/60 text-background rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
+                                {idx + 1}
+                              </div>
                               <button
                                 className="absolute top-0.5 left-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
                                 onClick={(e) => { e.stopPropagation(); setImages(prev => prev.filter(i => i.id !== img.id)); }}
