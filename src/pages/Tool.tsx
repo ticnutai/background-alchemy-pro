@@ -326,6 +326,61 @@ const Index = () => {
     [resultImage, originalImage, adjustments]
   );
 
+  const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
+    const img = resultImage;
+    if (!img || !user) return;
+    setIsSaving(true);
+    try {
+      const uid = user.id;
+      const ts = Date.now();
+      const resultBlob = await fetch(img).then(r => r.blob());
+      const upload = await supabase.storage.from("processed-images").upload(`${uid}/${ts}_result.png`, resultBlob, { contentType: "image/png" });
+      if (!upload.data) throw new Error("Upload failed");
+      const resultUrl = supabase.storage.from("processed-images").getPublicUrl(upload.data.path).data.publicUrl;
+
+      if (mode === "new") {
+        const origBlob = originalImage ? await fetch(originalImage).then(r => r.blob()) : resultBlob;
+        const origUpload = await supabase.storage.from("processed-images").upload(`${uid}/${ts}_original.png`, origBlob, { contentType: "image/png" });
+        const origUrl = origUpload.data ? supabase.storage.from("processed-images").getPublicUrl(origUpload.data.path).data.publicUrl : resultUrl;
+        await supabase.from("processing_history").insert({
+          user_id: uid,
+          original_image_url: origUrl,
+          result_image_url: resultUrl,
+          background_prompt: customPrompt.trim() || activePrompt || "עריכת צבע/סגנון",
+          background_name: saveNewName.trim() || suggestedName || "תמונה ערוכה",
+        });
+        toast.success("נשמר כתמונה חדשה בגלריה! 🎨");
+      } else {
+        const editImageUrl = searchParams.get("editImage");
+        if (editImageUrl) {
+          const { data: existing } = await supabase.from("processing_history")
+            .select("id")
+            .eq("result_image_url", editImageUrl)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            await supabase.from("processing_history")
+              .update({ result_image_url: resultUrl, background_name: saveNewName.trim() || suggestedName || undefined })
+              .eq("id", existing[0].id);
+            toast.success("התמונה הוחלפה בגלריה! ✅");
+          } else {
+            await supabase.from("processing_history").insert({
+              user_id: uid, original_image_url: editImageUrl, result_image_url: resultUrl,
+              background_prompt: customPrompt.trim() || activePrompt || "עריכה",
+              background_name: saveNewName.trim() || suggestedName || "תמונה ערוכה",
+            });
+            toast.success("נשמר בגלריה! ✅");
+          }
+        }
+      }
+    } catch (err: any) {
+      toast.error(err.message || "שגיאה בשמירה");
+    } finally {
+      setIsSaving(false);
+      setShowSaveDialog(false);
+      setSaveNewName("");
+    }
+  }, [resultImage, originalImage, user, saveNewName, suggestedName, customPrompt, activePrompt, searchParams]);
+
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
       {/* Header */}
