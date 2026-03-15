@@ -60,13 +60,23 @@ const ImageHoverMenu = ({
     }
   }, []);
 
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleMouseLeave = useCallback(() => {
     cancelHover();
-    // Small delay before hiding to allow entering the menu
-    setTimeout(() => {
+    leaveTimer.current = setTimeout(() => {
       setShowMenu(false);
       setShowFolderSub(false);
-    }, 200);
+    }, 300);
+  }, [cancelHover]);
+
+  const handleMouseEnterMenu = useCallback(() => {
+    cancelHover();
+    if (leaveTimer.current) {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
+    setShowMenu(true);
   }, [cancelHover]);
 
   useEffect(() => {
