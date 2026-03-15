@@ -1253,7 +1253,8 @@ export default function CollageBuilder() {
                   <Badge variant="outline">8 סגנונות גרדיאנט</Badge>
                   <Badge variant="outline">11 גופנים</Badge>
                   <Badge variant="outline">כלים חכמים</Badge>
-                  <Badge variant="outline">6 לייאאוטים</Badge>
+                  <Badge variant="outline">14 לייאאוטים</Badge>
+                  <Badge variant="outline">מרובה עמודים</Badge>
                 </div>
               </div>
             )}
