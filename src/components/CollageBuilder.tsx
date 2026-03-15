@@ -585,7 +585,7 @@ export default function CollageBuilder() {
                         </Button>
                         <input type="file" multiple accept="image/*" className="hidden" onChange={handleFileUpload} />
                       </label>
-                      <Button variant="outline" className="w-full" onClick={openGalleryImport}>
+                      <Button variant="outline" className="w-full" onClick={() => openGalleryImport('collage')}>
                         <Database className="h-4 w-4 ml-2" />ייבוא מהגלריה / מהענן
                       </Button>
                       <label className="cursor-pointer">
