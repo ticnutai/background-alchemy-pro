@@ -825,7 +825,7 @@ const Gallery = () => {
                       onDragEnd={() => setDraggedItemId(null)}
                       onClick={() => compareMode ? toggleCompareItem(item) : setZoomedItem(item)}
                     >
-                      <div className="aspect-square overflow-hidden">
+                      <div className="aspect-square overflow-hidden rounded-t-xl">
                         <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" draggable={false} />
                       </div>
                       <div className="p-2.5">
