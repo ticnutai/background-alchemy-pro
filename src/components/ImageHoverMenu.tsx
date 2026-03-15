@@ -48,6 +48,10 @@ const ImageHoverMenu = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const startHover = useCallback(() => {
+    if (leaveTimer.current) {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
     hoverTimer.current = setTimeout(() => {
       setShowMenu(true);
     }, hoverDelay);
