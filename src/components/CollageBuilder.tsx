@@ -1442,7 +1442,47 @@ export default function CollageBuilder() {
         {/* Main Preview */}
         <Card className="min-h-[500px] flex items-center justify-center">
           <CardContent className="p-4 w-full">
-            {result ? (
+            {/* Comparison Mode */}
+            {compareMode && comparePreviews.length > 0 ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">השוואת לייאאוטים</Badge>
+                    <Badge variant="outline" className="text-xs">{comparePreviews.length} אפשרויות</Badge>
+                  </div>
+                  <Button variant="ghost" size="sm" onClick={() => { setCompareMode(false); setComparePreviews([]); }}>
+                    <X className="h-4 w-4 ml-1" />סגור
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">לחץ על הקולאז׳ שאתה רוצה — הלייאאוט ייבחר אוטומטית</p>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {comparePreviews.map((preview) => (
+                    <button
+                      key={preview.layout}
+                      onClick={() => selectCompareLayout(preview.layout)}
+                      className={`group relative rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg hover:scale-[1.02] ${
+                        layout === preview.layout ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <img src={preview.dataUrl} alt={preview.label} className="w-full aspect-square object-contain bg-muted/30" />
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                        <span className="text-white text-xs font-semibold">{preview.label}</span>
+                      </div>
+                      {layout === preview.layout && (
+                        <div className="absolute top-2 left-2 bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center">
+                          <Check className="h-3.5 w-3.5" />
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : compareProcessing ? (
+              <div className="text-center space-y-4 py-20">
+                <RefreshCw className="h-12 w-12 mx-auto text-primary animate-spin" />
+                <p className="text-muted-foreground">מייצר תצוגות מקדימות...</p>
+              </div>
+            ) : result ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
                   <div className="flex items-center gap-2">
@@ -1504,7 +1544,7 @@ export default function CollageBuilder() {
                     <img key={img.id} src={img.src} alt={img.name} className="w-full aspect-square object-cover rounded-lg border" />
                   ))}
                 </div>
-                <p className="text-muted-foreground text-sm">בחר עיצוב ולחץ "צור קולאז׳"</p>
+                <p className="text-muted-foreground text-sm">בחר עיצוב ולחץ "צור קולאז׳" או "השווה" להשוואת לייאאוטים</p>
               </div>
             ) : (
               <div className="text-center space-y-4 py-20">
