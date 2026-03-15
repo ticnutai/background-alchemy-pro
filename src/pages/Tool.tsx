@@ -941,6 +941,12 @@ const ToolInner = () => {
                   )}
                   {activeTab === "filters" && (
                     <div className="space-y-6">
+                      <LiveHistogram
+                        imageSrc={resultImage || originalImage}
+                        liveFilterCss={liveFilterCss}
+                      />
+
+                      <div className="border-t border-border pt-4">
                       <LiveFilterPanel
                         currentImage={resultImage || originalImage}
                         onPreviewFilter={(css) => setLiveFilterCss(css)}
