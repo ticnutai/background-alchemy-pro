@@ -34,10 +34,18 @@ import {
 const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number }[] = [
   { id: "grid-2x2", label: "רשת 2×2", icon: <Grid2X2 className="h-5 w-5" />, maxImages: 4 },
   { id: "grid-3x3", label: "רשת 3×3", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 9 },
+  { id: "grid-2x3", label: "רשת 2×3", icon: <LayoutGrid className="h-5 w-5" />, maxImages: 6 },
+  { id: "grid-3x2", label: "רשת 3×2", icon: <Columns3 className="h-5 w-5" />, maxImages: 6 },
+  { id: "grid-4x4", label: "רשת 4×4", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 16 },
   { id: "hero-side", label: "Hero + צד", icon: <LayoutDashboard className="h-5 w-5" />, maxImages: 3 },
+  { id: "hero-top", label: "Hero למעלה", icon: <PanelTop className="h-5 w-5" />, maxImages: 4 },
   { id: "strip", label: "סטריפ אופקי", icon: <Rows3 className="h-5 w-5" />, maxImages: 5 },
+  { id: "strip-vertical", label: "סטריפ אנכי", icon: <ArrowDownUp className="h-5 w-5" />, maxImages: 5 },
   { id: "masonry", label: "Masonry", icon: <GalleryHorizontalEnd className="h-5 w-5" />, maxImages: 6 },
   { id: "pinterest", label: "Pinterest", icon: <GalleryHorizontalEnd className="h-5 w-5 rotate-90" />, maxImages: 6 },
+  { id: "diagonal", label: "אלכסוני", icon: <Sparkle className="h-5 w-5" />, maxImages: 4 },
+  { id: "l-shape", label: "צורת L", icon: <LayoutList className="h-5 w-5" />, maxImages: 5 },
+  { id: "featured-grid", label: "מודגש + רשת", icon: <LayoutDashboard className="h-5 w-5 rotate-180" />, maxImages: 5 },
 ];
 
 const SMART_TOOLS = [
