@@ -26,7 +26,7 @@ import {
   generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, compositeImages, adjustImage,
-  autoEnhance, addVignette, sharpenImage
+  autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
 
