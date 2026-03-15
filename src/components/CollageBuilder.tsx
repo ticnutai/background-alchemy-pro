@@ -943,9 +943,50 @@ export default function CollageBuilder() {
                       <Label className="text-xs">רדיוס פינות: {borderRadius}px</Label>
                       <Slider value={[borderRadius]} onValueChange={([v]) => setBorderRadius(v)} min={0} max={30} step={2} />
                     </div>
+                    {/* Page size selector */}
                     <div className="space-y-2">
-                      <Label className="text-xs">גובה: {canvasHeight}px</Label>
-                      <Slider value={[canvasHeight]} onValueChange={([v]) => setCanvasHeight(v)} min={600} max={2400} step={100} />
+                      <Label className="text-xs font-semibold">📐 גודל דף / קנבס</Label>
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap gap-1">
+                          {COLLAGE_PAGE_SIZES.filter(p => p.category === "הדפסה").map(p => (
+                            <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
+                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); }}
+                              className="text-[10px] px-2 h-7"
+                            >{p.label}</Button>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {COLLAGE_PAGE_SIZES.filter(p => p.category === "סושיאל").map(p => (
+                            <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
+                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); }}
+                              className="text-[10px] px-2 h-7"
+                            >{p.label}</Button>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {COLLAGE_PAGE_SIZES.filter(p => p.category === "אחר").map(p => (
+                            <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
+                              onClick={() => { if (p.id === "custom") { setSelectedPageSize("custom"); } else { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); } }}
+                              className="text-[10px] px-2 h-7"
+                            >{p.label}</Button>
+                          ))}
+                        </div>
+                      </div>
+                      {selectedPageSize === "custom" && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <Label className="text-[10px]">רוחב: {canvasWidth}px</Label>
+                            <Slider value={[canvasWidth]} onValueChange={([v]) => setCanvasWidth(v)} min={600} max={4000} step={100} />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">גובה: {canvasHeight}px</Label>
+                            <Slider value={[canvasHeight]} onValueChange={([v]) => setCanvasHeight(v)} min={600} max={5000} step={100} />
+                          </div>
+                        </div>
+                      )}
+                      {selectedPageSize !== "custom" && (
+                        <p className="text-[10px] text-muted-foreground">{canvasWidth}×{canvasHeight}px</p>
+                      )}
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs">התאמת תמונה</Label>
