@@ -7,6 +7,7 @@ import {
   Eraser, ArrowUpCircle, Home, Upload, FolderOpen,
   Clock, Star, ChevronRight, X, FileImage,
 } from "lucide-react";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 import { supabase } from "@/integrations/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
 import studioLogo from "@/assets/studio-logo.png";
