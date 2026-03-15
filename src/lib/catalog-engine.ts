@@ -121,7 +121,7 @@ export type CatalogTemplate =
   | "lookbook"        // Full-bleed images with overlay text
   | "showcase";       // Single product per page, large
 
-export type PageSize = "A4" | "A3" | "letter" | "square" | "landscape";
+export type PageSize = "A4" | "A3" | "A5" | "letter" | "square" | "landscape" | "ig-post" | "ig-story" | "fb-post" | "fb-cover" | "custom";
 export type BgPattern = "none" | "dots" | "lines" | "grid" | "diagonal" | "circles";
 export type CoverStyle = "modern" | "classic" | "photo" | "split" | "bold";
 
@@ -133,12 +133,18 @@ export interface CatalogPage {
 }
 
 // ─── Constants ───────────────────────────────────────────────
-const PAGE_SIZES: Record<PageSize, { w: number; h: number }> = {
-  A4: { w: 2480, h: 3508 },       // 210mm × 297mm at 300dpi
-  A3: { w: 3508, h: 4961 },
-  letter: { w: 2550, h: 3300 },
-  square: { w: 3000, h: 3000 },
-  landscape: { w: 3508, h: 2480 },
+export const PAGE_SIZES: Record<PageSize, { w: number; h: number; label: string; category: "print" | "social" | "other" }> = {
+  A4: { w: 2480, h: 3508, label: "A4 עמוד", category: "print" },
+  A3: { w: 3508, h: 4961, label: "A3 פוסטר", category: "print" },
+  A5: { w: 1748, h: 2480, label: "A5 פלייר", category: "print" },
+  letter: { w: 2550, h: 3300, label: "Letter", category: "print" },
+  "ig-post": { w: 1080, h: 1080, label: "אינסטגרם פוסט", category: "social" },
+  "ig-story": { w: 1080, h: 1920, label: "אינסטגרם סטורי", category: "social" },
+  "fb-post": { w: 1200, h: 630, label: "פייסבוק פוסט", category: "social" },
+  "fb-cover": { w: 1640, h: 624, label: "פייסבוק כיסוי", category: "social" },
+  square: { w: 3000, h: 3000, label: "ריבוע", category: "other" },
+  landscape: { w: 3508, h: 2480, label: "לרוחב", category: "other" },
+  custom: { w: 2480, h: 3508, label: "מותאם אישית", category: "other" },
 };
 
 const FONT_MAP: Record<string, string> = {

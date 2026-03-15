@@ -30,6 +30,22 @@ import {
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
 
+// ─── Page Size Presets ───────────────────────────────────────
+type CollagePageSize = "custom" | "A4" | "A3" | "A5" | "ig-post" | "ig-story" | "ig-reel" | "fb-post" | "fb-cover" | "square-hd";
+
+const COLLAGE_PAGE_SIZES: { id: CollagePageSize; label: string; w: number; h: number; category: string }[] = [
+  { id: "custom", label: "מותאם אישית", w: 1200, h: 1200, category: "אחר" },
+  { id: "A4", label: "A4 עמוד", w: 2480, h: 3508, category: "הדפסה" },
+  { id: "A3", label: "A3 פוסטר", w: 3508, h: 4961, category: "הדפסה" },
+  { id: "A5", label: "A5 פלייר", w: 1748, h: 2480, category: "הדפסה" },
+  { id: "ig-post", label: "IG פוסט", w: 1080, h: 1080, category: "סושיאל" },
+  { id: "ig-story", label: "IG סטורי", w: 1080, h: 1920, category: "סושיאל" },
+  { id: "ig-reel", label: "IG ריל", w: 1080, h: 1350, category: "סושיאל" },
+  { id: "fb-post", label: "FB פוסט", w: 1200, h: 630, category: "סושיאל" },
+  { id: "fb-cover", label: "FB כיסוי", w: 1640, h: 624, category: "סושיאל" },
+  { id: "square-hd", label: "ריבוע HD", w: 2000, h: 2000, category: "אחר" },
+];
+
 // ─── Constants ──────────────────────────────────────────────────
 const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number }[] = [
   { id: "grid-2x2", label: "רשת 2×2", icon: <Grid2X2 className="h-5 w-5" />, maxImages: 4 },

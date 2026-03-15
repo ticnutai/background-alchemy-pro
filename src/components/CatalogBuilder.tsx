@@ -1095,18 +1095,31 @@ export default function CatalogBuilder() {
 
                     <div>
                       <Label className="text-xs">גודל עמוד</Label>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {(["A4", "A3", "letter", "square", "landscape"] as PageSize[]).map(s => (
-                          <Button
-                            key={s}
-                            size="sm"
-                            variant={settings.pageSize === s ? "default" : "outline"}
-                            onClick={() => updateSetting("pageSize", s)}
-                            className="text-xs"
-                          >
-                            {s}
-                          </Button>
-                        ))}
+                      <div className="space-y-1.5 mt-1">
+                        <p className="text-[10px] text-muted-foreground font-semibold">🖨️ הדפסה</p>
+                        <div className="flex flex-wrap gap-1">
+                          {(["A4", "A3", "A5", "letter"] as PageSize[]).map(s => (
+                            <Button key={s} size="sm" variant={settings.pageSize === s ? "default" : "outline"} onClick={() => updateSetting("pageSize", s)} className="text-xs">
+                              {s === "A5" ? "A5" : s === "letter" ? "Letter" : s}
+                            </Button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-semibold">📱 רשתות חברתיות</p>
+                        <div className="flex flex-wrap gap-1">
+                          {(["ig-post", "ig-story", "fb-post", "fb-cover"] as PageSize[]).map(s => (
+                            <Button key={s} size="sm" variant={settings.pageSize === s ? "default" : "outline"} onClick={() => updateSetting("pageSize", s)} className="text-[10px] px-2">
+                              {s === "ig-post" ? "IG פוסט" : s === "ig-story" ? "IG סטורי" : s === "fb-post" ? "FB פוסט" : "FB כיסוי"}
+                            </Button>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-semibold">📐 אחר</p>
+                        <div className="flex flex-wrap gap-1">
+                          {(["square", "landscape"] as PageSize[]).map(s => (
+                            <Button key={s} size="sm" variant={settings.pageSize === s ? "default" : "outline"} onClick={() => updateSetting("pageSize", s)} className="text-xs">
+                              {s === "square" ? "ריבוע" : "לרוחב"}
+                            </Button>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
