@@ -1273,6 +1273,33 @@ export default function CollageBuilder() {
                   </CardContent>
                 </Card>
 
+                {/* Built-in Smart Templates */}
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />תבניות מוכנות ({BUILTIN_TEMPLATES.length})
+                    </h3>
+                    <ScrollArea className="max-h-[300px]">
+                      <div className="grid grid-cols-2 gap-2">
+                        {BUILTIN_TEMPLATES.map(tpl => (
+                          <button
+                            key={tpl.id}
+                            onClick={() => loadTemplate(tpl)}
+                            className="border rounded-lg p-2 text-right hover:border-primary/50 hover:bg-accent/30 transition-all space-y-1"
+                          >
+                            <div className="w-full h-8 rounded" style={{ background: tpl.bgGradientEnabled ? `linear-gradient(${tpl.bgGradient.angle}deg, ${tpl.bgGradient.from}, ${tpl.bgGradient.to})` : tpl.bgColor }} />
+                            <p className="text-xs font-semibold truncate">{tpl.name}</p>
+                            <div className="flex flex-wrap gap-0.5">
+                              <Badge variant="outline" className="text-[8px] px-1 py-0">{LAYOUT_OPTIONS.find(l => l.id === tpl.layout)?.label || tpl.layout}</Badge>
+                              {tpl.frameStyle !== 'none' && <Badge variant="outline" className="text-[8px] px-1 py-0">{FRAME_PRESETS.find(f => f.id === tpl.frameStyle)?.label}</Badge>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </CardContent>
+                </Card>
+
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm flex items-center gap-2">
