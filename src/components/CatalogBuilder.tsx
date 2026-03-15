@@ -2226,7 +2226,7 @@ export default function CatalogBuilder() {
                     }`}>
                       <Check className="h-3 w-3" />
                     </div>
-                  </div>
+                  </ImageHoverMenu>
                 );
               })}
             </div>
