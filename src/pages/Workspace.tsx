@@ -423,7 +423,7 @@ export default function Workspace() {
                         {img.background_name || "רקע מותאם"}
                       </p>
                     </div>
-                  </button>
+                  </ImageHoverMenu>
                 ))}
               </div>
             )}
