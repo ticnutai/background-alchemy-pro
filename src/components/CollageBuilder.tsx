@@ -189,6 +189,7 @@ export default function CollageBuilder() {
   const [galleryItems, setGalleryItems] = useState<{ id: string; image: string; name: string }[]>([]);
   const [gallerySelected, setGallerySelected] = useState<Set<string>>(new Set());
   const [galleryLoading, setGalleryLoading] = useState(false);
+  const [galleryImportMode, setGalleryImportMode] = useState<'collage' | 'split' | 'logo'>('collage');
 
   // Smart tool processing
   const [toolProcessing, setToolProcessing] = useState<string | null>(null);
