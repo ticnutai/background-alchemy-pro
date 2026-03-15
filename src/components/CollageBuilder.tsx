@@ -17,7 +17,9 @@ import {
   Image as ImageIcon, Wand2, Palette, SunMedium, Contrast, Sparkles,
   Scissors, Eraser, RefreshCw, Type, Frame, Pencil, RotateCw, Bold,
   AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
-  BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram
+  BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram,
+  Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
+  FileDown, FilePlus2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -32,10 +34,18 @@ import {
 const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number }[] = [
   { id: "grid-2x2", label: "רשת 2×2", icon: <Grid2X2 className="h-5 w-5" />, maxImages: 4 },
   { id: "grid-3x3", label: "רשת 3×3", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 9 },
+  { id: "grid-2x3", label: "רשת 2×3", icon: <LayoutGrid className="h-5 w-5" />, maxImages: 6 },
+  { id: "grid-3x2", label: "רשת 3×2", icon: <Columns3 className="h-5 w-5" />, maxImages: 6 },
+  { id: "grid-4x4", label: "רשת 4×4", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 16 },
   { id: "hero-side", label: "Hero + צד", icon: <LayoutDashboard className="h-5 w-5" />, maxImages: 3 },
+  { id: "hero-top", label: "Hero למעלה", icon: <PanelTop className="h-5 w-5" />, maxImages: 4 },
   { id: "strip", label: "סטריפ אופקי", icon: <Rows3 className="h-5 w-5" />, maxImages: 5 },
+  { id: "strip-vertical", label: "סטריפ אנכי", icon: <ArrowDownUp className="h-5 w-5" />, maxImages: 5 },
   { id: "masonry", label: "Masonry", icon: <GalleryHorizontalEnd className="h-5 w-5" />, maxImages: 6 },
   { id: "pinterest", label: "Pinterest", icon: <GalleryHorizontalEnd className="h-5 w-5 rotate-90" />, maxImages: 6 },
+  { id: "diagonal", label: "אלכסוני", icon: <Sparkle className="h-5 w-5" />, maxImages: 4 },
+  { id: "l-shape", label: "צורת L", icon: <LayoutList className="h-5 w-5" />, maxImages: 5 },
+  { id: "featured-grid", label: "מודגש + רשת", icon: <LayoutDashboard className="h-5 w-5 rotate-180" />, maxImages: 5 },
 ];
 
 const SMART_TOOLS = [
@@ -167,9 +177,11 @@ export default function CollageBuilder() {
   });
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // Result
-  const [result, setResult] = useState<string | null>(null);
+  // Result — multi-page
+  const [pages, setPages] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState(0);
   const [processing, setProcessing] = useState(false);
+  const result = pages[currentPage] || null;
 
   // Gallery import
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -411,7 +423,7 @@ export default function CollageBuilder() {
     if (editingTextId === id) setEditingTextId(null);
   }, [editingTextId]);
 
-  // ── Generate ────────────────────────────────────────────────
+  // ── Generate (multi-page) ─────────────────────────────────────
   const handleGenerate = useCallback(async () => {
     if (images.length < 1) {
       toast.error("העלה לפחות תמונה אחת");
@@ -419,23 +431,36 @@ export default function CollageBuilder() {
     }
     setProcessing(true);
     try {
-      const collageOptions: CollageOptions = {
-        layout,
-        width: canvasWidth,
-        height: canvasHeight,
-        gap,
-        bgColor,
-        borderRadius,
-        fitMode,
-        frameStyle,
-        textOverlays,
-        bgGradient: bgGradientEnabled ? bgGradient : undefined,
-        cellBgColors: images.map(img => img.cellBgColor || null),
-        watermark: watermarkEnabled ? watermark : undefined,
-      };
-      const dataUrl = await generateCollage(images.map((img) => img.src), collageOptions);
-      setResult(dataUrl);
-      toast.success("הקולאז׳ נוצר בהצלחה!");
+      const maxPerPage = LAYOUT_OPTIONS.find(l => l.id === layout)?.maxImages || 9;
+      const allSrcs = images.map(img => img.src);
+      const allCellColors = images.map(img => img.cellBgColor || null);
+      const pageCount = Math.ceil(allSrcs.length / maxPerPage);
+      const results: string[] = [];
+
+      for (let p = 0; p < pageCount; p++) {
+        const pageSrcs = allSrcs.slice(p * maxPerPage, (p + 1) * maxPerPage);
+        const pageCellColors = allCellColors.slice(p * maxPerPage, (p + 1) * maxPerPage);
+        const collageOptions: CollageOptions = {
+          layout,
+          width: canvasWidth,
+          height: canvasHeight,
+          gap,
+          bgColor,
+          borderRadius,
+          fitMode,
+          frameStyle,
+          textOverlays,
+          bgGradient: bgGradientEnabled ? bgGradient : undefined,
+          cellBgColors: pageCellColors,
+          watermark: watermarkEnabled ? watermark : undefined,
+        };
+        const dataUrl = await generateCollage(pageSrcs, collageOptions);
+        results.push(dataUrl);
+      }
+
+      setPages(results);
+      setCurrentPage(0);
+      toast.success(results.length > 1 ? `${results.length} עמודי קולאז׳ נוצרו!` : "הקולאז׳ נוצר בהצלחה!");
     } catch {
       toast.error("שגיאה ביצירת הקולאז׳");
     }
@@ -447,9 +472,18 @@ export default function CollageBuilder() {
     if (!result) return;
     const a = document.createElement("a");
     a.href = result;
-    a.download = `collage_${Date.now()}.png`;
+    a.download = `collage_${pages.length > 1 ? `page${currentPage + 1}_` : ''}${Date.now()}.png`;
     a.click();
-  }, [result]);
+  }, [result, pages.length, currentPage]);
+
+  const downloadAllPages = useCallback(() => {
+    pages.forEach((page, i) => {
+      const a = document.createElement("a");
+      a.href = page;
+      a.download = `collage_page${i + 1}_${Date.now()}.png`;
+      a.click();
+    });
+  }, [pages]);
 
   return (
     <div className="min-h-screen bg-background" dir="rtl">
@@ -611,14 +645,17 @@ export default function CollageBuilder() {
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm">לייאאוט</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      {LAYOUT_OPTIONS.map((opt) => (
-                        <Button key={opt.id} variant={layout === opt.id ? "default" : "outline"} size="sm" className="flex-col h-auto py-2 text-[10px]" onClick={() => setLayout(opt.id)}>
-                          {opt.icon}
-                          {opt.label}
-                        </Button>
-                      ))}
-                    </div>
+                    <ScrollArea className="max-h-[280px]">
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {LAYOUT_OPTIONS.map((opt) => (
+                          <Button key={opt.id} variant={layout === opt.id ? "default" : "outline"} size="sm" className="flex-col h-auto py-1.5 text-[9px] gap-0.5" onClick={() => setLayout(opt.id)}>
+                            {opt.icon}
+                            {opt.label}
+                            <span className="text-[8px] opacity-60">עד {opt.maxImages}</span>
+                          </Button>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1123,6 +1160,15 @@ export default function CollageBuilder() {
             </Tabs>
 
             {/* Generate Button */}
+            {images.length > 0 && (
+              <div className="text-xs text-muted-foreground text-center">
+                {(() => {
+                  const maxPerPage = LAYOUT_OPTIONS.find(l => l.id === layout)?.maxImages || 9;
+                  const pageCount = Math.ceil(images.length / maxPerPage);
+                  return pageCount > 1 ? `${images.length} תמונות → ${pageCount} עמודים (${maxPerPage} לכל עמוד)` : `${images.length} תמונות`;
+                })()}
+              </div>
+            )}
             <Button className="w-full" size="lg" onClick={handleGenerate} disabled={processing || images.length < 1}>
               {processing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Layers className="h-4 w-4 ml-2" />}
               {processing ? "מייצר..." : "צור קולאז׳"}
@@ -1135,11 +1181,58 @@ export default function CollageBuilder() {
           <CardContent className="p-4 w-full">
             {result ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">תצוגה מקדימה</Badge>
-                  <Button variant="outline" size="sm" onClick={downloadCollage}><Download className="h-4 w-4 ml-1" />הורד</Button>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">תצוגה מקדימה</Badge>
+                    {pages.length > 1 && (
+                      <Badge variant="outline" className="text-xs">עמוד {currentPage + 1} / {pages.length}</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={downloadCollage}><Download className="h-4 w-4 ml-1" />הורד</Button>
+                    {pages.length > 1 && (
+                      <Button variant="outline" size="sm" onClick={downloadAllPages}><FileDown className="h-4 w-4 ml-1" />הורד הכל</Button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Page navigation */}
+                {pages.length > 1 && (
+                  <div className="flex items-center justify-center gap-2">
+                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === 0} onClick={() => setCurrentPage(p => p - 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    {pages.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors ${currentPage === i ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === pages.length - 1} onClick={() => setCurrentPage(p => p + 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+
                 <img src={result} alt="Collage preview" className="w-full rounded-lg border shadow-md" />
+
+                {/* Page thumbnails strip */}
+                {pages.length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {pages.map((page, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        className={`shrink-0 rounded-md border-2 overflow-hidden transition-all ${currentPage === i ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'}`}
+                      >
+                        <img src={page} alt={`עמוד ${i + 1}`} className="w-20 h-20 object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : images.length > 0 ? (
               <div className="text-center space-y-3">
@@ -1163,7 +1256,8 @@ export default function CollageBuilder() {
                   <Badge variant="outline">8 סגנונות גרדיאנט</Badge>
                   <Badge variant="outline">11 גופנים</Badge>
                   <Badge variant="outline">כלים חכמים</Badge>
-                  <Badge variant="outline">6 לייאאוטים</Badge>
+                  <Badge variant="outline">14 לייאאוטים</Badge>
+                  <Badge variant="outline">מרובה עמודים</Badge>
                 </div>
               </div>
             )}
