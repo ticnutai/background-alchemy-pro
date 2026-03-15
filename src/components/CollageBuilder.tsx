@@ -134,6 +134,11 @@ export default function CollageBuilder() {
   // Smart tool processing
   const [toolProcessing, setToolProcessing] = useState<string | null>(null);
 
+  // Drag reorder
+  const dragItemRef = useRef<number | null>(null);
+  const dragOverRef = useRef<number | null>(null);
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+
   // Active sidebar tab
   const [sidebarTab, setSidebarTab] = useState("images");
 
