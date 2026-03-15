@@ -252,7 +252,53 @@ export default function CollageBuilder() {
     toast.success("תבנית נמחקה");
   }, [savedTemplates]);
 
-  // ── File Upload ─────────────────────────────────────────────
+  // ── Split Image ─────────────────────────────────────────────
+  const handleSplitUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setSplitSource(ev.target?.result as string);
+      setSplitDialogOpen(true);
+    };
+    reader.readAsDataURL(file);
+    if (splitFileRef.current) splitFileRef.current.value = '';
+  }, []);
+
+  const handleSplitExecute = useCallback(async () => {
+    if (!splitSource) return;
+    setSplitProcessing(true);
+    try {
+      const options: SplitOptions = {
+        mode: splitMode,
+        cols: splitMode === 'instagram' ? splitCols : splitCols,
+        rows: splitMode === 'instagram' ? 1 : splitRows,
+        instagramAspect: splitInstagramAspect,
+      };
+      const parts = await splitImage(splitSource, options);
+      const newImages: CollageImage[] = parts.map((src, i) => ({
+        id: `split_${Date.now()}_${i}`,
+        src,
+        name: `חלק ${i + 1}`,
+      }));
+      setImages(prev => [...prev, ...newImages]);
+
+      // Auto-select matching layout
+      const totalCells = options.cols * (options.mode === 'instagram' ? 1 : options.rows);
+      if (totalCells === 4) setLayout('grid-2x2');
+      else if (totalCells === 9) setLayout('grid-3x3');
+      else if (totalCells <= 5 && options.mode === 'instagram') setLayout('strip');
+
+      setSplitDialogOpen(false);
+      setSplitSource(null);
+      toast.success(`התמונה חולקה ל-${parts.length} חלקים`);
+    } catch (err) {
+      toast.error("שגיאה בחלוקת התמונה");
+    } finally {
+      setSplitProcessing(false);
+    }
+  }, [splitSource, splitMode, splitCols, splitRows, splitInstagramAspect]);
+
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
