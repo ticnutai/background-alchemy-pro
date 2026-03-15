@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Heart, Trash2, Clock, X, Download, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import EditableLabel from "@/components/EditableLabel";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 
 interface HistoryItem {
   id: string;
@@ -22,6 +24,7 @@ interface HistoryPanelProps {
 const PAGE_SIZE = 24;
 
 const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
+  const navigate = useNavigate();
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "favorites">("all");
@@ -154,16 +157,27 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
             <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {paged.map((item) => (
-                <div
+                <ImageHoverMenu
                   key={item.id}
-                  className="group relative rounded-xl border border-border overflow-hidden bg-background transition-all hover:border-gold/40 hover:shadow-lg"
+                  imageUrl={item.result_image_url}
+                  isFavorite={item.is_favorite}
+                  hoverDelay={800}
+                  className="group rounded-xl border border-border overflow-hidden bg-background transition-all hover:border-gold/40 hover:shadow-lg"
+                  actions={{
+                    onFavorite: () => toggleFavorite(item),
+                    onZoom: () => onSelectImage?.(item.result_image_url),
+                    onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`),
+                    onCollage: () => navigate(`/collage?importImage=${encodeURIComponent(item.result_image_url)}`),
+                    onCatalog: () => navigate(`/catalog?importImage=${encodeURIComponent(item.result_image_url)}`),
+                    onDownload: () => downloadImage(item.result_image_url, item.background_name || "image"),
+                    onDelete: () => setDeleteConfirmId(item.id),
+                  }}
                 >
-                  <div className="aspect-square overflow-hidden">
+                  <div className="aspect-square overflow-hidden cursor-pointer" onClick={() => onSelectImage?.(item.result_image_url)}>
                     <img
                       src={item.result_image_url}
                       alt={item.background_name || "תוצאה"}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 cursor-pointer"
-                      onClick={() => onSelectImage?.(item.result_image_url)}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
                   </div>
                   <div className="p-3">
@@ -186,40 +200,12 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
                       {new Date(item.created_at).toLocaleDateString("he-IL")}
                     </p>
                   </div>
-
-                  {/* Actions overlay */}
-                  <div className="absolute top-2 left-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={() => toggleFavorite(item)}
-                      className={`rounded-full p-1.5 backdrop-blur-sm transition-colors ${
-                        item.is_favorite
-                          ? "bg-gold/90 text-gold-foreground"
-                          : "bg-foreground/50 text-card hover:bg-gold/90"
-                      }`}
-                    >
-                      <Heart className={`h-3.5 w-3.5 ${item.is_favorite ? "fill-current" : ""}`} />
-                    </button>
-                    <button
-                      onClick={() => downloadImage(item.result_image_url, item.background_name || "image")}
-                      className="rounded-full bg-foreground/50 p-1.5 text-card backdrop-blur-sm hover:bg-foreground/70 transition-colors"
-                    >
-                      <Download className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => setDeleteConfirmId(item.id)}
-                      className="rounded-full bg-foreground/50 p-1.5 text-card backdrop-blur-sm hover:bg-destructive transition-colors"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-
-                  {/* Favorite badge */}
                   {item.is_favorite && (
                     <div className="absolute top-2 right-2">
                       <span className="text-sm">⭐</span>
                     </div>
                   )}
-                </div>
+                </ImageHoverMenu>
               ))}
             </div>
             {totalPages > 1 && (

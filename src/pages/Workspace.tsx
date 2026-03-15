@@ -7,6 +7,7 @@ import {
   Eraser, ArrowUpCircle, Home, Upload, FolderOpen,
   Clock, Star, ChevronRight, X, FileImage,
 } from "lucide-react";
+import ImageHoverMenu from "@/components/ImageHoverMenu";
 import { supabase } from "@/integrations/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
 import studioLogo from "@/assets/studio-logo.png";
@@ -391,17 +392,27 @@ export default function Workspace() {
             ) : (
               <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
                 {recentImages.map(img => (
-                  <button
+                  <ImageHoverMenu
                     key={img.id}
-                    onClick={() => navigate("/gallery")}
-                    className="group relative aspect-square rounded-xl overflow-hidden border border-border hover:border-gold/40 transition-all hover:shadow-md"
+                    imageUrl={img.result_image_url}
+                    isFavorite={img.is_favorite}
+                    hoverDelay={800}
+                    className="group aspect-square rounded-xl overflow-hidden border border-border hover:border-gold/40 transition-all hover:shadow-md"
+                    actions={{
+                      onZoom: () => navigate("/gallery"),
+                      onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(img.result_image_url)}`),
+                      onCollage: () => navigate(`/collage?importImage=${encodeURIComponent(img.result_image_url)}`),
+                      onCatalog: () => navigate(`/catalog?importImage=${encodeURIComponent(img.result_image_url)}`),
+                    }}
                   >
-                    <img
-                      src={img.result_image_url}
-                      alt={img.background_name || ""}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                      loading="lazy"
-                    />
+                    <div className="h-full w-full cursor-pointer" onClick={() => navigate("/gallery")}>
+                      <img
+                        src={img.result_image_url}
+                        alt={img.background_name || ""}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        loading="lazy"
+                      />
+                    </div>
                     {img.is_favorite && (
                       <div className="absolute top-1 right-1">
                         <Star className="h-3 w-3 fill-gold text-gold" />
@@ -412,7 +423,7 @@ export default function Workspace() {
                         {img.background_name || "רקע מותאם"}
                       </p>
                     </div>
-                  </button>
+                  </ImageHoverMenu>
                 ))}
               </div>
             )}
