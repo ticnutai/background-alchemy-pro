@@ -1141,6 +1141,7 @@ export default function CollageBuilder() {
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm flex items-center gap-2">
                       <FolderOpen className="h-4 w-4" />תבניות שמורות ({savedTemplates.length})
+                    </h3>
                     {savedTemplates.length === 0 ? (
                       <div className="text-center py-6">
                         <BookmarkPlus className="h-10 w-10 mx-auto text-muted-foreground/30 mb-2" />
