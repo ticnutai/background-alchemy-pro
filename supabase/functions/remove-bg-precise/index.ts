@@ -33,17 +33,18 @@ serve(async (req) => {
     const base64Data = imageBase64.includes(",") ? imageBase64.split(",")[1] : imageBase64;
     const dataUri = `data:image/png;base64,${base64Data}`;
 
-    // Create prediction
-    const createRes = await fetch("https://api.replicate.com/v1/predictions", {
+    // Create prediction using model name endpoint (no version hash needed)
+    const createRes = await fetch("https://api.replicate.com/v1/models/bria/remove-background/predictions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${REPLICATE_API_TOKEN}`,
         "Content-Type": "application/json",
+        "Prefer": "wait",
       },
       body: JSON.stringify({
-        version: "d30b8e1a0fd7e63e041a2e9e46e1e5e2033a7110f539dcc2c8f056a30e27417e",
         input: {
           image: dataUri,
+          preserve_alpha: true,
         },
       }),
     });
