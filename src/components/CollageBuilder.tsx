@@ -19,7 +19,7 @@ import {
   AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
   BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram,
   Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
-  FileDown, FilePlus2, X
+  FileDown, FilePlus2, X, ArrowUpCircle, Maximize2
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
