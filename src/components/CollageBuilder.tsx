@@ -687,6 +687,54 @@ export default function CollageBuilder() {
     });
   }, [pages]);
 
+  // ── Save to Gallery ─────────────────────────────────────────
+  const [savingToGallery, setSavingToGallery] = useState(false);
+
+  const saveToGallery = useCallback(async () => {
+    if (!result) return;
+    setSavingToGallery(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("יש להתחבר כדי לשמור לגלריה");
+        setSavingToGallery(false);
+        return;
+      }
+      const ts = Date.now();
+      const blob = await fetch(result).then(r => r.blob());
+      const path = `${user.id}/${ts}_collage.png`;
+      const { error: uploadError } = await supabase.storage.from("processed-images").upload(path, blob, { contentType: "image/png" });
+      if (uploadError) throw uploadError;
+      const publicUrl = supabase.storage.from("processed-images").getPublicUrl(path).data.publicUrl;
+
+      // Use first image as "original"
+      const origSrc = images[0]?.src || result;
+      let origUrl = publicUrl;
+      if (origSrc.startsWith('data:')) {
+        const origBlob = await fetch(origSrc).then(r => r.blob());
+        const origPath = `${user.id}/${ts}_collage_orig.png`;
+        const { error: origErr } = await supabase.storage.from("processed-images").upload(origPath, origBlob, { contentType: "image/png" });
+        if (!origErr) origUrl = supabase.storage.from("processed-images").getPublicUrl(origPath).data.publicUrl;
+      }
+
+      const layoutLabel = LAYOUT_OPTIONS.find(l => l.id === layout)?.label || layout;
+      await supabase.from("processing_history").insert({
+        user_id: user.id,
+        original_image_url: origUrl,
+        result_image_url: publicUrl,
+        background_prompt: `קולאז׳ — ${layoutLabel} — ${images.length} תמונות`,
+        background_name: `קולאז׳ ${layoutLabel}`,
+      });
+
+      toast.success("הקולאז׳ נשמר בגלריה!");
+    } catch (err) {
+      toast.error("שגיאה בשמירה לגלריה");
+      console.error(err);
+    } finally {
+      setSavingToGallery(false);
+    }
+  }, [result, images, layout]);
+
   return (
     <div className="min-h-screen bg-background" dir="rtl">
       {/* Header */}
