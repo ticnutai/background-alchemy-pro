@@ -423,7 +423,7 @@ export default function CollageBuilder() {
     if (editingTextId === id) setEditingTextId(null);
   }, [editingTextId]);
 
-  // ── Generate ────────────────────────────────────────────────
+  // ── Generate (multi-page) ─────────────────────────────────────
   const handleGenerate = useCallback(async () => {
     if (images.length < 1) {
       toast.error("העלה לפחות תמונה אחת");
@@ -431,23 +431,36 @@ export default function CollageBuilder() {
     }
     setProcessing(true);
     try {
-      const collageOptions: CollageOptions = {
-        layout,
-        width: canvasWidth,
-        height: canvasHeight,
-        gap,
-        bgColor,
-        borderRadius,
-        fitMode,
-        frameStyle,
-        textOverlays,
-        bgGradient: bgGradientEnabled ? bgGradient : undefined,
-        cellBgColors: images.map(img => img.cellBgColor || null),
-        watermark: watermarkEnabled ? watermark : undefined,
-      };
-      const dataUrl = await generateCollage(images.map((img) => img.src), collageOptions);
-      setResult(dataUrl);
-      toast.success("הקולאז׳ נוצר בהצלחה!");
+      const maxPerPage = LAYOUT_OPTIONS.find(l => l.id === layout)?.maxImages || 9;
+      const allSrcs = images.map(img => img.src);
+      const allCellColors = images.map(img => img.cellBgColor || null);
+      const pageCount = Math.ceil(allSrcs.length / maxPerPage);
+      const results: string[] = [];
+
+      for (let p = 0; p < pageCount; p++) {
+        const pageSrcs = allSrcs.slice(p * maxPerPage, (p + 1) * maxPerPage);
+        const pageCellColors = allCellColors.slice(p * maxPerPage, (p + 1) * maxPerPage);
+        const collageOptions: CollageOptions = {
+          layout,
+          width: canvasWidth,
+          height: canvasHeight,
+          gap,
+          bgColor,
+          borderRadius,
+          fitMode,
+          frameStyle,
+          textOverlays,
+          bgGradient: bgGradientEnabled ? bgGradient : undefined,
+          cellBgColors: pageCellColors,
+          watermark: watermarkEnabled ? watermark : undefined,
+        };
+        const dataUrl = await generateCollage(pageSrcs, collageOptions);
+        results.push(dataUrl);
+      }
+
+      setPages(results);
+      setCurrentPage(0);
+      toast.success(results.length > 1 ? `${results.length} עמודי קולאז׳ נוצרו!` : "הקולאז׳ נוצר בהצלחה!");
     } catch {
       toast.error("שגיאה ביצירת הקולאז׳");
     }
