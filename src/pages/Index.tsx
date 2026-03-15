@@ -242,11 +242,11 @@ const Index = () => {
               </p>
             </div>
             <Link
-              to="/tool"
+              to="/workspace"
               className="flex items-center gap-2 rounded-full bg-gold px-8 py-3.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 shrink-0"
             >
               <Sparkles className="h-4 w-4" />
-              לכלי AI
+              לסטודיו עריכה
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </div>
