@@ -97,6 +97,35 @@ const BG_GRADIENT_PRESETS = [
 
 type CollageImage = { id: string; src: string; name: string; cellBgColor?: string };
 
+interface CollageTemplate {
+  id: string;
+  name: string;
+  createdAt: number;
+  layout: CollageLayout;
+  gap: number;
+  borderRadius: number;
+  bgColor: string;
+  canvasHeight: number;
+  fitMode: 'contain' | 'cover';
+  frameStyle: FrameStyle;
+  bgGradientEnabled: boolean;
+  bgGradient: { from: string; to: string; angle: number };
+  textOverlays: CollageTextOverlay[];
+}
+
+const TEMPLATES_STORAGE_KEY = 'collage-templates';
+
+function loadTemplatesFromStorage(): CollageTemplate[] {
+  try {
+    const raw = localStorage.getItem(TEMPLATES_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+function saveTemplatesToStorage(templates: CollageTemplate[]) {
+  localStorage.setItem(TEMPLATES_STORAGE_KEY, JSON.stringify(templates));
+}
+
 let _tid = 0;
 const newTextId = () => `txt_${Date.now()}_${++_tid}`;
 
