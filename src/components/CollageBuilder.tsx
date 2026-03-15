@@ -71,17 +71,30 @@ const FRAME_PRESETS: { id: FrameStyle; label: string; description: string }[] = 
 ];
 
 const FONT_OPTIONS = [
-  { id: "hebrew-modern", label: "עברית מודרנית" },
-  { id: "hebrew-classic", label: "עברית קלאסית" },
-  { id: "hebrew-display", label: "עברית דיספליי" },
-  { id: "hebrew-elegant", label: "עברית אלגנטית" },
-  { id: "luxury", label: "Luxury" },
-  { id: "elegant-serif", label: "Elegant Serif" },
-  { id: "modern-sans", label: "Modern Sans" },
-  { id: "classic-serif", label: "Classic Serif" },
-  { id: "bold-display", label: "Bold Display" },
-  { id: "handwritten", label: "כתב יד" },
-  { id: "mono", label: "Mono" },
+  { id: "hebrew-modern", label: "עברית מודרנית", category: "עברית" },
+  { id: "hebrew-classic", label: "עברית קלאסית", category: "עברית" },
+  { id: "hebrew-display", label: "עברית דיספליי", category: "עברית" },
+  { id: "hebrew-elegant", label: "עברית אלגנטית", category: "עברית" },
+  { id: "hebrew-secular", label: "סקולר", category: "עברית" },
+  { id: "hebrew-suez", label: "סואץ", category: "עברית" },
+  { id: "hebrew-varela", label: "וארלה", category: "עברית" },
+  { id: "hebrew-karantina", label: "קרנטינה", category: "עברית" },
+  { id: "hebrew-noto", label: "נוטו", category: "עברית" },
+  { id: "hebrew-fredoka", label: "פרדוקה", category: "עברית" },
+  { id: "hebrew-amatic", label: "אמאטיק", category: "עברית" },
+  { id: "luxury", label: "Luxury", category: "אנגלית" },
+  { id: "elegant-serif", label: "Elegant Serif", category: "אנגלית" },
+  { id: "modern-sans", label: "Modern Sans", category: "אנגלית" },
+  { id: "classic-serif", label: "Classic Serif", category: "אנגלית" },
+  { id: "bold-display", label: "Bold Display", category: "אנגלית" },
+  { id: "display-bebas", label: "Bebas Neue", category: "אנגלית" },
+  { id: "display-abril", label: "Abril Fatface", category: "אנגלית" },
+  { id: "display-righteous", label: "Righteous", category: "אנגלית" },
+  { id: "handwritten", label: "כתב יד", category: "דקורטיבי" },
+  { id: "script-satisfy", label: "Satisfy", category: "דקורטיבי" },
+  { id: "script-lobster", label: "Lobster", category: "דקורטיבי" },
+  { id: "script-pacifico", label: "Pacifico", category: "דקורטיבי" },
+  { id: "mono", label: "Mono", category: "אחר" },
 ];
 
 const TEXT_PRESETS: { label: string; overlay: Partial<CollageTextOverlay> }[] = [
@@ -93,6 +106,17 @@ const TEXT_PRESETS: { label: string; overlay: Partial<CollageTextOverlay> }[] = 
   { label: "כתב יד אישי", overlay: { fontSize: 40, fontFamily: "handwritten", fontWeight: "normal", color: "#6b4c3b" } },
   { label: "מודרני עם קו חיצוני", overlay: { fontSize: 60, fontFamily: "bold-display", fontWeight: "black", color: "#ffffff", stroke: { color: "#1a1a2e", width: 3 } } },
   { label: "אלגנטי עם סיבוב", overlay: { fontSize: 36, fontFamily: "elegant-serif", fontWeight: "normal", color: "#c9a84c", rotation: -5 } },
+  // New presets
+  { label: "סקולר כחול חזק", overlay: { fontSize: 58, fontFamily: "hebrew-secular", fontWeight: "bold", color: "#1e3a5f", shadow: { color: "rgba(0,0,0,0.3)", blur: 6, offsetX: 1, offsetY: 2 } } },
+  { label: "קרנטינה דרמטית", overlay: { fontSize: 72, fontFamily: "hebrew-karantina", fontWeight: "bold", color: "#e63946", shadow: { color: "rgba(0,0,0,0.6)", blur: 10, offsetX: 3, offsetY: 3 } } },
+  { label: "אמאטיק שמח", overlay: { fontSize: 68, fontFamily: "hebrew-amatic", fontWeight: "bold", color: "#ff6b6b" } },
+  { label: "פרדוקה ילדותי", overlay: { fontSize: 50, fontFamily: "hebrew-fredoka", fontWeight: "bold", color: "#6c5ce7" } },
+  { label: "וארלה נקי", overlay: { fontSize: 42, fontFamily: "hebrew-varela", fontWeight: "normal", color: "#2d3436" } },
+  { label: "Bebas סינמטי", overlay: { fontSize: 70, fontFamily: "display-bebas", fontWeight: "bold", color: "#ffffff", stroke: { color: "#000000", width: 2 } } },
+  { label: "ורוד גרדיאנט", overlay: { fontSize: 54, fontFamily: "hebrew-fredoka", fontWeight: "bold", gradient: { from: "#ee5a6f", to: "#f0a6ca", angle: 90 } } },
+  { label: "ירוק טבעי", overlay: { fontSize: 46, fontFamily: "hebrew-suez", fontWeight: "bold", color: "#2d6a4f", shadow: { color: "rgba(0,0,0,0.3)", blur: 5, offsetX: 1, offsetY: 1 } } },
+  { label: "Lobster רומנטי", overlay: { fontSize: 52, fontFamily: "script-lobster", fontWeight: "normal", color: "#d63384" } },
+  { label: "זהב על שחור", overlay: { fontSize: 60, fontFamily: "hebrew-suez", fontWeight: "bold", color: "#ffd700", shadow: { color: "#000", blur: 15, offsetX: 0, offsetY: 0 } } },
 ];
 
 const BG_GRADIENT_PRESETS = [
@@ -125,6 +149,97 @@ interface CollageTemplate {
 }
 
 const TEMPLATES_STORAGE_KEY = 'collage-templates';
+
+// Built-in smart templates
+const BUILTIN_TEMPLATES: CollageTemplate[] = [
+  {
+    id: 'builtin-luxury-gold', name: '✨ יוקרה זהב', createdAt: 0,
+    layout: 'grid-2x2', gap: 16, borderRadius: 12, bgColor: '#1a1a2e', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'double-gold', bgGradientEnabled: true,
+    bgGradient: { from: '#1a1a2e', to: '#2d1b4e', angle: 135 },
+    textOverlays: [{ id: 'b1', text: 'קולקציה חדשה', x: 0.5, y: 0.08, fontSize: 52, fontFamily: 'luxury', fontWeight: 'bold', color: '#c9a84c', align: 'center', opacity: 1, rotation: 0, shadow: { color: 'rgba(0,0,0,0.5)', blur: 8, offsetX: 2, offsetY: 2 } }],
+  },
+  {
+    id: 'builtin-minimal-white', name: '⬜ מינימל לבן', createdAt: 0,
+    layout: 'grid-3x2', gap: 24, borderRadius: 0, bgColor: '#ffffff', canvasHeight: 1000,
+    fitMode: 'contain', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#fff', to: '#fff', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-instagram-story', name: '📱 סטורי אינסטגרם', createdAt: 0,
+    layout: 'hero-top', gap: 8, borderRadius: 16, bgColor: '#f5f0e8', canvasHeight: 1920,
+    fitMode: 'cover', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#f5e6d3', to: '#e8c7a7', angle: 180 },
+    textOverlays: [{ id: 'b2', text: 'NEW IN', x: 0.5, y: 0.04, fontSize: 40, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#1a1a2e', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-dark-cinema', name: '🎬 קולנועי כהה', createdAt: 0,
+    layout: 'strip', gap: 4, borderRadius: 0, bgColor: '#000000', canvasHeight: 600,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#000', to: '#000', angle: 0 },
+    textOverlays: [{ id: 'b3', text: 'THE COLLECTION', x: 0.5, y: 0.9, fontSize: 48, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.8, rotation: 0 }],
+  },
+  {
+    id: 'builtin-pastel-soft', name: '🌸 פסטל רך', createdAt: 0,
+    layout: 'featured-grid', gap: 14, borderRadius: 20, bgColor: '#fce4ec', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#fce4ec', to: '#f3e5f5', angle: 135 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-neon-night', name: '🌃 ניאון לילי', createdAt: 0,
+    layout: 'diagonal', gap: 0, borderRadius: 8, bgColor: '#0a0a1a', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'neon-glow', bgGradientEnabled: true,
+    bgGradient: { from: '#0a0a1a', to: '#1a0a2e', angle: 135 },
+    textOverlays: [{ id: 'b4', text: 'NIGHT EDITION', x: 0.5, y: 0.5, fontSize: 56, fontFamily: 'modern-sans', fontWeight: 'bold', color: '#00f0ff', align: 'center', opacity: 1, rotation: -15, shadow: { color: '#00f0ff', blur: 25, offsetX: 0, offsetY: 0 } }],
+  },
+  {
+    id: 'builtin-vintage-warm', name: '📜 וינטאג׳ חם', createdAt: 0,
+    layout: 'l-shape', gap: 10, borderRadius: 4, bgColor: '#f5e6d3', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'vintage-border', bgGradientEnabled: false,
+    bgGradient: { from: '#f5e6d3', to: '#f5e6d3', angle: 0 },
+    textOverlays: [{ id: 'b5', text: 'קלאסיקה', x: 0.5, y: 0.06, fontSize: 44, fontFamily: 'hebrew-suez', fontWeight: 'bold', color: '#6b4c3b', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-kids-fun', name: '🎉 ילדים שמח', createdAt: 0,
+    layout: 'grid-2x3', gap: 10, borderRadius: 24, bgColor: '#fff3e0', canvasHeight: 1400,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#fff3e0', to: '#e1f5fe', angle: 135 },
+    textOverlays: [{ id: 'b6', text: '!יום הולדת שמח', x: 0.5, y: 0.05, fontSize: 52, fontFamily: 'hebrew-fredoka', fontWeight: 'bold', color: '#6c5ce7', align: 'center', opacity: 1, rotation: -3 }],
+  },
+  {
+    id: 'builtin-marble-lux', name: '💎 שיש יוקרתי', createdAt: 0,
+    layout: 'hero-side', gap: 12, borderRadius: 8, bgColor: '#f0ece3', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'marble-edge', bgGradientEnabled: false,
+    bgGradient: { from: '#f0ece3', to: '#f0ece3', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-sale-bold', name: '🔥 מבצע בולט', createdAt: 0,
+    layout: 'grid-2x2', gap: 6, borderRadius: 0, bgColor: '#e63946', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#e63946', to: '#d00000', angle: 180 },
+    textOverlays: [
+      { id: 'b7', text: 'SALE', x: 0.5, y: 0.5, fontSize: 120, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.15, rotation: -30 },
+      { id: 'b8', text: '50% הנחה', x: 0.5, y: 0.92, fontSize: 48, fontFamily: 'hebrew-karantina', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 1, rotation: 0 },
+    ],
+  },
+  {
+    id: 'builtin-catalog-pro', name: '📋 קטלוג מקצועי', createdAt: 0,
+    layout: 'grid-4x4', gap: 2, borderRadius: 0, bgColor: '#f8f9fa', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: false,
+    bgGradient: { from: '#f8f9fa', to: '#f8f9fa', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-nature-green', name: '🌿 טבע ירוק', createdAt: 0,
+    layout: 'masonry', gap: 10, borderRadius: 12, bgColor: '#1b4332', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#1b4332', to: '#2d6a4f', angle: 135 },
+    textOverlays: [],
+  },
+];
 
 function loadTemplatesFromStorage(): CollageTemplate[] {
   try {
@@ -1005,8 +1120,21 @@ export default function CollageBuilder() {
                           <Label className="text-[10px]">גופן</Label>
                           <Select value={editingText.fontFamily} onValueChange={v => updateTextOverlay(editingText.id, { fontFamily: v })}>
                             <SelectTrigger className="h-7 text-[10px]"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {FONT_OPTIONS.map(f => <SelectItem key={f.id} value={f.id} className="text-xs">{f.label}</SelectItem>)}
+                            <SelectContent className="max-h-[300px]">
+                              {['עברית', 'אנגלית', 'דקורטיבי', 'אחר'].map(cat => {
+                                const fonts = FONT_OPTIONS.filter(f => f.category === cat);
+                                if (fonts.length === 0) return null;
+                                return (
+                                  <div key={cat}>
+                                    <div className="px-2 py-1 text-[9px] font-bold text-muted-foreground uppercase">{cat}</div>
+                                    {fonts.map(f => (
+                                      <SelectItem key={f.id} value={f.id} className="text-xs">
+                                        {f.label}
+                                      </SelectItem>
+                                    ))}
+                                  </div>
+                                );
+                              })}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1155,6 +1283,33 @@ export default function CollageBuilder() {
                         <input type="file" accept=".json" className="hidden" onChange={importTemplates} />
                       </label>
                     </div>
+                  </CardContent>
+                </Card>
+
+                {/* Built-in Smart Templates */}
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="font-semibold text-sm flex items-center gap-2">
+                      <Sparkles className="h-4 w-4" />תבניות מוכנות ({BUILTIN_TEMPLATES.length})
+                    </h3>
+                    <ScrollArea className="max-h-[300px]">
+                      <div className="grid grid-cols-2 gap-2">
+                        {BUILTIN_TEMPLATES.map(tpl => (
+                          <button
+                            key={tpl.id}
+                            onClick={() => loadTemplate(tpl)}
+                            className="border rounded-lg p-2 text-right hover:border-primary/50 hover:bg-accent/30 transition-all space-y-1"
+                          >
+                            <div className="w-full h-8 rounded" style={{ background: tpl.bgGradientEnabled ? `linear-gradient(${tpl.bgGradient.angle}deg, ${tpl.bgGradient.from}, ${tpl.bgGradient.to})` : tpl.bgColor }} />
+                            <p className="text-xs font-semibold truncate">{tpl.name}</p>
+                            <div className="flex flex-wrap gap-0.5">
+                              <Badge variant="outline" className="text-[8px] px-1 py-0">{LAYOUT_OPTIONS.find(l => l.id === tpl.layout)?.label || tpl.layout}</Badge>
+                              {tpl.frameStyle !== 'none' && <Badge variant="outline" className="text-[8px] px-1 py-0">{FRAME_PRESETS.find(f => f.id === tpl.frameStyle)?.label}</Badge>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </ScrollArea>
                   </CardContent>
                 </Card>
 
@@ -1319,7 +1474,7 @@ export default function CollageBuilder() {
                   <Badge variant="outline">9 מסגרות יוקרתיות</Badge>
                   <Badge variant="outline">טקסט מעוצב</Badge>
                   <Badge variant="outline">8 סגנונות גרדיאנט</Badge>
-                  <Badge variant="outline">11 גופנים</Badge>
+                  <Badge variant="outline">25 גופנים</Badge>
                   <Badge variant="outline">כלים חכמים</Badge>
                   <Badge variant="outline">14 לייאאוטים</Badge>
                   <Badge variant="outline">מרובה עמודים</Badge>
