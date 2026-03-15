@@ -864,10 +864,18 @@ function getMaxImages(layout: CollageLayout): number {
   switch (layout) {
     case 'grid-2x2': return 4;
     case 'grid-3x3': return 9;
+    case 'grid-2x3': return 6;
+    case 'grid-3x2': return 6;
+    case 'grid-4x4': return 16;
     case 'masonry': return 6;
     case 'hero-side': return 3;
+    case 'hero-top': return 4;
     case 'strip': return 5;
+    case 'strip-vertical': return 5;
     case 'pinterest': return 6;
+    case 'diagonal': return 4;
+    case 'l-shape': return 5;
+    case 'featured-grid': return 5;
     default: return 9;
   }
 }
@@ -877,33 +885,40 @@ interface Cell { x: number; y: number; w: number; h: number }
 function getCells(layout: CollageLayout, W: number, H: number, gap: number, count: number): Cell[] {
   const cells: Cell[] = [];
 
+  const gridLayout = (cols: number, rows: number) => {
+    const cw = (W - gap * (cols + 1)) / cols;
+    const ch = (H - gap * (rows + 1)) / rows;
+    for (let r = 0; r < rows; r++)
+      for (let c = 0; c < cols; c++)
+        cells.push({ x: gap + c * (cw + gap), y: gap + r * (ch + gap), w: cw, h: ch });
+  };
+
   switch (layout) {
-    case 'grid-2x2': {
-      const cols = 2, rows = 2;
-      const cw = (W - gap * (cols + 1)) / cols;
-      const ch = (H - gap * (rows + 1)) / rows;
-      for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols; c++)
-          cells.push({ x: gap + c * (cw + gap), y: gap + r * (ch + gap), w: cw, h: ch });
-      break;
-    }
-    case 'grid-3x3': {
-      const cols = 3, rows = 3;
-      const cw = (W - gap * (cols + 1)) / cols;
-      const ch = (H - gap * (rows + 1)) / rows;
-      for (let r = 0; r < rows; r++)
-        for (let c = 0; c < cols; c++)
-          cells.push({ x: gap + c * (cw + gap), y: gap + r * (ch + gap), w: cw, h: ch });
-      break;
-    }
+    case 'grid-2x2': gridLayout(2, 2); break;
+    case 'grid-3x3': gridLayout(3, 3); break;
+    case 'grid-2x3': gridLayout(2, 3); break;
+    case 'grid-3x2': gridLayout(3, 2); break;
+    case 'grid-4x4': gridLayout(4, 4); break;
+
     case 'hero-side': {
-      // Large hero left + two stacked right
       const heroW = W * 0.6 - gap * 1.5;
       const sideW = W * 0.4 - gap * 1.5;
       cells.push({ x: gap, y: gap, w: heroW, h: H - gap * 2 });
       const sideH = (H - gap * 3) / 2;
       cells.push({ x: heroW + gap * 2, y: gap, w: sideW, h: sideH });
       cells.push({ x: heroW + gap * 2, y: sideH + gap * 2, w: sideW, h: sideH });
+      break;
+    }
+    case 'hero-top': {
+      const heroH = H * 0.55 - gap;
+      const bottomH = H * 0.45 - gap;
+      cells.push({ x: gap, y: gap, w: W - gap * 2, h: heroH });
+      const n = Math.min(count - 1, 3);
+      if (n > 0) {
+        const cw = (W - gap * (n + 1)) / n;
+        for (let i = 0; i < n; i++)
+          cells.push({ x: gap + i * (cw + gap), y: heroH + gap * 2, w: cw, h: bottomH - gap });
+      }
       break;
     }
     case 'strip': {
@@ -913,14 +928,20 @@ function getCells(layout: CollageLayout, W: number, H: number, gap: number, coun
         cells.push({ x: gap + i * (cw + gap), y: gap, w: cw, h: H - gap * 2 });
       break;
     }
+    case 'strip-vertical': {
+      const n = Math.min(count, 5);
+      const ch = (H - gap * (n + 1)) / n;
+      for (let i = 0; i < n; i++)
+        cells.push({ x: gap, y: gap + i * (ch + gap), w: W - gap * 2, h: ch });
+      break;
+    }
     case 'masonry': {
-      // Pinterest-like staggered layout
       const cols = 3;
       const colW = (W - gap * (cols + 1)) / cols;
       const colHeights = new Array(cols).fill(gap);
       for (let i = 0; i < Math.min(count, 6); i++) {
         const col = colHeights.indexOf(Math.min(...colHeights));
-        const cellH = colW * (0.8 + Math.random() * 0.6); // varied heights
+        const cellH = colW * (0.8 + Math.random() * 0.6);
         cells.push({ x: gap + col * (colW + gap), y: colHeights[col], w: colW, h: cellH });
         colHeights[col] += cellH + gap;
       }
@@ -936,6 +957,45 @@ function getCells(layout: CollageLayout, W: number, H: number, gap: number, coun
         cells.push({ x: gap + col * (colW + gap), y: colHeights[col], w: colW, h: cellH });
         colHeights[col] += cellH + gap;
       }
+      break;
+    }
+    case 'diagonal': {
+      const n = Math.min(count, 4);
+      const cellW = W * 0.55;
+      const cellH = H * 0.55;
+      const stepX = (W - cellW) / Math.max(n - 1, 1);
+      const stepY = (H - cellH) / Math.max(n - 1, 1);
+      for (let i = 0; i < n; i++)
+        cells.push({ x: stepX * i, y: stepY * i, w: cellW, h: cellH });
+      break;
+    }
+    case 'l-shape': {
+      // Big top-left, 2 right, 2 bottom
+      const mainW = W * 0.6 - gap;
+      const mainH = H * 0.6 - gap;
+      const sideW = W * 0.4 - gap;
+      const botH = H * 0.4 - gap;
+      cells.push({ x: gap, y: gap, w: mainW, h: mainH });
+      cells.push({ x: mainW + gap * 2, y: gap, w: sideW - gap, h: mainH / 2 - gap / 2 });
+      cells.push({ x: mainW + gap * 2, y: gap + mainH / 2 + gap / 2, w: sideW - gap, h: mainH / 2 - gap / 2 });
+      const n = Math.min(count - 3, 2);
+      const bw = (mainW - (n > 1 ? gap : 0)) / Math.max(n, 1);
+      for (let i = 0; i < n; i++)
+        cells.push({ x: gap + i * (bw + gap), y: mainH + gap * 2, w: bw, h: botH - gap });
+      break;
+    }
+    case 'featured-grid': {
+      // Large featured image left spanning full height, 2x2 grid right
+      const featW = W * 0.5 - gap;
+      cells.push({ x: gap, y: gap, w: featW, h: H - gap * 2 });
+      const gridW = W * 0.5 - gap * 2;
+      const cw = (gridW - gap) / 2;
+      const ch = (H - gap * 3) / 2;
+      const ox = featW + gap * 2;
+      cells.push({ x: ox, y: gap, w: cw, h: ch });
+      cells.push({ x: ox + cw + gap, y: gap, w: cw, h: ch });
+      cells.push({ x: ox, y: ch + gap * 2, w: cw, h: ch });
+      cells.push({ x: ox + cw + gap, y: ch + gap * 2, w: cw, h: ch });
       break;
     }
   }
