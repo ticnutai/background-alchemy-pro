@@ -13,6 +13,25 @@ import {
   lightingPresets, upscaleOptions,
 } from "@/lib/ai-tools";
 
+const getColorPreviewFilter = (style: string, intensity: number): string => {
+  const i = intensity / 100;
+  const filters: Record<string, string> = {
+    "cinematic": `contrast(${1 + 0.2 * i}) saturate(${1 + 0.3 * i}) sepia(${0.15 * i})`,
+    "vintage": `sepia(${0.4 * i}) contrast(${1 + 0.1 * i}) brightness(${1 + 0.05 * i}) saturate(${1 - 0.2 * i})`,
+    "moody": `brightness(${1 - 0.2 * i}) contrast(${1 + 0.3 * i}) saturate(${1 + 0.1 * i})`,
+    "bright-airy": `brightness(${1 + 0.2 * i}) contrast(${1 - 0.1 * i}) saturate(${1 - 0.1 * i})`,
+    "warm-gold": `sepia(${0.3 * i}) saturate(${1 + 0.4 * i}) brightness(${1 + 0.05 * i})`,
+    "cool-blue": `hue-rotate(${15 * i}deg) saturate(${1 + 0.2 * i}) brightness(${1 + 0.05 * i})`,
+    "cool-silver": `saturate(${1 - 0.3 * i}) brightness(${1 + 0.1 * i}) contrast(${1 + 0.1 * i})`,
+    "pastel": `saturate(${1 - 0.35 * i}) brightness(${1 + 0.15 * i}) contrast(${1 - 0.1 * i})`,
+    "dramatic-red": `sepia(${0.2 * i}) hue-rotate(${-10 * i}deg) saturate(${1 + 0.6 * i}) contrast(${1 + 0.15 * i})`,
+    "earthy-natural": `sepia(${0.25 * i}) saturate(${1 - 0.15 * i}) contrast(${1 + 0.1 * i}) brightness(${1 - 0.05 * i})`,
+    "high-contrast": `contrast(${1 + 0.5 * i}) saturate(${1 + 0.2 * i})`,
+    "moody-dark": `brightness(${1 - 0.25 * i}) contrast(${1 + 0.35 * i}) saturate(${1 + 0.15 * i})`,
+  };
+  return filters[style] || filters["cinematic"];
+};
+
 interface AdvancedToolsPanelProps {
   originalImage: string;
   resultImage: string | null;
