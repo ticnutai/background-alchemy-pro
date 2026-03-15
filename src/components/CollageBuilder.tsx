@@ -1540,6 +1540,10 @@ export default function CollageBuilder() {
                     )}
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={saveToGallery} disabled={savingToGallery}>
+                      {savingToGallery ? <RefreshCw className="h-4 w-4 ml-1 animate-spin" /> : <Save className="h-4 w-4 ml-1" />}
+                      שמור לגלריה
+                    </Button>
                     <Button variant="outline" size="sm" onClick={downloadCollage}><Download className="h-4 w-4 ml-1" />הורד</Button>
                     {pages.length > 1 && (
                       <Button variant="outline" size="sm" onClick={downloadAllPages}><FileDown className="h-4 w-4 ml-1" />הורד הכל</Button>
