@@ -223,22 +223,14 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
               ))}
             </div>
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 pt-4">
-                <button
-                  disabled={page <= 0}
-                  onClick={() => setPage((p) => Math.max(0, p - 1))}
-                  className="rounded-lg p-1.5 hover:bg-secondary disabled:opacity-30 transition-colors"
-                >
+              <div className="flex items-center justify-center gap-4 pt-4" dir="rtl">
+                <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
+                  className="rounded-lg p-1.5 hover:bg-secondary disabled:opacity-30 transition-colors">
                   <ChevronRight className="h-5 w-5" />
                 </button>
-                <span className="font-accent text-xs text-muted-foreground">
-                  עמוד {page + 1} מתוך {totalPages}
-                </span>
-                <button
-                  disabled={page >= totalPages - 1}
-                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                  className="rounded-lg p-1.5 hover:bg-secondary disabled:opacity-30 transition-colors"
-                >
+                <span className="font-body text-sm text-muted-foreground">עמוד {page + 1} מתוך {totalPages}</span>
+                <button onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}
+                  className="rounded-lg p-1.5 hover:bg-secondary disabled:opacity-30 transition-colors">
                   <ChevronLeft className="h-5 w-5" />
                 </button>
               </div>

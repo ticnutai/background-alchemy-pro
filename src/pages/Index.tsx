@@ -47,7 +47,6 @@ const Index = () => {
           </div>
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            {/* Hamburger for mobile */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               className="rounded-lg p-2 hover:bg-secondary transition-colors md:hidden"
@@ -77,7 +76,6 @@ const Index = () => {
             </Link>
           </div>
         </div>
-        {/* Mobile dropdown menu */}
         {mobileMenuOpen && (
           <div className="md:hidden border-t border-gold/20 bg-background/95 backdrop-blur-md px-6 py-4 space-y-3">
             <a href="#home" onClick={() => setMobileMenuOpen(false)} className="block font-display text-sm font-medium text-foreground hover:text-gold transition-colors">דף הבית</a>

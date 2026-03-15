@@ -14,8 +14,9 @@ const Collage = lazy(() => import("./pages/Collage.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 
 const PageLoader = () => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="animate-pulse text-muted-foreground text-sm">טוען...</div>
+  <div className="flex items-center justify-center min-h-screen">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+    <span className="mr-3 text-muted-foreground">טוען...</span>
   </div>
 );
 
