@@ -1162,18 +1162,18 @@ async function drawProductCard(
       const drawY = imgY + (imgH - drawH) / 2;
 
       ctx.save();
-      // Apply clip for curated frames
-      const clipped = applyFrameClip(ctx, frame, imgX, imgY, imgW, imgH);
+      // Apply clip for curated frames — use actual image bounds
+      const clipped = applyFrameClip(ctx, frame, drawX, drawY, drawW, drawH);
       if (!clipped && (template === "grid-shadow" || template === "luxury")) {
-        drawRoundedRect(ctx, imgX, imgY, imgW, imgH, 8);
+        drawRoundedRect(ctx, drawX, drawY, drawW, drawH, 8);
         ctx.clip();
       }
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
       ctx.restore();
 
-      // Draw decorative frame around image area
+      // Draw decorative frame around actual image bounds
       if (frame !== "none") {
-        drawFrame(ctx, frame, imgX, imgY, imgW, imgH, settings.brandColor, settings.accentColor);
+        drawFrame(ctx, frame, drawX, drawY, drawW, drawH, settings.brandColor, settings.accentColor);
       }
     } catch {
       ctx.fillStyle = hexToRgba(settings.brandColor, 0.1);
