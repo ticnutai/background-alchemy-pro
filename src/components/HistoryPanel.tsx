@@ -200,7 +200,7 @@ const HistoryPanel = ({ onClose, onSelectImage }: HistoryPanelProps) => {
                       <Download className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => deleteItem(item.id)}
+                      onClick={() => setDeleteConfirmId(item.id)}
                       className="rounded-full bg-foreground/50 p-1.5 text-card backdrop-blur-sm hover:bg-destructive transition-colors"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
