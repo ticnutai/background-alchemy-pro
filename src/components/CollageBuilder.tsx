@@ -1747,24 +1747,38 @@ export default function CollageBuilder() {
             ) : (
               <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 p-1">
                 {galleryItems.map((item) => (
-                  <div
+                  <ImageHoverMenu
                     key={item.id}
-                    className={`relative rounded-lg overflow-hidden border-2 cursor-pointer transition-all ${gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/30"}`}
-                    onClick={() => {
-                      if (galleryImportMode === 'split' || galleryImportMode === 'logo') {
-                        // Single selection mode
-                        setGallerySelected(new Set([item.id]));
-                      } else {
-                        setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; });
-                      }
+                    imageUrl={item.image}
+                    hoverDelay={800}
+                    className={`relative rounded-lg border-2 cursor-pointer transition-all ${gallerySelected.has(item.id) ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/30"}`}
+                    actions={{
+                      onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(item.image)}`),
+                      onCatalog: () => navigate(`/catalog?importImage=${encodeURIComponent(item.image)}`),
+                      onDownload: () => {
+                        const link = document.createElement("a");
+                        link.href = item.image;
+                        link.download = item.name || "image.png";
+                        link.click();
+                      },
                     }}
                   >
-                    <img src={item.image} alt={item.name} className="w-full aspect-square object-cover" loading="lazy" />
-                    {gallerySelected.has(item.id) && (
-                      <div className="absolute inset-0 bg-primary/20 flex items-center justify-center"><Check className="h-6 w-6 text-primary" /></div>
-                    )}
-                    <div className="absolute bottom-0 inset-x-0 bg-foreground/60 text-background text-[10px] p-1 truncate">{item.name}</div>
-                  </div>
+                    <div
+                      onClick={() => {
+                        if (galleryImportMode === 'split' || galleryImportMode === 'logo') {
+                          setGallerySelected(new Set([item.id]));
+                        } else {
+                          setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; });
+                        }
+                      }}
+                    >
+                      <img src={item.image} alt={item.name} className="w-full aspect-square object-cover rounded-t-lg" loading="lazy" />
+                      {gallerySelected.has(item.id) && (
+                        <div className="absolute inset-0 bg-primary/20 flex items-center justify-center"><Check className="h-6 w-6 text-primary" /></div>
+                      )}
+                      <div className="absolute bottom-0 inset-x-0 bg-foreground/60 text-background text-[10px] p-1 truncate">{item.name}</div>
+                    </div>
+                  </ImageHoverMenu>
                 ))}
               </div>
             )}
