@@ -753,132 +753,123 @@ const Gallery = () => {
                       <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
                     </div>
 
-                    {/* Hover action popup - top center */}
+                    {/* Hover action popup - centered popover */}
                     {hoveredItemId === item.id && !compareMode && (
-                      <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1 rounded-full bg-card/95 backdrop-blur-md shadow-lg border border-border px-2 py-1.5 animate-in fade-in slide-in-from-top-2 duration-200">
-                        <button
-                          onClick={e => { e.stopPropagation(); toggleFavorite(item); }}
-                          className={`rounded-full p-1.5 transition-colors ${
-                            item.is_favorite ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
-                          }`}
-                          title={item.is_favorite ? "הסר ממועדפים" : "הוסף למועדפים"}
+                      <div className="absolute inset-0 z-10 flex items-center justify-center bg-foreground/40 backdrop-blur-[2px] animate-in fade-in duration-200 rounded-xl">
+                        <div
+                          className="grid grid-cols-4 gap-1 rounded-xl bg-card/95 backdrop-blur-md shadow-xl border border-border p-2 animate-in zoom-in-90 duration-200"
+                          onClick={e => e.stopPropagation()}
                         >
-                          <Heart className={`h-3.5 w-3.5 ${item.is_favorite ? "fill-current" : ""}`} />
-                        </button>
-                        <div className="w-px h-4 bg-border" />
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            if (!compareMode) {
-                              setCompareMode(true);
-                            }
-                            toggleCompareItem(item);
-                          }}
-                          className={`rounded-full p-1.5 transition-colors ${
-                            compareItems.find(c => c.id === item.id) ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
-                          }`}
-                          title="הוסף להשוואה"
-                        >
-                          <SlidersHorizontal className="h-3.5 w-3.5" />
-                        </button>
-                        <div className="w-px h-4 bg-border" />
-                        <button
-                          onClick={e => { e.stopPropagation(); setPinnedItem(item); setSideBySideIndex(0); setViewMode("sideBySide"); }}
-                          className={`rounded-full p-1.5 transition-colors ${
-                            pinnedItem?.id === item.id ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
-                          }`}
-                          title="נעץ להשוואה"
-                        >
-                          <Pin className="h-3.5 w-3.5" />
-                        </button>
-                        <div className="w-px h-4 bg-border" />
-                         <button
-                          onClick={e => { e.stopPropagation(); setZoomedItem(item); }}
-                          className="rounded-full p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-                          title="הגדל"
-                        >
-                          <ZoomIn className="h-3.5 w-3.5" />
-                        </button>
-                        <div className="w-px h-4 bg-border" />
-                        <button
-                          onClick={e => {
-                            e.stopPropagation();
-                            navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`);
-                          }}
-                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          title="ערוך בכלי העריכה"
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                        </button>
-                        <div className="w-px h-4 bg-border" />
-                        <button
-                          onClick={e => { e.stopPropagation(); duplicateItem(item); }}
-                          className="rounded-full p-1.5 text-muted-foreground hover:text-accent-foreground hover:bg-accent/10 transition-colors"
-                          title="שכפל תמונה"
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          onClick={e => { e.stopPropagation(); duplicateItem(item, true); }}
-                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          title="שכפל וערוך"
-                        >
-                          <span className="flex items-center gap-0.5"><Copy className="h-3 w-3" /><Pencil className="h-3 w-3" /></span>
-                        </button>
-                        <div className="w-px h-4 bg-border" />
-                        {/* Folder assignment */}
-                        <div className="relative">
                           <button
-                            onClick={e => { e.stopPropagation(); setFolderMenuItemId(folderMenuItemId === item.id ? null : item.id); }}
-                            className="rounded-full p-1.5 text-muted-foreground hover:text-gold hover:bg-gold/10 transition-colors"
-                            title="העבר לתיקייה"
+                            onClick={() => toggleFavorite(item)}
+                            className={`flex flex-col items-center gap-0.5 rounded-lg p-2 transition-colors ${
+                              item.is_favorite ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
+                            }`}
+                            title={item.is_favorite ? "הסר ממועדפים" : "הוסף למועדפים"}
                           >
-                            <FolderInput className="h-3.5 w-3.5" />
+                            <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
+                            <span className="text-[9px] font-accent">מועדף</span>
                           </button>
-                          {folderMenuItemId === item.id && (
-                            <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 z-20 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[120px] animate-in fade-in slide-in-from-top-1 duration-150">
-                              <button
-                                onClick={e => { e.stopPropagation(); moveToFolder(item.id, null); setFolderMenuItemId(null); }}
-                                className="w-full text-right px-3 py-1.5 text-xs hover:bg-secondary transition-colors text-muted-foreground"
-                              >ללא תיקייה</button>
-                              {folders.map(f => (
+                          <button
+                            onClick={() => setZoomedItem(item)}
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="הגדל"
+                          >
+                            <ZoomIn className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">הגדל</span>
+                          </button>
+                          <button
+                            onClick={() => navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`)}
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="ערוך בכלי העריכה"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">ערוך</span>
+                          </button>
+                          <button
+                            onClick={() => duplicateItem(item)}
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                            title="שכפל תמונה"
+                          >
+                            <Copy className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">שכפל</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (!compareMode) setCompareMode(true);
+                              toggleCompareItem(item);
+                            }}
+                            className={`flex flex-col items-center gap-0.5 rounded-lg p-2 transition-colors ${
+                              compareItems.find(c => c.id === item.id) ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            }`}
+                            title="הוסף להשוואה"
+                          >
+                            <SlidersHorizontal className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">השוואה</span>
+                          </button>
+                          <button
+                            onClick={() => { setPinnedItem(item); setSideBySideIndex(0); setViewMode("sideBySide"); }}
+                            className={`flex flex-col items-center gap-0.5 rounded-lg p-2 transition-colors ${
+                              pinnedItem?.id === item.id ? "bg-gold/20 text-gold" : "text-muted-foreground hover:text-gold hover:bg-gold/10"
+                            }`}
+                            title="נעץ להשוואה"
+                          >
+                            <Pin className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">נעץ</span>
+                          </button>
+                          <button
+                            onClick={() => navigate(`/collage?importImage=${encodeURIComponent(item.result_image_url)}`)}
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="פתח בקולאז׳"
+                          >
+                            <LayoutGrid className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">קולאז׳</span>
+                          </button>
+                          <button
+                            onClick={() => navigate(`/catalog?importImage=${encodeURIComponent(item.result_image_url)}`)}
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                            title="פתח בקטלוג"
+                          >
+                            <BookOpen className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">קטלוג</span>
+                          </button>
+                          <div className="relative col-span-2">
+                            <button
+                              onClick={() => setFolderMenuItemId(folderMenuItemId === item.id ? null : item.id)}
+                              className="flex w-full items-center justify-center gap-1 rounded-lg p-2 text-muted-foreground hover:text-gold hover:bg-gold/10 transition-colors"
+                              title="העבר לתיקייה"
+                            >
+                              <FolderInput className="h-4 w-4" />
+                              <span className="text-[9px] font-accent">תיקייה</span>
+                            </button>
+                            {folderMenuItemId === item.id && (
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-20 bg-card border border-border rounded-lg shadow-xl py-1 min-w-[120px] animate-in fade-in slide-in-from-bottom-1 duration-150">
                                 <button
-                                  key={f.id}
-                                  onClick={e => { e.stopPropagation(); moveToFolder(item.id, f.id); setFolderMenuItemId(null); }}
-                                  className={`w-full text-right px-3 py-1.5 text-xs hover:bg-secondary transition-colors flex items-center gap-1.5 ${item.folder_id === f.id ? 'text-gold font-semibold' : 'text-foreground'}`}
-                                >
-                                  <Folder className="h-3 w-3" style={{ color: f.color || undefined }} />
-                                  {f.name}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                                  onClick={() => { moveToFolder(item.id, null); setFolderMenuItemId(null); }}
+                                  className="w-full text-right px-3 py-1.5 text-xs hover:bg-secondary transition-colors text-muted-foreground"
+                                >ללא תיקייה</button>
+                                {folders.map(f => (
+                                  <button
+                                    key={f.id}
+                                    onClick={() => { moveToFolder(item.id, f.id); setFolderMenuItemId(null); }}
+                                    className={`w-full text-right px-3 py-1.5 text-xs hover:bg-secondary transition-colors flex items-center gap-1.5 ${item.folder_id === f.id ? 'text-gold font-semibold' : 'text-foreground'}`}
+                                  >
+                                    <Folder className="h-3 w-3" style={{ color: f.color || undefined }} />
+                                    {f.name}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => confirmDeleteItem(item.id)}
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors col-span-2"
+                            title="מחק"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="text-[9px] font-accent">מחק</span>
+                          </button>
                         </div>
-                        <div className="w-px h-4 bg-border" />
-                        {/* Open in Collage */}
-                        <button
-                          onClick={e => { e.stopPropagation(); navigate(`/collage?importImage=${encodeURIComponent(item.result_image_url)}`); }}
-                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          title="פתח בקולאז׳"
-                        >
-                          <LayoutGrid className="h-3.5 w-3.5" />
-                        </button>
-                        {/* Open in Catalog */}
-                        <button
-                          onClick={e => { e.stopPropagation(); navigate(`/catalog?importImage=${encodeURIComponent(item.result_image_url)}`); }}
-                          className="rounded-full p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                          title="פתח בקטלוג"
-                        >
-                          <BookOpen className="h-3.5 w-3.5" />
-                        </button>
-                        <div className="w-px h-4 bg-border" />
-                        <button
-                          onClick={e => { e.stopPropagation(); confirmDeleteItem(item.id); }}
-                          className="rounded-full p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                          title="מחק"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
                       </div>
                     )}
 
