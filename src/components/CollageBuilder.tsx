@@ -1393,6 +1393,20 @@ export default function CollageBuilder() {
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Source selection */}
+            {!splitSource && (
+              <div className="flex gap-2">
+                <label className="cursor-pointer flex-1">
+                  <Button variant="outline" className="w-full text-xs gap-1" asChild>
+                    <span><Plus className="h-3.5 w-3.5" />העלה תמונה</span>
+                  </Button>
+                  <input type="file" accept="image/*" className="hidden" ref={splitFileRef} onChange={handleSplitUpload} />
+                </label>
+                <Button variant="outline" className="flex-1 text-xs gap-1" onClick={() => { setSplitDialogOpen(false); openGalleryImport('split'); }}>
+                  <Database className="h-3.5 w-3.5" />מהגלריה / ענן
+                </Button>
+              </div>
+            )}
             {splitSource && (
               <div className="relative rounded-lg overflow-hidden border bg-muted">
                 <img src={splitSource} alt="source" className="w-full max-h-48 object-contain" />
