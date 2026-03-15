@@ -749,10 +749,16 @@ export default function CollageBuilder() {
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => window.history.back()}>חזור</Button>
             {result && (
-              <Button onClick={downloadCollage}>
-                <Download className="h-4 w-4 ml-2" />
-                הורד קולאז׳
-              </Button>
+              <>
+                <Button variant="outline" onClick={saveToGallery} disabled={savingToGallery}>
+                  {savingToGallery ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Save className="h-4 w-4 ml-2" />}
+                  שמור לגלריה
+                </Button>
+                <Button onClick={downloadCollage}>
+                  <Download className="h-4 w-4 ml-2" />
+                  הורד קולאז׳
+                </Button>
+              </>
             )}
           </div>
         </div>
