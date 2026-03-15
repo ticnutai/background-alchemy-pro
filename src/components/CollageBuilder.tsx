@@ -158,6 +158,7 @@ interface CollageTemplate {
   gap: number;
   borderRadius: number;
   bgColor: string;
+  canvasWidth: number;
   canvasHeight: number;
   fitMode: 'contain' | 'cover';
   frameStyle: FrameStyle;
