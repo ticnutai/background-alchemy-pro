@@ -281,8 +281,9 @@ export default function CollageBuilder() {
   const [gap, setGap] = useState(12);
   const [borderRadius, setBorderRadius] = useState(8);
   const [bgColor, setBgColor] = useState("#ffffff");
-  const [canvasWidth] = useState(1200);
+  const [canvasWidth, setCanvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
+  const [selectedPageSize, setSelectedPageSize] = useState<CollagePageSize>("custom");
   const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
