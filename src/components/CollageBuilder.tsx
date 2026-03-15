@@ -1178,11 +1178,58 @@ export default function CollageBuilder() {
           <CardContent className="p-4 w-full">
             {result ? (
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <Badge variant="secondary">תצוגה מקדימה</Badge>
-                  <Button variant="outline" size="sm" onClick={downloadCollage}><Download className="h-4 w-4 ml-1" />הורד</Button>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">תצוגה מקדימה</Badge>
+                    {pages.length > 1 && (
+                      <Badge variant="outline" className="text-xs">עמוד {currentPage + 1} / {pages.length}</Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" onClick={downloadCollage}><Download className="h-4 w-4 ml-1" />הורד</Button>
+                    {pages.length > 1 && (
+                      <Button variant="outline" size="sm" onClick={downloadAllPages}><FileDown className="h-4 w-4 ml-1" />הורד הכל</Button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Page navigation */}
+                {pages.length > 1 && (
+                  <div className="flex items-center justify-center gap-2">
+                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === 0} onClick={() => setCurrentPage(p => p - 1)}>
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    {pages.map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors ${currentPage === i ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === pages.length - 1} onClick={() => setCurrentPage(p => p + 1)}>
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+
                 <img src={result} alt="Collage preview" className="w-full rounded-lg border shadow-md" />
+
+                {/* Page thumbnails strip */}
+                {pages.length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2">
+                    {pages.map((page, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setCurrentPage(i)}
+                        className={`shrink-0 rounded-md border-2 overflow-hidden transition-all ${currentPage === i ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'}`}
+                      >
+                        <img src={page} alt={`עמוד ${i + 1}`} className="w-20 h-20 object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ) : images.length > 0 ? (
               <div className="text-center space-y-3">
