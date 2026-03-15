@@ -947,6 +947,7 @@ const ToolInner = () => {
                       />
 
                       <div className="border-t border-border pt-4">
+                      </div>
                       <LiveFilterPanel
                         currentImage={resultImage || originalImage}
                         onPreviewFilter={(css) => setLiveFilterCss(css)}
