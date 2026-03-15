@@ -377,14 +377,16 @@ export default function CollageBuilder() {
     saveTemplatesToStorage(updated);
     setTemplateName("");
     toast.success(`תבנית "${name}" נשמרה בהצלחה`);
-  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasHeight, fitMode, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
+  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasWidth, canvasHeight, fitMode, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
 
   const loadTemplate = useCallback((template: CollageTemplate) => {
     setLayout(template.layout);
     setGap(template.gap);
     setBorderRadius(template.borderRadius);
     setBgColor(template.bgColor);
+    setCanvasWidth(template.canvasWidth || 1200);
     setCanvasHeight(template.canvasHeight);
+    setCanvasSizePreset("custom");
     setFitMode(template.fitMode);
     setFrameStyle(template.frameStyle);
     setBgGradientEnabled(template.bgGradientEnabled);
