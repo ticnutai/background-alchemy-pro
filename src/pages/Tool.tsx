@@ -633,6 +633,16 @@ const Index = () => {
                   </button>
                 )}
 
+                {resultImage && user && (
+                  <button
+                    onClick={() => { setSaveNewName(suggestedName || ""); setShowSaveDialog(true); }}
+                    className="flex items-center gap-2 rounded-lg bg-primary px-5 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110"
+                  >
+                    <Save className="h-4 w-4" />
+                    שמור לגלריה
+                  </button>
+                )}
+
                 <button
                   onClick={() => setShowBatch(true)}
                   className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
