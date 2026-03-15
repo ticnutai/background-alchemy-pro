@@ -1221,6 +1221,91 @@ export default function CollageBuilder() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Split Image Dialog */}
+      <Dialog open={splitDialogOpen} onOpenChange={setSplitDialogOpen}>
+        <DialogContent className="max-w-md" dir="rtl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <SplitSquareVertical className="h-5 w-5" />פיצול תמונה לחלקים
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {splitSource && (
+              <div className="relative rounded-lg overflow-hidden border bg-muted">
+                <img src={splitSource} alt="source" className="w-full max-h-48 object-contain" />
+                {/* Grid overlay preview */}
+                <div className="absolute inset-0 pointer-events-none" style={{
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${splitMode === 'instagram' ? splitCols : splitCols}, 1fr)`,
+                  gridTemplateRows: `repeat(${splitMode === 'instagram' ? 1 : splitRows}, 1fr)`,
+                }}>
+                  {Array.from({ length: (splitMode === 'instagram' ? splitCols : splitCols * splitRows) }).map((_, i) => (
+                    <div key={i} className="border border-primary/40 flex items-center justify-center">
+                      <span className="bg-primary/70 text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-[9px] font-bold">{i + 1}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Mode selection */}
+            <div className="flex gap-1">
+              <Button size="sm" variant={splitMode === 'grid' ? 'default' : 'outline'} className="flex-1 text-xs gap-1" onClick={() => setSplitMode('grid')}>
+                <LayoutGrid className="h-3.5 w-3.5" />רשת
+              </Button>
+              <Button size="sm" variant={splitMode === 'instagram' ? 'default' : 'outline'} className="flex-1 text-xs gap-1" onClick={() => setSplitMode('instagram')}>
+                <Instagram className="h-3.5 w-3.5" />אינסטגרם
+              </Button>
+            </div>
+
+            {splitMode === 'grid' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">עמודות: {splitCols}</Label>
+                  <Slider value={[splitCols]} onValueChange={([v]) => setSplitCols(v)} min={2} max={5} step={1} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">שורות: {splitRows}</Label>
+                  <Slider value={[splitRows]} onValueChange={([v]) => setSplitRows(v)} min={2} max={5} step={1} />
+                </div>
+                <div className="col-span-2 text-xs text-muted-foreground text-center">
+                  סה״כ {splitCols * splitRows} חלקים
+                </div>
+              </div>
+            )}
+
+            {splitMode === 'instagram' && (
+              <div className="space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">מספר שקופיות: {splitCols}</Label>
+                  <Slider value={[splitCols]} onValueChange={([v]) => setSplitCols(v)} min={2} max={10} step={1} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">יחס תצוגה</Label>
+                  <Select value={splitInstagramAspect} onValueChange={(v) => setSplitInstagramAspect(v as '1:1' | '4:5' | '16:9')}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1:1" className="text-xs">1:1 (ריבוע)</SelectItem>
+                      <SelectItem value="4:5" className="text-xs">4:5 (פורטרט)</SelectItem>
+                      <SelectItem value="16:9" className="text-xs">16:9 (רוחבי)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  פיצול לקרוסלה של {splitCols} תמונות לאינסטגרם
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSplitExecute} disabled={splitProcessing || !splitSource}>
+              {splitProcessing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Scissors className="h-4 w-4 ml-2" />}
+              פצל והוסף לקולאז'
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
