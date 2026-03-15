@@ -4,36 +4,60 @@ import {
   Plus, Trash2, Download, Eye, ChevronLeft, ChevronRight,
   GripVertical, Image as ImageIcon, Type, Palette, Settings2,
   FileText, Loader2, Upload, X, RotateCcw, Copy, BookOpen,
-  Sparkles, FileDown, LayoutGrid, Home,
+  Sparkles, FileDown, LayoutGrid, Home, Brain, Wand2,
+  FolderOpen, ArrowUpCircle, Eraser, Zap, CheckCircle2,
+  ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   generateCatalog,
   catalogToPDF,
   defaultCatalogSettings,
   TEMPLATE_OPTIONS,
+  BG_PATTERN_OPTIONS,
+  getItemsPerPage,
   type CatalogProduct,
   type CatalogSettings,
+  type CatalogCategory,
   type CatalogPage,
   type CatalogTemplate,
   type PageSize,
+  type BgPattern,
 } from "@/lib/catalog-engine";
+import {
+  aiAnalyzeProduct,
+  aiGenerateDescription,
+  aiRemoveBackground,
+  aiUpscaleImage,
+  aiSuggestTheme,
+  aiBatchAnalyze,
+  type AIBatchProgress,
+} from "@/lib/catalog-ai";
 
 // ─── Helpers ─────────────────────────────────────────────────
 let idCounter = 0;
 function newId(): string {
   return `prod_${Date.now()}_${++idCounter}`;
+}
+function catId(): string {
+  return `cat_${Date.now()}_${++idCounter}`;
 }
 
 function fileToBase64(file: File): Promise<string> {
@@ -56,10 +80,16 @@ const COLOR_PRESETS = [
   { name: "פסטל", brand: "#c084fc", accent: "#f9a8d4", bg: "#faf5ff", text: "#3b0764" },
 ];
 
+const CATEGORY_COLORS = [
+  "#6366f1", "#ef4444", "#22c55e", "#3b82f6", "#a855f7",
+  "#f59e0b", "#ec4899", "#06b6d4", "#f97316", "#84cc16",
+];
+
 // ─── Component ───────────────────────────────────────────────
 export default function CatalogBuilder() {
-  // Products
+  // Products & Categories
   const [products, setProducts] = useState<CatalogProduct[]>([]);
+  const [categories, setCategories] = useState<CatalogCategory[]>([]);
   // Settings
   const [settings, setSettings] = useState<CatalogSettings>({ ...defaultCatalogSettings });
   // Preview
@@ -69,8 +99,14 @@ export default function CatalogBuilder() {
   const [progress, setProgress] = useState(0);
   const [autoPreview, setAutoPreview] = useState(true);
   // Sidebar tab
-  const [sideTab, setSideTab] = useState<"products" | "template" | "design" | "settings">("products");
-  // Logo
+  const [sideTab, setSideTab] = useState<"products" | "categories" | "template" | "design" | "settings" | "ai">("products");
+  // AI state
+  const [aiProcessing, setAiProcessing] = useState(false);
+  const [aiBatchProgress, setAiBatchProgress] = useState<AIBatchProgress | null>(null);
+  const [aiSingleLoading, setAiSingleLoading] = useState<string | null>(null);
+  // Expanded product
+  const [expandedProduct, setExpandedProduct] = useState<string | null>(null);
+  // Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -91,12 +127,13 @@ export default function CatalogBuilder() {
         price: "",
         sku: "",
         badge: "",
+        category: categories.length > 0 ? categories[0].id : undefined,
       });
     }
 
     setProducts(prev => [...prev, ...newProducts]);
     toast.success(`${newProducts.length} תמונות נוספו`);
-  }, []);
+  }, [categories]);
 
   // ─── Drag & Drop ──────────────────────────────────────────
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -138,6 +175,25 @@ export default function CatalogBuilder() {
     setCurrentPage(0);
   }, []);
 
+  // ─── Category CRUD ────────────────────────────────────────
+  const addCategory = useCallback(() => {
+    const colorIdx = categories.length % CATEGORY_COLORS.length;
+    setCategories(prev => [...prev, {
+      id: catId(),
+      name: `קטגוריה ${prev.length + 1}`,
+      color: CATEGORY_COLORS[colorIdx],
+    }]);
+  }, [categories.length]);
+
+  const updateCategory = useCallback((id: string, updates: Partial<CatalogCategory>) => {
+    setCategories(prev => prev.map(c => c.id === id ? { ...c, ...updates } : c));
+  }, []);
+
+  const removeCategory = useCallback((id: string) => {
+    setCategories(prev => prev.filter(c => c.id !== id));
+    setProducts(prev => prev.map(p => p.category === id ? { ...p, category: undefined } : p));
+  }, []);
+
   // ─── Logo upload ──────────────────────────────────────────
   const handleLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -157,7 +213,7 @@ export default function CatalogBuilder() {
     try {
       const result = await generateCatalog(products, settings, (page, total) => {
         setProgress(Math.round(((page + 1) / total) * 100));
-      });
+      }, categories);
       setPages(result);
       setCurrentPage(0);
       toast.success(`הקטלוג נוצר — ${result.length} עמודים`);
@@ -167,22 +223,25 @@ export default function CatalogBuilder() {
     } finally {
       setGenerating(false);
     }
-  }, [products, settings]);
+  }, [products, settings, categories]);
 
   // Auto-generate preview
   useEffect(() => {
     if (!autoPreview || products.length === 0) return;
-    const timeout = setTimeout(() => { generate(); }, 600);
+    const timeout = setTimeout(() => { generate(); }, 800);
     return () => clearTimeout(timeout);
-  }, [products.length, settings.template, settings.columns, settings.pageSize, autoPreview]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products.length, settings.template, settings.columns, settings.pageSize,
+      settings.showToc, settings.showBackCover, settings.showPriceList,
+      settings.showCategoryDividers, settings.bgPattern, autoPreview, categories.length]);
 
   // ─── Export ────────────────────────────────────────────────
   const exportPDF = useCallback(async () => {
-    if (pages.length === 0) {
-      await generate();
+    let pagesToExport = pages;
+    if (pagesToExport.length === 0) {
+      pagesToExport = await generateCatalog(products, settings, undefined, categories);
     }
-    const latestPages = pages.length > 0 ? pages : await generateCatalog(products, settings);
-    const blob = await catalogToPDF(latestPages);
+    const blob = await catalogToPDF(pagesToExport);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -190,7 +249,7 @@ export default function CatalogBuilder() {
     a.click();
     URL.revokeObjectURL(url);
     toast.success("PDF הורד בהצלחה");
-  }, [pages, products, settings, generate]);
+  }, [pages, products, settings, categories]);
 
   const exportImages = useCallback(async () => {
     if (pages.length === 0) return;
@@ -209,19 +268,138 @@ export default function CatalogBuilder() {
     setSettings(s => ({ ...s, [key]: val }));
   }, []);
 
+  // ─── AI Operations ────────────────────────────────────────
+  const aiAnalyzeSingle = useCallback(async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    setAiSingleLoading(productId);
+    try {
+      const analysis = await aiAnalyzeProduct(product.image);
+      updateProduct(productId, {
+        description: analysis.suggestedDescription,
+        colors: analysis.colors.map(c => c.hex),
+        name: product.name && !product.name.includes("_") ? product.name : analysis.productType,
+      });
+      toast.success("ניתוח AI הושלם");
+    } catch (err) {
+      toast.error("שגיאה בניתוח AI");
+      console.error(err);
+    } finally {
+      setAiSingleLoading(null);
+    }
+  }, [products, updateProduct]);
+
+  const aiDescribeSingle = useCallback(async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    setAiSingleLoading(productId);
+    try {
+      const desc = await aiGenerateDescription(product, settings.title);
+      updateProduct(productId, { aiDescription: desc, description: desc });
+      toast.success("תיאור AI נוצר");
+    } catch (err) {
+      toast.error("שגיאה ביצירת תיאור");
+      console.error(err);
+    } finally {
+      setAiSingleLoading(null);
+    }
+  }, [products, settings.title, updateProduct]);
+
+  const aiRemoveBgSingle = useCallback(async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    setAiSingleLoading(productId);
+    try {
+      const noBg = await aiRemoveBackground(product.image);
+      updateProduct(productId, { noBgImage: noBg, image: `data:image/png;base64,${noBg}` });
+      toast.success("רקע הוסר בהצלחה");
+    } catch (err) {
+      toast.error("שגיאה בהסרת רקע");
+      console.error(err);
+    } finally {
+      setAiSingleLoading(null);
+    }
+  }, [products, updateProduct]);
+
+  const aiUpscaleSingle = useCallback(async (productId: string) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+    setAiSingleLoading(productId);
+    try {
+      const upscaled = await aiUpscaleImage(product.image, 2);
+      updateProduct(productId, { upscaledImage: upscaled, image: `data:image/png;base64,${upscaled}` });
+      toast.success("תמונה שודרגה ×2");
+    } catch (err) {
+      toast.error("שגיאה בשדרוג תמונה");
+      console.error(err);
+    } finally {
+      setAiSingleLoading(null);
+    }
+  }, [products, updateProduct]);
+
+  const aiSuggestColors = useCallback(async () => {
+    if (products.length === 0) return;
+    setAiProcessing(true);
+    try {
+      const theme = await aiSuggestTheme(products);
+      if (theme.brandColor || theme.accentColor) {
+        setSettings(s => ({ ...s, ...theme }));
+        toast.success("ערכת צבעים עודכנה לפי המוצרים");
+      }
+    } catch (err) {
+      toast.error("שגיאה בניתוח צבעים");
+      console.error(err);
+    } finally {
+      setAiProcessing(false);
+    }
+  }, [products]);
+
+  const aiBatchProcess = useCallback(async (ops: {
+    descriptions?: boolean;
+    removeBg?: boolean;
+    upscale?: boolean;
+    analyzeColors?: boolean;
+  }) => {
+    if (products.length === 0) return;
+    setAiProcessing(true);
+    setAiBatchProgress(null);
+    try {
+      const updated = await aiBatchAnalyze(products, ops, (prog) => {
+        setAiBatchProgress(prog);
+      });
+      setProducts(updated);
+      toast.success(`עיבוד AI הושלם ל-${products.length} מוצרים`);
+    } catch (err) {
+      toast.error("שגיאה בעיבוד אצווה");
+      console.error(err);
+    } finally {
+      setAiProcessing(false);
+      setAiBatchProgress(null);
+    }
+  }, [products]);
+
   // ─── Product count info ────────────────────────────────────
   const templateInfo = useMemo(() => {
-    const t = settings.template;
-    let perPage: number;
-    switch (t) {
-      case "showcase": perPage = 1; break;
-      case "lookbook": perPage = 2; break;
-      case "magazine": perPage = settings.columns <= 2 ? 3 : 5; break;
-      default: perPage = settings.columns * Math.ceil(settings.columns * 0.75);
-    }
-    const totalPages = products.length > 0 ? 1 + Math.ceil(products.length / perPage) : 0;
+    const perPage = getItemsPerPage(settings.template, settings.columns);
+    let totalPages = products.length > 0 ? 1 + Math.ceil(products.length / perPage) : 0;
+    if (settings.showToc && categories.length > 0) totalPages++;
+    if (settings.showBackCover) totalPages++;
+    if (settings.showPriceList) totalPages += Math.ceil(products.filter(p => p.price).length / 22) || 0;
+    if (settings.showCategoryDividers) totalPages += categories.length;
     return { perPage, totalPages };
-  }, [settings.template, settings.columns, products.length]);
+  }, [settings, products, categories.length]);
+
+  const pageTypeLabel = useCallback((page: CatalogPage): string => {
+    switch (page.type) {
+      case "cover": return "שער";
+      case "toc": return "תוכן";
+      case "divider": return "מפריד";
+      case "products": return String(page.pageNumber);
+      case "price-list": return "מחירון";
+      case "back-cover": return "אחורי";
+      default: return String(page.pageNumber);
+    }
+  }, []);
 
   // ─── Render ────────────────────────────────────────────────
   return (
@@ -236,13 +414,16 @@ export default function CatalogBuilder() {
           <BookOpen className="h-5 w-5 text-primary" />
           <h1 className="font-bold text-lg">מחולל קטלוגים</h1>
           <Badge variant="secondary" className="text-xs">{products.length} מוצרים</Badge>
+          {categories.length > 0 && (
+            <Badge variant="outline" className="text-xs">{categories.length} קטגוריות</Badge>
+          )}
           {templateInfo.totalPages > 0 && (
             <Badge variant="outline" className="text-xs">{templateInfo.totalPages} עמודים</Badge>
           )}
           <div className="flex-1" />
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Label htmlFor="auto-preview" className="text-xs cursor-pointer">תצוגה מקדימה אוטומטית</Label>
+              <Label htmlFor="auto-preview" className="text-xs cursor-pointer">תצוגה אוטומטית</Label>
               <Switch id="auto-preview" checked={autoPreview} onCheckedChange={setAutoPreview} />
             </div>
             <Button variant="outline" size="sm" onClick={generate} disabled={generating || products.length === 0}>
@@ -261,23 +442,25 @@ export default function CatalogBuilder() {
         {/* ── Sidebar ──────────────────────────────────────── */}
         <aside className="w-80 border-l bg-muted/30 flex flex-col">
           {/* Side tabs */}
-          <div className="flex border-b">
+          <div className="flex border-b overflow-x-auto">
             {[
               { id: "products" as const, icon: ImageIcon, label: "מוצרים" },
+              { id: "categories" as const, icon: FolderOpen, label: "קטגוריות" },
               { id: "template" as const, icon: LayoutGrid, label: "תבנית" },
               { id: "design" as const, icon: Palette, label: "עיצוב" },
+              { id: "ai" as const, icon: Brain, label: "AI" },
               { id: "settings" as const, icon: Settings2, label: "הגדרות" },
             ].map(tab => (
               <button
                 key={tab.id}
                 onClick={() => setSideTab(tab.id)}
-                className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs transition-colors border-b-2 ${
+                className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors border-b-2 min-w-0 ${
                   sideTab === tab.id
                     ? "border-primary text-primary"
                     : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <tab.icon className="h-4 w-4" />
+                <tab.icon className="h-3.5 w-3.5" />
                 {tab.label}
               </button>
             ))}
@@ -293,9 +476,9 @@ export default function CatalogBuilder() {
                     onDrop={handleDrop}
                     onDragOver={handleDragOver}
                     onClick={() => fileInputRef.current?.click()}
-                    className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                    className="border-2 border-dashed rounded-lg p-5 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
                   >
-                    <Upload className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                    <Upload className="h-7 w-7 mx-auto mb-2 text-muted-foreground" />
                     <p className="text-sm font-medium">גרור תמונות או לחץ להעלאה</p>
                     <p className="text-xs text-muted-foreground mt-1">PNG, JPG, WebP</p>
                     <input
@@ -313,91 +496,234 @@ export default function CatalogBuilder() {
                       <span className="text-xs text-muted-foreground">
                         {products.length} מוצרים · {templateInfo.perPage} בעמוד
                       </span>
-                      <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive">
+                      <Button variant="ghost" size="sm" onClick={clearAll} className="text-destructive hover:text-destructive h-7">
                         <Trash2 className="h-3 w-3" />
-                        <span className="text-xs">נקה הכול</span>
+                        <span className="text-xs">נקה</span>
                       </Button>
                     </div>
                   )}
 
                   {/* Product list with reorder */}
-                  <Reorder.Group axis="y" values={products} onReorder={setProducts} className="space-y-2">
+                  <Reorder.Group axis="y" values={products} onReorder={setProducts} className="space-y-1.5">
                     <AnimatePresence>
-                      {products.map((product) => (
-                        <Reorder.Item key={product.id} value={product} className="group">
-                          <motion.div
-                            layout
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, x: -50 }}
-                            className="bg-background rounded-lg border p-2 space-y-2"
-                          >
-                            <div className="flex gap-2">
-                              {/* Drag handle */}
-                              <div className="flex items-center cursor-grab active:cursor-grabbing text-muted-foreground">
-                                <GripVertical className="h-4 w-4" />
-                              </div>
-                              {/* Thumbnail */}
-                              <div className="w-14 h-14 rounded overflow-hidden bg-muted flex-shrink-0">
-                                <img
-                                  src={product.image}
-                                  alt={product.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                              {/* Name */}
-                              <div className="flex-1 min-w-0">
-                                <Input
-                                  value={product.name}
-                                  onChange={e => updateProduct(product.id, { name: e.target.value })}
-                                  className="h-7 text-xs font-medium"
-                                  placeholder="שם מוצר"
-                                />
-                                <div className="flex gap-1 mt-1">
+                      {products.map((product) => {
+                        const isExpanded = expandedProduct === product.id;
+                        const isLoading = aiSingleLoading === product.id;
+                        return (
+                          <Reorder.Item key={product.id} value={product} className="group">
+                            <motion.div
+                              layout
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, x: -50 }}
+                              className={`bg-background rounded-lg border p-2 space-y-1.5 ${isLoading ? "ring-2 ring-primary/30 animate-pulse" : ""}`}
+                            >
+                              <div className="flex gap-2">
+                                <div className="flex items-center cursor-grab active:cursor-grabbing text-muted-foreground">
+                                  <GripVertical className="h-4 w-4" />
+                                </div>
+                                <div className="w-12 h-12 rounded overflow-hidden bg-muted flex-shrink-0 relative">
+                                  <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                  {product.noBgImage && (
+                                    <div className="absolute bottom-0 right-0 bg-green-500 rounded-tl px-0.5">
+                                      <CheckCircle2 className="h-2.5 w-2.5 text-white" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
                                   <Input
-                                    value={product.price || ""}
-                                    onChange={e => updateProduct(product.id, { price: e.target.value })}
-                                    className="h-6 text-xs w-20"
-                                    placeholder="מחיר"
+                                    value={product.name}
+                                    onChange={e => updateProduct(product.id, { name: e.target.value })}
+                                    className="h-6 text-xs font-medium"
+                                    placeholder="שם מוצר"
                                   />
-                                  <Input
-                                    value={product.sku || ""}
-                                    onChange={e => updateProduct(product.id, { sku: e.target.value })}
-                                    className="h-6 text-xs w-20"
-                                    placeholder="מק״ט"
-                                  />
+                                  <div className="flex gap-1 mt-1">
+                                    <Input
+                                      value={product.price || ""}
+                                      onChange={e => updateProduct(product.id, { price: e.target.value })}
+                                      className="h-5 text-[10px] w-16"
+                                      placeholder="מחיר"
+                                    />
+                                    <Input
+                                      value={product.sku || ""}
+                                      onChange={e => updateProduct(product.id, { sku: e.target.value })}
+                                      className="h-5 text-[10px] w-16"
+                                      placeholder="מק״ט"
+                                    />
+                                    {categories.length > 0 && (
+                                      <Select
+                                        value={product.category || "none"}
+                                        onValueChange={v => updateProduct(product.id, { category: v === "none" ? undefined : v })}
+                                      >
+                                        <SelectTrigger className="h-5 text-[10px] flex-1 min-w-0">
+                                          <SelectValue placeholder="קטגוריה" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                          <SelectItem value="none">ללא</SelectItem>
+                                          {categories.map(c => (
+                                            <SelectItem key={c.id} value={c.id}>
+                                              <span className="flex items-center gap-1">
+                                                <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: c.color }} />
+                                                {c.name}
+                                              </span>
+                                            </SelectItem>
+                                          ))}
+                                        </SelectContent>
+                                      </Select>
+                                    )}
+                                  </div>
+                                </div>
+                                <div className="flex flex-col gap-0.5">
+                                  <Button
+                                    variant="ghost" size="icon" className="h-5 w-5"
+                                    onClick={() => setExpandedProduct(isExpanded ? null : product.id)}
+                                  >
+                                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-5 w-5" onClick={() => duplicateProduct(product.id)}>
+                                    <Copy className="h-2.5 w-2.5" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-5 w-5 text-destructive" onClick={() => removeProduct(product.id)}>
+                                    <Trash2 className="h-2.5 w-2.5" />
+                                  </Button>
                                 </div>
                               </div>
-                              {/* Actions */}
-                              <div className="flex flex-col gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => duplicateProduct(product.id)}>
-                                  <Copy className="h-3 w-3" />
-                                </Button>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeProduct(product.id)}>
-                                  <Trash2 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </div>
-                            {/* Expandable fields */}
-                            <div className="space-y-1 hidden group-hover:block">
-                              <Input
-                                value={product.description || ""}
-                                onChange={e => updateProduct(product.id, { description: e.target.value })}
-                                className="h-6 text-xs"
-                                placeholder="תיאור מוצר"
-                              />
-                              <Input
-                                value={product.badge || ""}
-                                onChange={e => updateProduct(product.id, { badge: e.target.value })}
-                                className="h-6 text-xs"
-                                placeholder='תגית (למשל: "חדש", "מבצע")'
-                              />
-                            </div>
-                          </motion.div>
-                        </Reorder.Item>
-                      ))}
+
+                              {/* Expanded details */}
+                              <AnimatePresence>
+                                {isExpanded && (
+                                  <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: "auto", opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="space-y-1.5 overflow-hidden"
+                                  >
+                                    <Input
+                                      value={product.description || ""}
+                                      onChange={e => updateProduct(product.id, { description: e.target.value })}
+                                      className="h-6 text-xs"
+                                      placeholder="תיאור מוצר"
+                                    />
+                                    <Input
+                                      value={product.badge || ""}
+                                      onChange={e => updateProduct(product.id, { badge: e.target.value })}
+                                      className="h-6 text-xs"
+                                      placeholder='תגית (למשל: "חדש", "מבצע")'
+                                    />
+                                    <div className="flex flex-wrap gap-1">
+                                      <Button
+                                        variant="outline" size="sm" className="h-6 text-[10px] gap-1"
+                                        disabled={isLoading}
+                                        onClick={() => aiAnalyzeSingle(product.id)}
+                                      >
+                                        {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Brain className="h-3 w-3" />}
+                                        ניתוח AI
+                                      </Button>
+                                      <Button
+                                        variant="outline" size="sm" className="h-6 text-[10px] gap-1"
+                                        disabled={isLoading}
+                                        onClick={() => aiDescribeSingle(product.id)}
+                                      >
+                                        <Type className="h-3 w-3" />
+                                        תיאור AI
+                                      </Button>
+                                      <Button
+                                        variant="outline" size="sm" className="h-6 text-[10px] gap-1"
+                                        disabled={isLoading}
+                                        onClick={() => aiRemoveBgSingle(product.id)}
+                                      >
+                                        <Eraser className="h-3 w-3" />
+                                        הסר רקע
+                                      </Button>
+                                      <Button
+                                        variant="outline" size="sm" className="h-6 text-[10px] gap-1"
+                                        disabled={isLoading}
+                                        onClick={() => aiUpscaleSingle(product.id)}
+                                      >
+                                        <ArrowUpCircle className="h-3 w-3" />
+                                        שדרג ×2
+                                      </Button>
+                                    </div>
+                                    {product.colors && product.colors.length > 0 && (
+                                      <div className="flex gap-1 items-center">
+                                        <span className="text-[10px] text-muted-foreground">צבעים:</span>
+                                        {product.colors.map((c, i) => (
+                                          <span key={i} className="w-4 h-4 rounded-full border" style={{ backgroundColor: c }} />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </motion.div>
+                          </Reorder.Item>
+                        );
+                      })}
                     </AnimatePresence>
                   </Reorder.Group>
+                </>
+              )}
+
+              {/* ── Categories Tab ────────────────────────── */}
+              {sideTab === "categories" && (
+                <>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-semibold">קטגוריות מוצרים</Label>
+                    <Button variant="outline" size="sm" onClick={addCategory} className="h-7">
+                      <Plus className="h-3 w-3" />
+                      <span className="text-xs">הוסף</span>
+                    </Button>
+                  </div>
+
+                  {categories.length === 0 && (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <FolderOpen className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs">הוסף קטגוריות לארגון המוצרים בקטלוג</p>
+                      <p className="text-[10px] mt-1">קטגוריות יוצרות דפי מפריד ותוכן עניינים</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    {categories.map(cat => {
+                      const catProductCount = products.filter(p => p.category === cat.id).length;
+                      return (
+                        <div key={cat.id} className="bg-background border rounded-lg p-2.5 space-y-2">
+                          <div className="flex gap-2 items-center">
+                            <input
+                              type="color"
+                              value={cat.color || "#6366f1"}
+                              onChange={e => updateCategory(cat.id, { color: e.target.value })}
+                              className="w-7 h-7 rounded border cursor-pointer"
+                            />
+                            <Input
+                              value={cat.name}
+                              onChange={e => updateCategory(cat.id, { name: e.target.value })}
+                              className="h-7 text-xs font-medium flex-1"
+                            />
+                            <Badge variant="secondary" className="text-[10px]">{catProductCount}</Badge>
+                            <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeCategory(cat.id)}>
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          <Input
+                            value={cat.description || ""}
+                            onChange={e => updateCategory(cat.id, { description: e.target.value })}
+                            className="h-6 text-xs"
+                            placeholder="תיאור קטגוריה (אופציונלי)"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {categories.length > 0 && (
+                    <>
+                      <Separator />
+                      <p className="text-[10px] text-muted-foreground">
+                        שייך מוצרים לקטגוריות דרך לשונית "מוצרים"
+                      </p>
+                    </>
+                  )}
                 </>
               )}
 
@@ -456,6 +782,23 @@ export default function CatalogBuilder() {
                             className="text-xs"
                           >
                             {s}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-xs">דוגמת רקע</Label>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {BG_PATTERN_OPTIONS.map(p => (
+                          <Button
+                            key={p.id}
+                            size="sm"
+                            variant={settings.bgPattern === p.id ? "default" : "outline"}
+                            onClick={() => updateSetting("bgPattern", p.id)}
+                            className="text-xs"
+                          >
+                            {p.label}
                           </Button>
                         ))}
                       </div>
@@ -574,6 +917,128 @@ export default function CatalogBuilder() {
                 </>
               )}
 
+              {/* ── AI Tab ───────────────────────────────── */}
+              {sideTab === "ai" && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Label className="text-sm font-semibold">כלי AI לקטלוג</Label>
+                  </div>
+
+                  {products.length === 0 ? (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-xs">הוסף תמונות תחילה כדי להשתמש בכלי AI</p>
+                    </div>
+                  ) : (
+                    <>
+                      {aiProcessing && aiBatchProgress && (
+                        <div className="bg-primary/10 rounded-lg p-3 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                            <span className="text-xs font-medium">
+                              מעבד {aiBatchProgress.current} / {aiBatchProgress.total}
+                            </span>
+                          </div>
+                          <Progress value={(aiBatchProgress.current / aiBatchProgress.total) * 100} className="h-1.5" />
+                        </div>
+                      )}
+
+                      <div className="space-y-2">
+                        <Label className="text-xs text-muted-foreground">פעולות על מוצר בודד</Label>
+                        <p className="text-[10px] text-muted-foreground">
+                          פתח מוצר בלשונית "מוצרים" — כפתורי AI מופיעים בהרחבה
+                        </p>
+                      </div>
+
+                      <Separator />
+
+                      <Label className="text-xs font-semibold">עיבוד אצוותי (כל המוצרים)</Label>
+
+                      <div className="space-y-2">
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing}
+                          onClick={() => aiBatchProcess({ descriptions: true, analyzeColors: true })}
+                        >
+                          <Brain className="h-4 w-4 text-purple-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">ניתוח AI + תיאורים</span>
+                            <span className="text-[10px] text-muted-foreground">זיהוי מוצרים, צבעים, יצירת תיאורים</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing}
+                          onClick={() => aiBatchProcess({ removeBg: true })}
+                        >
+                          <Eraser className="h-4 w-4 text-green-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">הסרת רקע לכולם</span>
+                            <span className="text-[10px] text-muted-foreground">BRIA RMBG — הסרה מדויקת</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing}
+                          onClick={() => aiBatchProcess({ upscale: true })}
+                        >
+                          <ArrowUpCircle className="h-4 w-4 text-blue-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">שדרוג תמונות ×2</span>
+                            <span className="text-[10px] text-muted-foreground">Real-ESRGAN — הגדלה חכמה</span>
+                          </div>
+                        </Button>
+
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start gap-2 h-9"
+                          disabled={aiProcessing}
+                          onClick={() => aiBatchProcess({ descriptions: true, removeBg: true, analyzeColors: true })}
+                        >
+                          <Zap className="h-4 w-4 text-amber-500" />
+                          <div className="text-right">
+                            <span className="text-xs font-medium block">עיבוד מלא</span>
+                            <span className="text-[10px] text-muted-foreground">ניתוח + תיאורים + הסרת רקע</span>
+                          </div>
+                        </Button>
+                      </div>
+
+                      <Separator />
+
+                      <Label className="text-xs font-semibold">עיצוב חכם</Label>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start gap-2 h-9"
+                        disabled={aiProcessing}
+                        onClick={aiSuggestColors}
+                      >
+                        <Palette className="h-4 w-4 text-pink-500" />
+                        <div className="text-right">
+                          <span className="text-xs font-medium block">ערכת צבעים מהמוצרים</span>
+                          <span className="text-[10px] text-muted-foreground">AI ינתח את המוצר הראשון ויציע צבעים</span>
+                        </div>
+                      </Button>
+
+                      <Separator />
+
+                      <div className="bg-muted/50 rounded-lg p-2.5 text-[10px] text-muted-foreground space-y-1">
+                        <p className="font-medium text-xs text-foreground">מנועי AI בשימוש:</p>
+                        <p>🧠 Gemini 2.5 Flash — ניתוח תמונות וטקסט</p>
+                        <p>🎨 BRIA RMBG 2.0 — הסרת רקע מדויקת</p>
+                        <p>🔍 Real-ESRGAN — שדרוג רזולוציה</p>
+                        <p>💬 Gemini — תיאורי מוצרים שיווקיים</p>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
               {/* ── Settings Tab ─────────────────────────── */}
               {sideTab === "settings" && (
                 <>
@@ -617,7 +1082,7 @@ export default function CatalogBuilder() {
 
                     <Separator />
 
-                    <Label className="text-xs font-semibold">הצגה</Label>
+                    <Label className="text-xs font-semibold">תצוגת מוצרים</Label>
                     {[
                       { key: "showPrices" as const, label: "הצג מחירים" },
                       { key: "showSku" as const, label: 'הצג מק"ט' },
@@ -627,6 +1092,27 @@ export default function CatalogBuilder() {
                     ].map(s => (
                       <div key={s.key} className="flex items-center justify-between">
                         <Label className="text-xs">{s.label}</Label>
+                        <Switch
+                          checked={settings[s.key]}
+                          onCheckedChange={v => updateSetting(s.key, v)}
+                        />
+                      </div>
+                    ))}
+
+                    <Separator />
+
+                    <Label className="text-xs font-semibold">עמודים מיוחדים</Label>
+                    {[
+                      { key: "showToc" as const, label: "תוכן עניינים", desc: "דרוש קטגוריות" },
+                      { key: "showCategoryDividers" as const, label: "דפי מפריד לקטגוריות", desc: "" },
+                      { key: "showPriceList" as const, label: "עמוד מחירון", desc: "" },
+                      { key: "showBackCover" as const, label: "כריכה אחורית", desc: "" },
+                    ].map(s => (
+                      <div key={s.key} className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-xs">{s.label}</Label>
+                          {s.desc && <p className="text-[10px] text-muted-foreground">{s.desc}</p>}
+                        </div>
                         <Switch
                           checked={settings[s.key]}
                           onCheckedChange={v => updateSetting(s.key, v)}
@@ -659,13 +1145,19 @@ export default function CatalogBuilder() {
                 </div>
                 <h2 className="text-xl font-bold">מחולל קטלוגים מקצועי</h2>
                 <p className="text-sm text-muted-foreground">
-                  הוסף תמונות מוצרים, בחר תבנית ועיצוב, וצור קטלוג מקצועי בלחיצה אחת.
-                  ייצא ל-PDF או PNG.
+                  הוסף תמונות מוצרים, בחר תבנית ועיצוב, וצור קטלוג מקצועי.
+                  כולל כלי AI להסרת רקע, תיאורים אוטומטיים, ושדרוג תמונות.
                 </p>
-                <Button onClick={() => { setSideTab("products"); fileInputRef.current?.click(); }}>
-                  <Plus className="h-4 w-4" />
-                  התחל — הוסף תמונות
-                </Button>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={() => { setSideTab("products"); fileInputRef.current?.click(); }}>
+                    <Plus className="h-4 w-4" />
+                    הוסף תמונות
+                  </Button>
+                  <Button variant="outline" onClick={() => setSideTab("ai")}>
+                    <Brain className="h-4 w-4" />
+                    כלי AI
+                  </Button>
+                </div>
               </div>
             </div>
           ) : (
@@ -673,48 +1165,54 @@ export default function CatalogBuilder() {
             <div className="flex-1 flex flex-col overflow-hidden">
               {/* Page navigation */}
               {pages.length > 0 && (
-                <div className="flex items-center justify-center gap-3 py-2 border-b bg-background/80 backdrop-blur">
+                <div className="flex items-center justify-center gap-2 py-2 border-b bg-background/80 backdrop-blur">
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7"
                     disabled={currentPage <= 0}
                     onClick={() => setCurrentPage(p => p - 1)}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
-                  <div className="flex gap-1">
-                    {pages.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={() => setCurrentPage(i)}
-                        className={`w-8 h-8 rounded text-xs font-medium transition-colors ${
-                          i === currentPage
-                            ? "bg-primary text-primary-foreground"
-                            : "bg-muted hover:bg-muted-foreground/10"
-                        }`}
-                      >
-                        {i === 0 ? "שער" : i}
-                      </button>
-                    ))}
-                  </div>
+                  <ScrollArea className="max-w-[50vw]">
+                    <div className="flex gap-1 px-1">
+                      {pages.map((page, i) => (
+                        <button
+                          key={i}
+                          onClick={() => setCurrentPage(i)}
+                          className={`min-w-[2rem] h-7 px-1.5 rounded text-[10px] font-medium transition-colors whitespace-nowrap ${
+                            i === currentPage
+                              ? "bg-primary text-primary-foreground"
+                              : page.type === "divider" ? "bg-amber-100 dark:bg-amber-900/30 hover:bg-amber-200"
+                              : page.type === "toc" ? "bg-blue-100 dark:bg-blue-900/30 hover:bg-blue-200"
+                              : page.type === "price-list" ? "bg-green-100 dark:bg-green-900/30 hover:bg-green-200"
+                              : page.type === "back-cover" ? "bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200"
+                              : "bg-muted hover:bg-muted-foreground/10"
+                          }`}
+                        >
+                          {pageTypeLabel(page)}
+                        </button>
+                      ))}
+                    </div>
+                  </ScrollArea>
                   <Button
                     variant="outline"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7"
                     disabled={currentPage >= pages.length - 1}
                     onClick={() => setCurrentPage(p => p + 1)}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
                   <Separator orientation="vertical" className="h-5" />
-                  <Button variant="ghost" size="sm" onClick={exportImages}>
-                    <ImageIcon className="h-3.5 w-3.5" />
-                    <span className="text-xs">PNG</span>
+                  <Button variant="ghost" size="sm" className="h-7" onClick={exportImages}>
+                    <ImageIcon className="h-3 w-3" />
+                    <span className="text-[10px]">PNG</span>
                   </Button>
-                  <Button variant="ghost" size="sm" onClick={exportPDF}>
-                    <FileText className="h-3.5 w-3.5" />
-                    <span className="text-xs">PDF</span>
+                  <Button variant="ghost" size="sm" className="h-7" onClick={exportPDF}>
+                    <FileText className="h-3 w-3" />
+                    <span className="text-[10px]">PDF</span>
                   </Button>
                 </div>
               )}

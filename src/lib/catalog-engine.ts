@@ -1,6 +1,7 @@
 /**
  * Catalog Engine — Canvas-based multi-page catalog generator.
  * Renders professional product catalogs with multiple templates/layouts.
+ * Supports categories, TOC, back-cover, price-list, section dividers.
  */
 
 // ─── Types ───────────────────────────────────────────────────
@@ -12,6 +13,18 @@ export interface CatalogProduct {
   price?: string;
   sku?: string;
   badge?: string;         // "חדש", "מבצע", etc.
+  category?: string;      // Category name for grouping
+  aiDescription?: string; // AI-generated description
+  noBgImage?: string;     // Background-removed version
+  upscaledImage?: string; // AI-upscaled version
+  colors?: string[];      // Detected dominant colors
+}
+
+export interface CatalogCategory {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;         // Category accent color
 }
 
 export interface CatalogSettings {
@@ -30,9 +43,15 @@ export interface CatalogSettings {
   showDescriptions: boolean;
   showPageNumbers: boolean;
   showHeader: boolean;
+  showToc: boolean;
+  showBackCover: boolean;
+  showPriceList: boolean;
+  showCategoryDividers: boolean;
   watermark?: string;
   contactInfo?: string;
   columns: 1 | 2 | 3 | 4;
+  bgPattern: BgPattern;
+  coverStyle: CoverStyle;
 }
 
 export type CatalogTemplate =
@@ -46,11 +65,14 @@ export type CatalogTemplate =
   | "showcase";       // Single product per page, large
 
 export type PageSize = "A4" | "A3" | "letter" | "square" | "landscape";
+export type BgPattern = "none" | "dots" | "lines" | "grid" | "diagonal" | "circles";
+export type CoverStyle = "modern" | "classic" | "photo" | "split" | "bold";
 
 export interface CatalogPage {
   pageNumber: number;
   canvas: HTMLCanvasElement;
   dataUrl: string;
+  type: "cover" | "toc" | "divider" | "products" | "price-list" | "back-cover";
 }
 
 // ─── Constants ───────────────────────────────────────────────
@@ -252,6 +274,419 @@ function drawWatermark(
   ctx.textBaseline = "middle";
   ctx.fillText(text, 0, 0);
   ctx.restore();
+}
+
+// ─── Background Patterns ─────────────────────────────────────
+function drawBgPattern(
+  ctx: CanvasRenderingContext2D,
+  pattern: BgPattern,
+  pageW: number,
+  pageH: number,
+  color: string,
+) {
+  if (pattern === "none") return;
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(color, 0.04);
+  ctx.fillStyle = hexToRgba(color, 0.04);
+  ctx.lineWidth = 1;
+  const step = pageW * 0.03;
+
+  switch (pattern) {
+    case "dots":
+      for (let x = step; x < pageW; x += step)
+        for (let y = step; y < pageH; y += step) {
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      break;
+    case "lines":
+      for (let y = step; y < pageH; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(pageW, y);
+        ctx.stroke();
+      }
+      break;
+    case "grid":
+      for (let x = step; x < pageW; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, pageH); ctx.stroke();
+      }
+      for (let y = step; y < pageH; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(pageW, y); ctx.stroke();
+      }
+      break;
+    case "diagonal":
+      for (let d = -pageH; d < pageW + pageH; d += step) {
+        ctx.beginPath(); ctx.moveTo(d, 0); ctx.lineTo(d + pageH, pageH); ctx.stroke();
+      }
+      break;
+    case "circles":
+      for (let x = step * 2; x < pageW; x += step * 3)
+        for (let y = step * 2; y < pageH; y += step * 3) {
+          ctx.beginPath();
+          ctx.arc(x, y, step * 0.8, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+      break;
+  }
+  ctx.restore();
+}
+
+// ─── TOC Page ────────────────────────────────────────────────
+async function renderTocPage(
+  settings: CatalogSettings,
+  categories: CatalogCategory[],
+  products: CatalogProduct[],
+  categoryPageMap: Map<string, number>,
+): Promise<HTMLCanvasElement> {
+  const { w: pageW, h: pageH } = PAGE_SIZES[settings.pageSize];
+  const canvas = document.createElement("canvas");
+  canvas.width = pageW;
+  canvas.height = pageH;
+  const ctx = canvas.getContext("2d")!;
+  const font = FONT_MAP[settings.fontFamily];
+
+  // Background
+  ctx.fillStyle = settings.template === "luxury" ? "#0d0d1a" : settings.bgColor;
+  ctx.fillRect(0, 0, pageW, pageH);
+  drawBgPattern(ctx, settings.bgPattern, pageW, pageH, settings.textColor);
+
+  const padding = pageW * 0.08;
+  const textColor = settings.template === "luxury" ? "#e5e5e5" : settings.textColor;
+
+  // Title
+  ctx.textAlign = "right";
+  ctx.fillStyle = settings.brandColor;
+  ctx.font = `bold ${pageW * 0.045}px ${font}`;
+  ctx.fillText("תוכן עניינים", pageW - padding, pageH * 0.12);
+
+  // Decorative line
+  ctx.strokeStyle = settings.brandColor;
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(padding, pageH * 0.14);
+  ctx.lineTo(pageW - padding, pageH * 0.14);
+  ctx.stroke();
+
+  let y = pageH * 0.2;
+  const lineH = pageH * 0.05;
+
+  // Categories list
+  if (categories.length > 0) {
+    for (const cat of categories) {
+      const catProducts = products.filter(p => p.category === cat.id);
+      const pageNum = categoryPageMap.get(cat.id) ?? 0;
+
+      // Category line
+      ctx.textAlign = "right";
+      ctx.fillStyle = cat.color || settings.brandColor;
+      ctx.font = `bold ${pageW * 0.025}px ${font}`;
+      ctx.fillText(cat.name, pageW - padding, y);
+
+      // Dot leaders
+      ctx.fillStyle = hexToRgba(textColor, 0.2);
+      const nameW = ctx.measureText(cat.name).width;
+      const pageNumStr = String(pageNum);
+      ctx.font = `${pageW * 0.02}px ${font}`;
+      const numW = ctx.measureText(pageNumStr).width;
+      const dotsStart = padding + numW + 20;
+      const dotsEnd = pageW - padding - nameW - 20;
+      for (let dx = dotsStart; dx < dotsEnd; dx += 12) {
+        ctx.beginPath();
+        ctx.arc(dx, y - 4, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      // Page number
+      ctx.textAlign = "left";
+      ctx.fillStyle = textColor;
+      ctx.font = `bold ${pageW * 0.022}px ${font}`;
+      ctx.fillText(pageNumStr, padding, y);
+
+      // Product count
+      ctx.fillStyle = hexToRgba(textColor, 0.4);
+      ctx.font = `${pageW * 0.015}px ${font}`;
+      ctx.textAlign = "right";
+      ctx.fillText(`(${catProducts.length} מוצרים)`, pageW - padding, y + lineH * 0.4);
+
+      if (cat.description) {
+        ctx.fillStyle = hexToRgba(textColor, 0.5);
+        ctx.font = `${pageW * 0.014}px ${font}`;
+        ctx.fillText(cat.description, pageW - padding, y + lineH * 0.7);
+      }
+
+      y += lineH * 1.2;
+    }
+  } else {
+    // No categories — simple product listing
+    ctx.textAlign = "right";
+    ctx.fillStyle = textColor;
+    ctx.font = `${pageW * 0.022}px ${font}`;
+    ctx.fillText(`${products.length} מוצרים בקטלוג`, pageW - padding, y);
+  }
+
+  ctx.textAlign = "start";
+  return canvas;
+}
+
+// ─── Category Divider Page ───────────────────────────────────
+async function renderDividerPage(
+  settings: CatalogSettings,
+  category: CatalogCategory,
+  products: CatalogProduct[],
+): Promise<HTMLCanvasElement> {
+  const { w: pageW, h: pageH } = PAGE_SIZES[settings.pageSize];
+  const canvas = document.createElement("canvas");
+  canvas.width = pageW;
+  canvas.height = pageH;
+  const ctx = canvas.getContext("2d")!;
+  const font = FONT_MAP[settings.fontFamily];
+  const catColor = category.color || settings.brandColor;
+
+  // Background — full brand color gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, pageH);
+  grad.addColorStop(0, catColor);
+  grad.addColorStop(1, hexToRgba(catColor, 0.7));
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, pageW, pageH);
+
+  // Pattern overlay
+  drawBgPattern(ctx, settings.bgPattern, pageW, pageH, "#ffffff");
+
+  // Category name — large centered
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${pageW * 0.08}px ${font}`;
+  ctx.fillText(category.name, pageW / 2, pageH * 0.4);
+
+  // Description
+  if (category.description) {
+    ctx.font = `${pageW * 0.025}px ${font}`;
+    ctx.fillStyle = "rgba(255,255,255,0.8)";
+    wrapText(ctx, category.description, pageW * 0.15, pageH * 0.5, pageW * 0.7, pageW * 0.035, 3);
+  }
+
+  // Product count
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.font = `${pageW * 0.02}px ${font}`;
+  ctx.fillText(`${products.length} מוצרים`, pageW / 2, pageH * 0.65);
+
+  // Mini thumbnails strip (up to 5)
+  const thumbCount = Math.min(products.length, 5);
+  if (thumbCount > 0) {
+    const thumbSize = pageW * 0.1;
+    const gap = 20;
+    const totalW = thumbCount * thumbSize + (thumbCount - 1) * gap;
+    const startX = (pageW - totalW) / 2;
+    const startY = pageH * 0.72;
+
+    for (let i = 0; i < thumbCount; i++) {
+      const tx = startX + i * (thumbSize + gap);
+      try {
+        const img = await loadImage(products[i].image);
+        ctx.save();
+        drawRoundedRect(ctx, tx, startY, thumbSize, thumbSize, 12);
+        ctx.clip();
+        const scale = Math.max(thumbSize / img.naturalWidth, thumbSize / img.naturalHeight);
+        const dw = img.naturalWidth * scale;
+        const dh = img.naturalHeight * scale;
+        ctx.drawImage(img, tx + (thumbSize - dw) / 2, startY + (thumbSize - dh) / 2, dw, dh);
+        ctx.restore();
+      } catch { /* skip */ }
+    }
+  }
+
+  // Decorative line
+  ctx.strokeStyle = "rgba(255,255,255,0.3)";
+  ctx.lineWidth = 3;
+  const lineW = pageW * 0.3;
+  ctx.beginPath();
+  ctx.moveTo((pageW - lineW) / 2, pageH * 0.46);
+  ctx.lineTo((pageW + lineW) / 2, pageH * 0.46);
+  ctx.stroke();
+
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+  return canvas;
+}
+
+// ─── Price List Page ─────────────────────────────────────────
+async function renderPriceListPage(
+  settings: CatalogSettings,
+  products: CatalogProduct[],
+  pageIndex: number,
+  totalPricePages: number,
+): Promise<HTMLCanvasElement> {
+  const { w: pageW, h: pageH } = PAGE_SIZES[settings.pageSize];
+  const canvas = document.createElement("canvas");
+  canvas.width = pageW;
+  canvas.height = pageH;
+  const ctx = canvas.getContext("2d")!;
+  const font = FONT_MAP[settings.fontFamily];
+
+  const isLux = settings.template === "luxury";
+  ctx.fillStyle = isLux ? "#0d0d1a" : settings.bgColor;
+  ctx.fillRect(0, 0, pageW, pageH);
+  drawBgPattern(ctx, settings.bgPattern, pageW, pageH, settings.textColor);
+
+  const padding = pageW * 0.06;
+  const textColor = isLux ? "#e5e5e5" : settings.textColor;
+
+  // Title on first page
+  if (pageIndex === 0) {
+    ctx.textAlign = "right";
+    ctx.fillStyle = settings.brandColor;
+    ctx.font = `bold ${pageW * 0.04}px ${font}`;
+    ctx.fillText("מחירון", pageW - padding, pageH * 0.08);
+    ctx.strokeStyle = settings.brandColor;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(padding, pageH * 0.095);
+    ctx.lineTo(pageW - padding, pageH * 0.095);
+    ctx.stroke();
+  }
+
+  // Table header
+  const tableTop = pageIndex === 0 ? pageH * 0.13 : pageH * 0.06;
+  const rowH = pageH * 0.038;
+  const cols = {
+    price: padding,
+    sku: padding + pageW * 0.18,
+    name: pageW - padding,
+  };
+
+  // Header row
+  ctx.fillStyle = settings.brandColor;
+  ctx.fillRect(padding, tableTop, pageW - padding * 2, rowH);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold ${rowH * 0.5}px ${font}`;
+  ctx.textAlign = "right";
+  ctx.fillText("שם מוצר", cols.name - 10, tableTop + rowH * 0.65);
+  ctx.textAlign = "left";
+  ctx.fillText("מחיר", cols.price + 10, tableTop + rowH * 0.65);
+  if (settings.showSku) {
+    ctx.fillText("מק״ט", cols.sku, tableTop + rowH * 0.65);
+  }
+
+  // Product rows
+  let y = tableTop + rowH;
+  for (let i = 0; i < products.length; i++) {
+    const prod = products[i];
+    const isEven = i % 2 === 0;
+
+    // Alternating row color
+    if (isEven) {
+      ctx.fillStyle = hexToRgba(settings.brandColor, 0.05);
+      ctx.fillRect(padding, y, pageW - padding * 2, rowH);
+    }
+
+    // Separator
+    ctx.strokeStyle = hexToRgba(textColor, 0.08);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(padding, y + rowH);
+    ctx.lineTo(pageW - padding, y + rowH);
+    ctx.stroke();
+
+    ctx.font = `${rowH * 0.45}px ${font}`;
+    ctx.fillStyle = textColor;
+
+    // Name
+    ctx.textAlign = "right";
+    ctx.fillText(prod.name, cols.name - 10, y + rowH * 0.65);
+
+    // Price
+    ctx.textAlign = "left";
+    ctx.fillStyle = settings.brandColor;
+    ctx.font = `bold ${rowH * 0.45}px ${font}`;
+    ctx.fillText(prod.price || "—", cols.price + 10, y + rowH * 0.65);
+
+    // SKU
+    if (settings.showSku) {
+      ctx.fillStyle = hexToRgba(textColor, 0.5);
+      ctx.font = `${rowH * 0.38}px ${font}`;
+      ctx.fillText(prod.sku || "", cols.sku, y + rowH * 0.65);
+    }
+
+    y += rowH;
+  }
+
+  ctx.textAlign = "start";
+  return canvas;
+}
+
+// ─── Back Cover Page ─────────────────────────────────────────
+async function renderBackCover(
+  settings: CatalogSettings,
+): Promise<HTMLCanvasElement> {
+  const { w: pageW, h: pageH } = PAGE_SIZES[settings.pageSize];
+  const canvas = document.createElement("canvas");
+  canvas.width = pageW;
+  canvas.height = pageH;
+  const ctx = canvas.getContext("2d")!;
+  const font = FONT_MAP[settings.fontFamily];
+
+  const isLux = settings.template === "luxury";
+
+  // Background
+  if (isLux) {
+    ctx.fillStyle = "#0d0d1a";
+    ctx.fillRect(0, 0, pageW, pageH);
+    ctx.strokeStyle = settings.accentColor;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(60, 60, pageW - 120, pageH - 120);
+  } else {
+    ctx.fillStyle = settings.brandColor;
+    ctx.fillRect(0, 0, pageW, pageH);
+  }
+
+  drawBgPattern(ctx, settings.bgPattern, pageW, pageH, "#ffffff");
+
+  // Logo
+  if (settings.logo) {
+    try {
+      const logoImg = await loadImage(settings.logo);
+      const logoH = pageH * 0.12;
+      const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
+      ctx.drawImage(logoImg, (pageW - logoW) / 2, pageH * 0.3, logoW, logoH);
+    } catch { /* skip */ }
+  }
+
+  ctx.textAlign = "center";
+
+  // Title
+  ctx.fillStyle = isLux ? settings.accentColor : "#ffffff";
+  ctx.font = `bold ${pageW * 0.05}px ${font}`;
+  ctx.fillText(settings.title, pageW / 2, pageH * 0.52);
+
+  // Subtitle
+  if (settings.subtitle) {
+    ctx.fillStyle = isLux ? hexToRgba("#ffffff", 0.6) : "rgba(255,255,255,0.7)";
+    ctx.font = `${pageW * 0.022}px ${font}`;
+    ctx.fillText(settings.subtitle, pageW / 2, pageH * 0.57);
+  }
+
+  // Contact info
+  if (settings.contactInfo) {
+    ctx.fillStyle = isLux ? hexToRgba("#ffffff", 0.5) : "rgba(255,255,255,0.6)";
+    ctx.font = `${pageW * 0.018}px ${font}`;
+    const lines = settings.contactInfo.split("·").map(s => s.trim());
+    let cy = pageH * 0.66;
+    for (const line of lines) {
+      ctx.fillText(line, pageW / 2, cy);
+      cy += pageW * 0.03;
+    }
+  }
+
+  // "Thank you" footer
+  ctx.fillStyle = isLux ? hexToRgba(settings.accentColor, 0.4) : "rgba(255,255,255,0.3)";
+  ctx.font = `${pageW * 0.015}px ${font}`;
+  ctx.fillText("תודה שבחרתם בנו", pageW / 2, pageH * 0.9);
+
+  ctx.textAlign = "start";
+  return canvas;
 }
 
 // ─── Product Card Renderers ──────────────────────────────────
@@ -597,99 +1032,176 @@ export async function generateCatalog(
   products: CatalogProduct[],
   settings: CatalogSettings,
   onProgress?: (page: number, total: number) => void,
+  categories?: CatalogCategory[],
 ): Promise<CatalogPage[]> {
   const { w: pageW, h: pageH } = PAGE_SIZES[settings.pageSize];
   const itemsPerPage = getItemsPerPage(settings.template, settings.columns);
-  const productPages = Math.ceil(products.length / itemsPerPage);
-  const totalPages = 1 + productPages; // cover + product pages
+  const cats = categories && categories.length > 0 ? categories : [];
+  const useCategories = cats.length > 0 && settings.showCategoryDividers;
+
+  // Build ordered product groups
+  type ProductGroup = { category?: CatalogCategory; products: CatalogProduct[] };
+  const groups: ProductGroup[] = [];
+  if (useCategories) {
+    for (const cat of cats) {
+      const catProds = products.filter(p => p.category === cat.id);
+      if (catProds.length > 0) groups.push({ category: cat, products: catProds });
+    }
+    // Uncategorized
+    const uncategorized = products.filter(p => !p.category || !cats.find(c => c.id === p.category));
+    if (uncategorized.length > 0) groups.push({ products: uncategorized });
+  } else {
+    groups.push({ products });
+  }
+
+  // Calculate total pages
+  let totalPages = 1; // cover
+  const categoryPageMap = new Map<string, number>();
+  if (settings.showToc && cats.length > 0) totalPages++; // TOC
+  for (const group of groups) {
+    if (group.category && useCategories) {
+      categoryPageMap.set(group.category.id, totalPages + 1);
+      totalPages++; // divider
+    }
+    totalPages += Math.ceil(group.products.length / itemsPerPage);
+  }
+  // Price list pages
+  const priceListItemsPerPage = 22;
+  const priceListProducts = products.filter(p => p.price);
+  const priceListPages = settings.showPriceList && priceListProducts.length > 0
+    ? Math.ceil(priceListProducts.length / priceListItemsPerPage) : 0;
+  totalPages += priceListPages;
+  if (settings.showBackCover) totalPages++;
 
   const pages: CatalogPage[] = [];
+  let pageCounter = 0;
 
-  // Cover page
-  onProgress?.(0, totalPages);
-  const coverCanvas = await renderCoverPage(settings, products, totalPages);
-  pages.push({
-    pageNumber: 0,
-    canvas: coverCanvas,
-    dataUrl: coverCanvas.toDataURL("image/png"),
-  });
-
-  // Product pages
-  for (let p = 0; p < productPages; p++) {
-    onProgress?.(p + 1, totalPages);
-    const pageProducts = products.slice(p * itemsPerPage, (p + 1) * itemsPerPage);
-    const canvas = document.createElement("canvas");
-    canvas.width = pageW;
-    canvas.height = pageH;
-    const ctx = canvas.getContext("2d")!;
-
-    // Background
-    ctx.fillStyle = settings.template === "luxury" ? "#0d0d1a" : settings.bgColor;
-    ctx.fillRect(0, 0, pageW, pageH);
-
-    // Header
-    const contentTop = await drawHeader(ctx, settings, pageW, pageH);
-
-    // Watermark
-    if (settings.watermark) {
-      drawWatermark(ctx, settings.watermark, pageW, pageH, FONT_MAP[settings.fontFamily]);
-    }
-
-    // Footer
-    drawFooter(ctx, settings, pageW, pageH, p + 2, totalPages);
-
-    const padding = pageW * 0.04;
-    const contentBottom = pageH - pageW * 0.06;
-    const contentH = contentBottom - contentTop;
-    const contentW = pageW - padding * 2;
-
-    // Render products based on template
-    if (settings.template === "showcase") {
-      if (pageProducts[0]) {
-        await drawShowcaseProduct(ctx, pageProducts[0], contentTop, pageW, pageH, settings);
-      }
-    } else if (settings.template === "lookbook") {
-      const halfH = contentH / 2;
-      for (let i = 0; i < Math.min(pageProducts.length, 2); i++) {
-        await drawLookbookProduct(
-          ctx, pageProducts[i],
-          padding, contentTop + i * halfH, contentW, halfH - 10,
-          settings,
-        );
-      }
-    } else {
-      // Grid-based layouts
-      const cols = settings.columns;
-      const rows = Math.ceil(pageProducts.length / cols);
-      const gap = pageW * 0.02;
-      const cardW = (contentW - (cols - 1) * gap) / cols;
-      const cardH = (contentH - (rows - 1) * gap) / rows;
-
-      for (let i = 0; i < pageProducts.length; i++) {
-        const col = i % cols;
-        const row = Math.floor(i / cols);
-        const cardX = padding + col * (cardW + gap);
-        const cardY = contentTop + row * (cardH + gap);
-        await drawProductCard(
-          ctx, pageProducts[i],
-          cardX, cardY, cardW, cardH,
-          settings, settings.template,
-        );
-      }
-    }
-
-    // Luxury border
-    if (settings.template === "luxury") {
-      ctx.strokeStyle = hexToRgba(settings.accentColor, 0.2);
-      ctx.lineWidth = 2;
-      ctx.strokeRect(padding, padding, pageW - padding * 2, pageH - padding * 2);
-    }
-
+  const pushPage = (canvas: HTMLCanvasElement, type: CatalogPage["type"]) => {
     pages.push({
-      pageNumber: p + 1,
+      pageNumber: pageCounter,
       canvas,
       dataUrl: canvas.toDataURL("image/png"),
+      type,
     });
+    pageCounter++;
+  };
+
+  // ── Cover ──────────────────────────────────────────────
+  onProgress?.(0, totalPages);
+  const coverCanvas = await renderCoverPage(settings, products, totalPages);
+  pushPage(coverCanvas, "cover");
+
+  // ── TOC ────────────────────────────────────────────────
+  if (settings.showToc && cats.length > 0) {
+    onProgress?.(pageCounter, totalPages);
+    const tocCanvas = await renderTocPage(settings, cats, products, categoryPageMap);
+    pushPage(tocCanvas, "toc");
+  }
+
+  // ── Product pages (by group) ───────────────────────────
+  for (const group of groups) {
+    // Category divider
+    if (group.category && useCategories) {
+      onProgress?.(pageCounter, totalPages);
+      const divCanvas = await renderDividerPage(settings, group.category, group.products);
+      pushPage(divCanvas, "divider");
+    }
+
+    const groupProducts = group.products;
+    const groupPages = Math.ceil(groupProducts.length / itemsPerPage);
+
+    for (let p = 0; p < groupPages; p++) {
+      onProgress?.(pageCounter, totalPages);
+      const pageProducts = groupProducts.slice(p * itemsPerPage, (p + 1) * itemsPerPage);
+      const canvas = document.createElement("canvas");
+      canvas.width = pageW;
+      canvas.height = pageH;
+      const ctx = canvas.getContext("2d")!;
+
+      // Background
+      ctx.fillStyle = settings.template === "luxury" ? "#0d0d1a" : settings.bgColor;
+      ctx.fillRect(0, 0, pageW, pageH);
+
+      // Background pattern
+      drawBgPattern(ctx, settings.bgPattern, pageW, pageH, settings.textColor);
+
+      // Header
+      const contentTop = await drawHeader(ctx, settings, pageW, pageH);
+
+      // Watermark
+      if (settings.watermark) {
+        drawWatermark(ctx, settings.watermark, pageW, pageH, FONT_MAP[settings.fontFamily]);
+      }
+
+      // Footer
+      drawFooter(ctx, settings, pageW, pageH, pageCounter + 1, totalPages);
+
+      const padding = pageW * 0.04;
+      const contentBottom = pageH - pageW * 0.06;
+      const contentH = contentBottom - contentTop;
+      const contentW = pageW - padding * 2;
+
+      // Render products based on template
+      if (settings.template === "showcase") {
+        if (pageProducts[0]) {
+          await drawShowcaseProduct(ctx, pageProducts[0], contentTop, pageW, pageH, settings);
+        }
+      } else if (settings.template === "lookbook") {
+        const halfH = contentH / 2;
+        for (let i = 0; i < Math.min(pageProducts.length, 2); i++) {
+          await drawLookbookProduct(
+            ctx, pageProducts[i],
+            padding, contentTop + i * halfH, contentW, halfH - 10,
+            settings,
+          );
+        }
+      } else {
+        // Grid-based layouts
+        const cols = settings.columns;
+        const rows = Math.ceil(pageProducts.length / cols);
+        const gap = pageW * 0.02;
+        const cardW = (contentW - (cols - 1) * gap) / cols;
+        const cardH = (contentH - (rows - 1) * gap) / rows;
+
+        for (let i = 0; i < pageProducts.length; i++) {
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const cardX = padding + col * (cardW + gap);
+          const cardY = contentTop + row * (cardH + gap);
+          await drawProductCard(
+            ctx, pageProducts[i],
+            cardX, cardY, cardW, cardH,
+            settings, settings.template,
+          );
+        }
+      }
+
+      // Luxury border
+      if (settings.template === "luxury") {
+        ctx.strokeStyle = hexToRgba(settings.accentColor, 0.2);
+        ctx.lineWidth = 2;
+        ctx.strokeRect(padding, padding, pageW - padding * 2, pageH - padding * 2);
+      }
+
+      pushPage(canvas, "products");
+    }
+  }
+
+  // ── Price List ─────────────────────────────────────────
+  if (priceListPages > 0) {
+    for (let pl = 0; pl < priceListPages; pl++) {
+      onProgress?.(pageCounter, totalPages);
+      const plProducts = priceListProducts.slice(pl * priceListItemsPerPage, (pl + 1) * priceListItemsPerPage);
+      const plCanvas = await renderPriceListPage(settings, plProducts, pl, priceListPages);
+      pushPage(plCanvas, "price-list");
+    }
+  }
+
+  // ── Back Cover ─────────────────────────────────────────
+  if (settings.showBackCover) {
+    onProgress?.(pageCounter, totalPages);
+    const backCanvas = await renderBackCover(settings);
+    pushPage(backCanvas, "back-cover");
   }
 
   return pages;
@@ -821,7 +1333,13 @@ export const defaultCatalogSettings: CatalogSettings = {
   showDescriptions: true,
   showPageNumbers: true,
   showHeader: true,
+  showToc: false,
+  showBackCover: true,
+  showPriceList: false,
+  showCategoryDividers: true,
   columns: 2,
+  bgPattern: "none",
+  coverStyle: "modern",
 };
 
 export const TEMPLATE_OPTIONS: { id: CatalogTemplate; label: string; icon: string; desc: string }[] = [
@@ -834,3 +1352,14 @@ export const TEMPLATE_OPTIONS: { id: CatalogTemplate; label: string; icon: strin
   { id: "lookbook", label: "לוקבוק", icon: "📸", desc: "תמונות מלאות עם טקסט שקוף" },
   { id: "showcase", label: "תצוגה", icon: "🖼️", desc: "מוצר אחד גדול בעמוד" },
 ];
+
+export const BG_PATTERN_OPTIONS: { id: BgPattern; label: string }[] = [
+  { id: "none", label: "ללא" },
+  { id: "dots", label: "נקודות" },
+  { id: "lines", label: "קווים" },
+  { id: "grid", label: "רשת" },
+  { id: "diagonal", label: "אלכסון" },
+  { id: "circles", label: "עיגולים" },
+];
+
+export { getItemsPerPage };
