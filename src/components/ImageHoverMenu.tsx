@@ -48,6 +48,10 @@ const ImageHoverMenu = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const startHover = useCallback(() => {
+    if (leaveTimer.current) {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
     hoverTimer.current = setTimeout(() => {
       setShowMenu(true);
     }, hoverDelay);
@@ -60,18 +64,29 @@ const ImageHoverMenu = ({
     }
   }, []);
 
+  const leaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleMouseLeave = useCallback(() => {
     cancelHover();
-    // Small delay before hiding to allow entering the menu
-    setTimeout(() => {
+    leaveTimer.current = setTimeout(() => {
       setShowMenu(false);
       setShowFolderSub(false);
-    }, 200);
+    }, 300);
+  }, [cancelHover]);
+
+  const handleMouseEnterMenu = useCallback(() => {
+    cancelHover();
+    if (leaveTimer.current) {
+      clearTimeout(leaveTimer.current);
+      leaveTimer.current = null;
+    }
+    setShowMenu(true);
   }, [cancelHover]);
 
   useEffect(() => {
     return () => {
       if (hoverTimer.current) clearTimeout(hoverTimer.current);
+      if (leaveTimer.current) clearTimeout(leaveTimer.current);
     };
   }, []);
 
@@ -89,13 +104,11 @@ const ImageHoverMenu = ({
       {showMenu && (
         <div
           ref={menuRef}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-30 animate-in fade-in slide-in-from-bottom-2 duration-200"
-          onMouseEnter={() => {
-            cancelHover();
-            setShowMenu(true);
-          }}
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200"
+          onMouseEnter={handleMouseEnterMenu}
           onMouseLeave={handleMouseLeave}
           onClick={(e) => e.stopPropagation()}
+          style={{ pointerEvents: "auto" }}
         >
           <div className="grid grid-cols-4 gap-1 rounded-xl bg-card shadow-xl border border-border p-2 min-w-[180px]">
             {/* Favorite */}
