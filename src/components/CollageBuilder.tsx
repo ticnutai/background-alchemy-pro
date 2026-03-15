@@ -16,7 +16,8 @@ import {
   Plus, Download, Trash2, Database, CloudDownload, Check,
   Image as ImageIcon, Wand2, Palette, SunMedium, Contrast, Sparkles,
   Scissors, Eraser, RefreshCw, Type, Frame, Pencil, RotateCw, Bold,
-  AlignRight, AlignCenter, AlignLeft, Eye, Layers
+  AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
+  BookmarkPlus, Clock
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
