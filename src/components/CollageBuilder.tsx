@@ -384,7 +384,8 @@ export default function CollageBuilder() {
     }
   }, []);
 
-  const openGalleryImport = useCallback(() => {
+  const openGalleryImport = useCallback((mode: 'collage' | 'split' | 'logo' = 'collage') => {
+    setGalleryImportMode(mode);
     setGalleryOpen(true);
     setGallerySelected(new Set());
     loadGalleryItems(galleryTab);
@@ -392,15 +393,32 @@ export default function CollageBuilder() {
 
   const importSelected = useCallback(() => {
     const selected = galleryItems.filter((i) => gallerySelected.has(i.id));
-    const newImages = selected.map((item) => ({
-      id: `gallery_${item.id}`,
-      src: item.image,
-      name: item.name,
-    }));
-    setImages((prev) => [...prev, ...newImages]);
+    if (selected.length === 0) return;
+
+    if (galleryImportMode === 'split') {
+      // Use first selected image as split source
+      setSplitSource(selected[0].image);
+      setSplitDialogOpen(true);
+    } else if (galleryImportMode === 'logo') {
+      // Use first selected image as watermark logo
+      setWatermark(w => ({ ...w, imageSrc: selected[0].image }));
+    } else {
+      // Default: add to collage
+      const newImages = selected.map((item) => ({
+        id: `gallery_${item.id}`,
+        src: item.image,
+        name: item.name,
+      }));
+      setImages((prev) => [...prev, ...newImages]);
+    }
+
     setGalleryOpen(false);
-    toast.success(`${newImages.length} תמונות יובאו בהצלחה`);
-  }, [galleryItems, gallerySelected]);
+    toast.success(
+      galleryImportMode === 'split' ? "תמונה נבחרה לפיצול" :
+      galleryImportMode === 'logo' ? "לוגו נטען מהגלריה" :
+      `${selected.length} תמונות יובאו בהצלחה`
+    );
+  }, [galleryItems, gallerySelected, galleryImportMode]);
 
   // ── Smart Tools ─────────────────────────────────────────────
   const applySmartTool = useCallback(async (toolId: string, imageId: string) => {
