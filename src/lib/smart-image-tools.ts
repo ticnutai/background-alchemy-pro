@@ -549,6 +549,20 @@ const COLLAGE_FONT_MAP: Record<string, string> = {
   'hebrew-display': '"Rubik", sans-serif',
   'hebrew-elegant': '"Assistant", sans-serif',
   'mono': '"JetBrains Mono", monospace',
+  // New fonts
+  'hebrew-amatic': '"Amatic SC", cursive',
+  'hebrew-secular': '"Secular One", sans-serif',
+  'hebrew-suez': '"Suez One", serif',
+  'hebrew-varela': '"Varela Round", sans-serif',
+  'hebrew-karantina': '"Karantina", system-ui',
+  'hebrew-noto': '"Noto Sans Hebrew", sans-serif',
+  'hebrew-fredoka': '"Fredoka", sans-serif',
+  'script-satisfy': '"Satisfy", cursive',
+  'script-lobster': '"Lobster", cursive',
+  'script-pacifico': '"Pacifico", cursive',
+  'display-bebas': '"Bebas Neue", sans-serif',
+  'display-abril': '"Abril Fatface", serif',
+  'display-righteous': '"Righteous", sans-serif',
 };
 
 function drawFrameOnCell(

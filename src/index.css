@@ -101,3 +101,6 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Google Fonts for collage */
+@import url('https://fonts.googleapis.com/css2?family=Amatic+SC:wght@400;700&family=Secular+One&family=Suez+One&family=Varela+Round&family=Karantina:wght@300;400;700&family=Noto+Sans+Hebrew:wght@400;700;900&family=Fredoka:wght@400;600;700&family=Satisfy&family=Lobster&family=Pacifico&family=Bebas+Neue&family=Abril+Fatface&family=Righteous&display=swap');
