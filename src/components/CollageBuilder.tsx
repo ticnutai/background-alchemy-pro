@@ -172,7 +172,58 @@ export default function CollageBuilder() {
   // Active sidebar tab
   const [sidebarTab, setSidebarTab] = useState("images");
 
+  // Templates
+  const [savedTemplates, setSavedTemplates] = useState<CollageTemplate[]>(() => loadTemplatesFromStorage());
+  const [templateName, setTemplateName] = useState("");
+
   const editingText = useMemo(() => textOverlays.find(t => t.id === editingTextId) || null, [textOverlays, editingTextId]);
+
+  // ── Template Save/Load ──────────────────────────────────────
+  const saveTemplate = useCallback(() => {
+    const name = templateName.trim() || `תבנית ${savedTemplates.length + 1}`;
+    const template: CollageTemplate = {
+      id: `tpl_${Date.now()}`,
+      name,
+      createdAt: Date.now(),
+      layout,
+      gap,
+      borderRadius,
+      bgColor,
+      canvasHeight,
+      fitMode,
+      frameStyle,
+      bgGradientEnabled,
+      bgGradient,
+      textOverlays,
+    };
+    const updated = [template, ...savedTemplates];
+    setSavedTemplates(updated);
+    saveTemplatesToStorage(updated);
+    setTemplateName("");
+    toast.success(`תבנית "${name}" נשמרה בהצלחה`);
+  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasHeight, fitMode, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
+
+  const loadTemplate = useCallback((template: CollageTemplate) => {
+    setLayout(template.layout);
+    setGap(template.gap);
+    setBorderRadius(template.borderRadius);
+    setBgColor(template.bgColor);
+    setCanvasHeight(template.canvasHeight);
+    setFitMode(template.fitMode);
+    setFrameStyle(template.frameStyle);
+    setBgGradientEnabled(template.bgGradientEnabled);
+    setBgGradient(template.bgGradient);
+    setTextOverlays(template.textOverlays);
+    setEditingTextId(null);
+    toast.success(`תבנית "${template.name}" נטענה`);
+  }, []);
+
+  const deleteTemplate = useCallback((id: string) => {
+    const updated = savedTemplates.filter(t => t.id !== id);
+    setSavedTemplates(updated);
+    saveTemplatesToStorage(updated);
+    toast.success("תבנית נמחקה");
+  }, [savedTemplates]);
 
   // ── File Upload ─────────────────────────────────────────────
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
