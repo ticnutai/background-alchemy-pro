@@ -100,7 +100,7 @@ export class JobQueue<T = unknown> {
 
   /** Dynamically adjust concurrency (e.g., batch mode = 5) */
   setConcurrency(n: number): void {
-    (this as { concurrency: number }).concurrency = n;
+    this.concurrency = n;
     // Try to fill new slots
     this.processNext();
   }
