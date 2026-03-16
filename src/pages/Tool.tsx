@@ -35,6 +35,7 @@ import CropTransformPanel from "@/components/CropTransformPanel";
 import FloatingSaveAction from "@/components/FloatingSaveAction";
 import AdvancedFiltersPanel from "@/components/AdvancedFiltersPanel";
 import NonAiLabPanel from "@/components/NonAiLabPanel";
+import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
 import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
