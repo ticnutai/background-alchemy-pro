@@ -68,10 +68,11 @@ export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemo
     setProgressLabel("מפעיל מודל הסרת רקע...");
 
     const resultBlob = await removeBackground(blob, {
+      publicPath: "https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/",
       progress: (key: string, current: number, total: number) => {
         if (total > 0) {
           const pct = Math.round((current / total) * 100);
-          if (key.includes("fetch")) {
+          if (key.includes("fetch") || key.includes("download")) {
             setProgress(10 + pct * 0.3); // 10-40%
             setProgressLabel("מוריד מודל...");
           } else if (key.includes("compute") || key.includes("inference")) {
