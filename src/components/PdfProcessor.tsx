@@ -1,5 +1,5 @@
-import { useState, useCallback } from "react";
-import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput, Sparkles, AlertCircle } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput, Sparkles, AlertCircle, Eye, GripVertical } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { extractPdfPages, buildPdfFromImages, downloadBlob, type PdfPage } from "@/lib/pdf-utils";
@@ -26,6 +26,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [fileName, setFileName] = useState("");
+  const [previewPage, setPreviewPage] = useState<ProcessedPage | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
@@ -253,12 +254,30 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
         לחץ על עמוד כדי לפתוח אותו בעורך לעיבוד בודד
       </p>
 
+      {/* Before/After Preview Modal */}
+      {previewPage && previewPage.processed && (
+        <BeforeAfterPreview
+          page={previewPage}
+          onClose={() => setPreviewPage(null)}
+          onOpenEditor={() => {
+            onSelectPage(previewPage.processed || previewPage.dataUrl);
+            setPreviewPage(null);
+          }}
+        />
+      )}
+
       {/* Thumbnails grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto pr-1">
         {pages.map((page) => (
           <button
             key={page.pageNumber}
-            onClick={() => onSelectPage(page.processed || page.dataUrl)}
+            onClick={() => {
+              if (page.processed) {
+                setPreviewPage(page);
+              } else {
+                onSelectPage(page.dataUrl);
+              }
+            }}
             className="group relative overflow-hidden rounded-lg border border-border bg-card transition-all hover:border-primary hover:ring-2 hover:ring-primary/30"
           >
             <img
@@ -267,7 +286,6 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
               className="w-full h-auto object-contain"
               loading="lazy"
             />
-            {/* Processing overlay */}
             {page.status === "processing" && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/60">
                 <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -275,7 +293,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
             )}
             <div className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
               <span className="font-accent text-xs font-semibold text-foreground bg-card/80 px-2 py-1 rounded-md">
-                פתח בעורך
+                {page.processed ? "לפני / אחרי" : "פתח בעורך"}
               </span>
             </div>
             <span className="absolute bottom-1 right-1 rounded bg-background/70 px-1.5 py-0.5 font-accent text-[10px] text-foreground">
@@ -293,5 +311,127 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
     </div>
   );
 };
+
+/* ── Before / After slider component ── */
+function BeforeAfterPreview({
+  page,
+  onClose,
+  onOpenEditor,
+}: {
+  page: ProcessedPage;
+  onClose: () => void;
+  onOpenEditor: () => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [sliderPos, setSliderPos] = useState(50);
+  const dragging = useRef(false);
+
+  const updateSlider = useCallback((clientX: number) => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x = clientX - rect.left;
+    const pct = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    setSliderPos(pct);
+  }, []);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    dragging.current = true;
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    updateSlider(e.clientX);
+  }, [updateSlider]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragging.current) return;
+    updateSlider(e.clientX);
+  }, [updateSlider]);
+
+  const handlePointerUp = useCallback(() => {
+    dragging.current = false;
+  }, []);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="relative flex flex-col w-full max-w-3xl mx-6 max-h-[90vh] rounded-2xl bg-card shadow-2xl border border-border overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-border px-5 py-3 shrink-0">
+          <h3 className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+            <Eye className="h-4 w-4 text-primary" />
+            לפני / אחרי — עמוד {page.pageNumber}
+          </h3>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onOpenEditor}
+              className="rounded-lg bg-primary px-3 py-1.5 font-accent text-xs font-semibold text-primary-foreground transition-all hover:brightness-110"
+            >
+              פתח בעורך
+            </button>
+            <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-secondary transition-colors">
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* Slider comparison */}
+        <div className="flex-1 overflow-hidden p-4">
+          <div className="flex items-center justify-center gap-4 mb-3 text-xs font-accent text-muted-foreground">
+            <span>אחרי ←</span>
+            <span>גרור את הסליידר</span>
+            <span>→ לפני</span>
+          </div>
+          <div
+            ref={containerRef}
+            className="relative w-full overflow-hidden rounded-lg border border-border select-none touch-none cursor-col-resize"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+          >
+            {/* After (processed) — full width behind */}
+            <img
+              src={page.processed}
+              alt="אחרי"
+              className="w-full h-auto object-contain block"
+              draggable={false}
+            />
+
+            {/* Before (original) — clipped by slider */}
+            <div
+              className="absolute inset-0 overflow-hidden"
+              style={{ width: `${sliderPos}%` }}
+            >
+              <img
+                src={page.dataUrl}
+                alt="לפני"
+                className="h-full object-contain block"
+                style={{ width: containerRef.current ? `${containerRef.current.offsetWidth}px` : "100%" }}
+                draggable={false}
+              />
+            </div>
+
+            {/* Slider line */}
+            <div
+              className="absolute top-0 bottom-0 w-0.5 bg-primary shadow-lg"
+              style={{ left: `${sliderPos}%`, transform: "translateX(-50%)" }}
+            >
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center justify-center h-8 w-8 rounded-full bg-primary shadow-lg">
+                <GripVertical className="h-4 w-4 text-primary-foreground" />
+              </div>
+            </div>
+
+            {/* Labels */}
+            <span className="absolute top-2 left-2 rounded bg-background/80 px-2 py-0.5 font-accent text-[10px] text-foreground">
+              לפני
+            </span>
+            <span className="absolute top-2 right-2 rounded bg-background/80 px-2 py-0.5 font-accent text-[10px] text-foreground">
+              אחרי
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default PdfProcessor;
