@@ -4,7 +4,7 @@ import {
   Sun, Contrast, Droplets, Focus, Thermometer, Aperture, SunDim,
   Highlighter, Moon, Flower2, CircleDot, Palette, Paintbrush,
   ChevronDown, ChevronUp, Sparkles, EyeOff, Blend, Layers,
-  SlidersHorizontal, BarChart3, Pipette,
+  SlidersHorizontal, BarChart3, Pipette, RotateCcw,
 } from "lucide-react";
 
 // ─── Interface ───────────────────────────────────────────────
@@ -368,27 +368,43 @@ const ImageAdjustmentsPanel = forwardRef<HTMLDivElement, ImageAdjustmentsProps>(
       onChange({ ...defaultAdjustments, ...blended });
     }, [presetStrength, onChange]);
 
-    const renderSlider = ({ key, label, icon: Icon, min, max }: SliderDef) => (
-      <div key={key} className="space-y-1">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Icon className="h-3 w-3 text-muted-foreground" />
-            <span className="font-body text-[11px] font-medium text-foreground">{label}</span>
+    const renderSlider = ({ key, label, icon: Icon, min, max }: SliderDef) => {
+      const current = adjustments[key] as number;
+      const def = defaultAdjustments[key] as number;
+      const isModified = current !== def;
+      return (
+        <div key={key} className="space-y-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Icon className="h-3 w-3 text-muted-foreground" />
+              <span className="font-body text-[11px] font-medium text-foreground">{label}</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <span className="font-body text-[10px] text-muted-foreground tabular-nums w-8 text-left">
+                {current}
+              </span>
+              {isModified && (
+                <button
+                  onClick={() => onChange({ ...adjustments, [key]: def })}
+                  className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                  title={`איפוס ${label}`}
+                >
+                  <RotateCcw className="h-2.5 w-2.5" />
+                </button>
+              )}
+            </div>
           </div>
-          <span className="font-body text-[10px] text-muted-foreground tabular-nums w-8 text-left">
-            {adjustments[key] as number}
-          </span>
+          <Slider
+            value={[current]}
+            onValueChange={([v]) => onChange({ ...adjustments, [key]: v })}
+            min={min}
+            max={max}
+            step={1}
+            className="cursor-pointer"
+          />
         </div>
-        <Slider
-          value={[adjustments[key] as number]}
-          onValueChange={([v]) => onChange({ ...adjustments, [key]: v })}
-          min={min}
-          max={max}
-          step={1}
-          className="cursor-pointer"
-        />
-      </div>
-    );
+      );
+    };
 
     return (
       <div ref={ref} className="space-y-3">
