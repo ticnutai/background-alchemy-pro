@@ -35,6 +35,7 @@ import CropTransformPanel from "@/components/CropTransformPanel";
 import FloatingSaveAction from "@/components/FloatingSaveAction";
 import AdvancedFiltersPanel from "@/components/AdvancedFiltersPanel";
 import NonAiLabPanel from "@/components/NonAiLabPanel";
+import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
 import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
@@ -1109,21 +1110,27 @@ const ToolInner = () => {
                   </div>
 
                   {activeTab === "backgrounds" && (
-                    <BackgroundPresets
-                      selectedId={selectedPreset}
-                      onSelect={handlePresetSelect}
-                      customPrompt={customPrompt}
-                      onCustomPromptChange={(v) => {
-                        dispatch({ type: "SET_CUSTOM_PROMPT", payload: v });
-                      }}
-                      referenceImages={referenceImages}
-                      onReferenceImagesChange={(imgs) => dispatch({ type: "SET_REFERENCE_IMAGES", payload: imgs })}
-                      multiSelectMode={multiSelectMode}
-                      selectedPresets={selectedPresetIds}
-                      onTogglePreset={(preset) => {
-                        dispatch({ type: "TOGGLE_PRESET_ID", payload: preset.id });
-                      }}
-                    />
+                    <div className="space-y-6">
+                      <SmartRemoveBgPanel
+                        currentImage={resultImage || originalImage}
+                        onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                      />
+                      <BackgroundPresets
+                        selectedId={selectedPreset}
+                        onSelect={handlePresetSelect}
+                        customPrompt={customPrompt}
+                        onCustomPromptChange={(v) => {
+                          dispatch({ type: "SET_CUSTOM_PROMPT", payload: v });
+                        }}
+                        referenceImages={referenceImages}
+                        onReferenceImagesChange={(imgs) => dispatch({ type: "SET_REFERENCE_IMAGES", payload: imgs })}
+                        multiSelectMode={multiSelectMode}
+                        selectedPresets={selectedPresetIds}
+                        onTogglePreset={(preset) => {
+                          dispatch({ type: "TOGGLE_PRESET_ID", payload: preset.id });
+                        }}
+                      />
+                    </div>
                   )}
                   {activeTab === "tools" && (
                     <ErrorBoundary>
