@@ -1,23 +1,29 @@
 import { useState, useCallback } from "react";
-import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput } from "lucide-react";
+import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput, Sparkles, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { extractPdfPages, buildPdfFromImages, downloadBlob, type PdfPage } from "@/lib/pdf-utils";
 import { downloadImagesAsZip } from "@/lib/zip-download";
+import { supabase } from "@/integrations/supabase/client";
+import { compressImage } from "@/lib/image-compress";
 
 interface PdfProcessorProps {
-  /** Called when user selects a single page to edit in the main tool */
   onSelectPage: (dataUrl: string) => void;
   onClose: () => void;
+  backgroundPrompt?: string;
 }
 
 type ProcessedPage = PdfPage & {
-  processed?: string; // processed dataUrl if available
+  processed?: string;
+  status?: "pending" | "processing" | "done" | "error";
+  error?: string;
 };
 
-const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
+const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorProps) => {
   const [pages, setPages] = useState<ProcessedPage[]>([]);
   const [loading, setLoading] = useState(false);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [fileName, setFileName] = useState("");
 
@@ -37,7 +43,7 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
       const extracted = await extractPdfPages(file, 2, (current, total) => {
         setProgress({ current, total });
       });
-      setPages(extracted);
+      setPages(extracted.map(p => ({ ...p, status: "pending" as const })));
       toast.success(`חולצו ${extracted.length} עמודים בהצלחה`);
     } catch (err: any) {
       console.error("PDF extraction error:", err);
@@ -57,6 +63,52 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
     const file = e.target.files?.[0];
     if (file) handleFile(file);
   }, [handleFile]);
+
+  const processAllPages = useCallback(async () => {
+    if (!backgroundPrompt?.trim()) {
+      toast.error("יש לבחור רקע לפני עיבוד אצווה");
+      return;
+    }
+
+    setBatchProcessing(true);
+    const toProcess = pages.filter(p => p.status !== "done");
+    setBatchProgress({ current: 0, total: toProcess.length });
+
+    for (let i = 0; i < toProcess.length; i++) {
+      const page = toProcess[i];
+      const pageIndex = pages.findIndex(p => p.pageNumber === page.pageNumber);
+
+      // Mark processing
+      setPages(prev => prev.map((p, idx) => idx === pageIndex ? { ...p, status: "processing" } : p));
+
+      try {
+        const compressed = await compressImage(page.dataUrl);
+        const { data, error } = await supabase.functions.invoke("replace-background", {
+          body: {
+            imageBase64: compressed,
+            backgroundPrompt: backgroundPrompt.trim(),
+          },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        setPages(prev => prev.map((p, idx) =>
+          idx === pageIndex ? { ...p, processed: data.resultImage, status: "done" } : p
+        ));
+      } catch (err: any) {
+        console.error(`Error processing page ${page.pageNumber}:`, err);
+        setPages(prev => prev.map((p, idx) =>
+          idx === pageIndex ? { ...p, status: "error", error: err?.message || "שגיאה" } : p
+        ));
+      }
+
+      setBatchProgress({ current: i + 1, total: toProcess.length });
+    }
+
+    setBatchProcessing(false);
+    const doneCount = toProcess.length;
+    toast.success(`הושלם עיבוד ${doneCount} עמודים!`);
+  }, [pages, backgroundPrompt]);
 
   const downloadAllAsImages = useCallback(async () => {
     const images = pages.map((p, i) => ({
@@ -82,7 +134,10 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
     }
   }, [pages, fileName]);
 
-  // Upload zone (no pages yet)
+  const doneCount = pages.filter(p => p.status === "done").length;
+  const errorCount = pages.filter(p => p.status === "error").length;
+
+  // Upload zone
   if (pages.length === 0) {
     return (
       <div className="flex flex-col gap-4">
@@ -108,16 +163,9 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
             <p className="font-display text-base font-semibold text-foreground">
               גרור קובץ PDF לכאן או לחץ להעלאה
             </p>
-            <p className="mt-0.5 font-body text-xs text-muted-foreground">
-              עד 50MB
-            </p>
+            <p className="mt-0.5 font-body text-xs text-muted-foreground">עד 50MB</p>
           </div>
-          <input
-            type="file"
-            accept="application/pdf"
-            onChange={handleInputChange}
-            className="hidden"
-          />
+          <input type="file" accept="application/pdf" onChange={handleInputChange} className="hidden" />
         </label>
 
         {loading && (
@@ -138,10 +186,7 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setPages([])}
-            className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
-          >
+          <button onClick={() => setPages([])} className="rounded-lg p-1.5 hover:bg-secondary transition-colors">
             <ArrowLeft className="h-4 w-4 text-muted-foreground" />
           </button>
           <h3 className="font-display text-sm font-bold text-foreground">
@@ -152,6 +197,39 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
           <X className="h-4 w-4 text-muted-foreground" />
         </button>
       </div>
+
+      {/* Batch process button */}
+      <button
+        onClick={processAllPages}
+        disabled={batchProcessing || !backgroundPrompt?.trim() || pages.every(p => p.status === "done")}
+        className="flex items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 font-display text-sm font-semibold text-accent-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        {batchProcessing ? (
+          <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            מעבד... {batchProgress.current}/{batchProgress.total}
+          </>
+        ) : (
+          <>
+            <Sparkles className="h-4 w-4" />
+            {backgroundPrompt?.trim()
+              ? `החלף רקע לכל ${pages.filter(p => p.status !== "done").length} העמודים`
+              : "בחר רקע לפני עיבוד אצווה"}
+          </>
+        )}
+      </button>
+
+      {batchProcessing && (
+        <Progress value={batchProgress.total > 0 ? (batchProgress.current / batchProgress.total) * 100 : 0} className="h-2" />
+      )}
+
+      {/* Status */}
+      {(doneCount > 0 || errorCount > 0) && (
+        <div className="flex items-center gap-3 text-xs font-body text-muted-foreground">
+          {doneCount > 0 && <span className="text-accent flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> {doneCount} הושלמו</span>}
+          {errorCount > 0 && <span className="text-destructive flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" /> {errorCount} שגיאות</span>}
+        </div>
+      )}
 
       {/* Export buttons */}
       <div className="flex gap-2">
@@ -172,7 +250,7 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
       </div>
 
       <p className="text-xs text-muted-foreground">
-        לחץ על עמוד כדי לפתוח אותו בעורך לעיבוד (החלפת רקע, פילטרים ועוד)
+        לחץ על עמוד כדי לפתוח אותו בעורך לעיבוד בודד
       </p>
 
       {/* Thumbnails grid */}
@@ -189,6 +267,12 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
               className="w-full h-auto object-contain"
               loading="lazy"
             />
+            {/* Processing overlay */}
+            {page.status === "processing" && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/60">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            )}
             <div className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
               <span className="font-accent text-xs font-semibold text-foreground bg-card/80 px-2 py-1 rounded-md">
                 פתח בעורך
@@ -197,8 +281,11 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
             <span className="absolute bottom-1 right-1 rounded bg-background/70 px-1.5 py-0.5 font-accent text-[10px] text-foreground">
               {page.pageNumber}
             </span>
-            {page.processed && (
-              <CheckCircle2 className="absolute top-1 left-1 h-4 w-4 text-primary" />
+            {page.status === "done" && (
+              <CheckCircle2 className="absolute top-1 left-1 h-4 w-4 text-accent" />
+            )}
+            {page.status === "error" && (
+              <AlertCircle className="absolute top-1 left-1 h-4 w-4 text-destructive" />
             )}
           </button>
         ))}
