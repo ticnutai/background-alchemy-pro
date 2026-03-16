@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useAiMode } from "@/hooks/use-ai-mode";
 import { downloadImagesAsZip } from "@/lib/zip-download";
 import ImageUploader from "@/components/ImageUploader";
+const PdfProcessor = lazy(() => import("@/components/PdfProcessor"));
 import ImageCanvas from "@/components/ImageCanvas";
 import BackgroundPresets, { type Preset, presets } from "@/components/BackgroundPresets";
 import ImageAdjustmentsPanel, {
@@ -111,6 +112,7 @@ const ToolInner = () => {
   const [filterProcessing, setFilterProcessing] = useState(false);
   const [liveFilterCss, setLiveFilterCss] = useState("");
   const [localApplying, setLocalApplying] = useState(false);
+  const [showPdfProcessor, setShowPdfProcessor] = useState(false);
   const { aiEnabled, setAiMode } = useAiMode(true);
 
   const {
@@ -799,7 +801,29 @@ const ToolInner = () => {
                 />
               </div>
             ) : (
-              <ImageUploader onImageSelect={handleImageSelect} />
+              <div className="flex flex-col gap-4">
+                <ImageUploader onImageSelect={handleImageSelect} />
+                <div className="flex items-center justify-center">
+                  <button
+                    onClick={() => setShowPdfProcessor(true)}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 font-accent text-sm font-semibold text-foreground transition-all hover:bg-secondary hover:border-primary"
+                  >
+                    <FileText className="h-4 w-4 text-primary" />
+                    העלאת קובץ PDF
+                  </button>
+                </div>
+                {showPdfProcessor && (
+                  <Suspense fallback={<LazyFallback />}>
+                    <PdfProcessor
+                      onSelectPage={(dataUrl) => {
+                        handleImageSelect(dataUrl);
+                        setShowPdfProcessor(false);
+                      }}
+                      onClose={() => setShowPdfProcessor(false)}
+                    />
+                  </Suspense>
+                )}
+              </div>
             )}
 
             {originalImage && (
