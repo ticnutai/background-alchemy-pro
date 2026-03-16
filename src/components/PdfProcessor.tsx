@@ -60,10 +60,10 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
 
   const downloadAllAsImages = useCallback(async () => {
     const images = pages.map((p, i) => ({
-      name: `${fileName}_page_${i + 1}.png`,
+      name: `${fileName}_page_${i + 1}`,
       image: p.processed || p.dataUrl,
     }));
-    await downloadImagesAsZip(images.map(i => i.image), images.map(i => i.name));
+    await downloadImagesAsZip(images, `${fileName}_pages.zip`);
     toast.success("התמונות הורדו בהצלחה");
   }, [pages, fileName]);
 
