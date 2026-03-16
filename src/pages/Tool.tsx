@@ -820,6 +820,7 @@ const ToolInner = () => {
                         setShowPdfProcessor(false);
                       }}
                       onClose={() => setShowPdfProcessor(false)}
+                      backgroundPrompt={customPrompt.trim() || activePrompt}
                     />
                   </Suspense>
                 )}
