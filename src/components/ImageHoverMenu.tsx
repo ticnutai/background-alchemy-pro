@@ -287,6 +287,7 @@ const ImageHoverMenu = ({
             </div>
           )}
           </div>
+        </div>
       )}
     </div>
   );
