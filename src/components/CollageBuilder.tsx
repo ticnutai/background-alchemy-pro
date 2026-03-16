@@ -327,6 +327,8 @@ export default function CollageBuilder() {
   const [bgColor, setBgColor] = useState("#ffffff");
   const [canvasWidth, setCanvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
+  const [lockAspectRatio, setLockAspectRatio] = useState(true);
+  const [customAspectRatio, setCustomAspectRatio] = useState(1);
   const [selectedPageSize, setSelectedPageSize] = useState<CollagePageSize>("custom");
   const [fitMode, setFitMode] = useState<'contain' | 'cover' | 'smart-pad'>('contain');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
@@ -386,6 +388,26 @@ export default function CollageBuilder() {
     }
   }, []);
 
+  const clampValue = useCallback((value: number, min: number, max: number) => {
+    return Math.max(min, Math.min(max, value));
+  }, []);
+
+  const handleCanvasWidthChange = useCallback((nextWidth: number) => {
+    setCanvasWidth(nextWidth);
+    if (!lockAspectRatio) return;
+    const ratio = customAspectRatio > 0 ? customAspectRatio : (canvasWidth / Math.max(canvasHeight, 1));
+    const nextHeight = clampValue(Math.round(nextWidth / ratio), 600, 5000);
+    setCanvasHeight(nextHeight);
+  }, [lockAspectRatio, customAspectRatio, canvasWidth, canvasHeight, clampValue]);
+
+  const handleCanvasHeightChange = useCallback((nextHeight: number) => {
+    setCanvasHeight(nextHeight);
+    if (!lockAspectRatio) return;
+    const ratio = customAspectRatio > 0 ? customAspectRatio : (canvasWidth / Math.max(canvasHeight, 1));
+    const nextWidth = clampValue(Math.round(nextHeight * ratio), 600, 4000);
+    setCanvasWidth(nextWidth);
+  }, [lockAspectRatio, customAspectRatio, canvasWidth, canvasHeight, clampValue]);
+
   const applyAutoFitToPage = useCallback(async () => {
     if (images.length === 0) {
       toast.error('אין תמונות להתאמה');
@@ -410,6 +432,7 @@ export default function CollageBuilder() {
 
       setSelectedPageSize('custom');
       setCanvasHeight(clampedHeight);
+      setCustomAspectRatio(canvasWidth / Math.max(clampedHeight, 1));
       setFitMode('smart-pad');
 
       toast.success(`הותאם אוטומטית: ${canvasWidth}×${clampedHeight} + מצב התאמה חכם`);
@@ -1160,7 +1183,7 @@ export default function CollageBuilder() {
                         <div className="flex flex-wrap gap-1">
                           {COLLAGE_PAGE_SIZES.filter(p => p.category === "הדפסה").map(p => (
                             <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
-                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); }}
+                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); setCustomAspectRatio(p.w / p.h); }}
                               className="text-[10px] px-2 h-7"
                             >{p.label}</Button>
                           ))}
@@ -1168,7 +1191,7 @@ export default function CollageBuilder() {
                         <div className="flex flex-wrap gap-1">
                           {COLLAGE_PAGE_SIZES.filter(p => p.category === "סושיאל").map(p => (
                             <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
-                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); }}
+                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); setCustomAspectRatio(p.w / p.h); }}
                               className="text-[10px] px-2 h-7"
                             >{p.label}</Button>
                           ))}
@@ -1176,21 +1199,47 @@ export default function CollageBuilder() {
                         <div className="flex flex-wrap gap-1">
                           {COLLAGE_PAGE_SIZES.filter(p => p.category === "אחר").map(p => (
                             <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
-                              onClick={() => { if (p.id === "custom") { setSelectedPageSize("custom"); } else { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); } }}
+                              onClick={() => {
+                                if (p.id === "custom") {
+                                  setSelectedPageSize("custom");
+                                  setCustomAspectRatio(canvasWidth / Math.max(canvasHeight, 1));
+                                } else {
+                                  setSelectedPageSize(p.id);
+                                  setCanvasWidth(p.w);
+                                  setCanvasHeight(p.h);
+                                  setCustomAspectRatio(p.w / p.h);
+                                }
+                              }}
                               className="text-[10px] px-2 h-7"
                             >{p.label}</Button>
                           ))}
                         </div>
                       </div>
                       {selectedPageSize === "custom" && (
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <Label className="text-[10px]">רוחב: {canvasWidth}px</Label>
-                            <Slider value={[canvasWidth]} onValueChange={([v]) => setCanvasWidth(v)} min={600} max={4000} step={100} />
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between rounded-md border p-2 bg-muted/20">
+                            <div>
+                              <p className="text-[10px] font-medium">נעילת יחס רוחב/גובה</p>
+                              <p className="text-[10px] text-muted-foreground">יחס נוכחי: {canvasWidth}:{canvasHeight}</p>
+                            </div>
+                            <Checkbox
+                              checked={lockAspectRatio}
+                              onCheckedChange={(checked) => {
+                                const enabled = !!checked;
+                                setLockAspectRatio(enabled);
+                                if (enabled) setCustomAspectRatio(canvasWidth / Math.max(canvasHeight, 1));
+                              }}
+                            />
                           </div>
-                          <div>
-                            <Label className="text-[10px]">גובה: {canvasHeight}px</Label>
-                            <Slider value={[canvasHeight]} onValueChange={([v]) => setCanvasHeight(v)} min={600} max={5000} step={100} />
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-[10px]">רוחב: {canvasWidth}px</Label>
+                              <Slider value={[canvasWidth]} onValueChange={([v]) => handleCanvasWidthChange(v)} min={600} max={4000} step={100} />
+                            </div>
+                            <div>
+                              <Label className="text-[10px]">גובה: {canvasHeight}px</Label>
+                              <Slider value={[canvasHeight]} onValueChange={([v]) => handleCanvasHeightChange(v)} min={600} max={5000} step={100} />
+                            </div>
                           </div>
                         </div>
                       )}
