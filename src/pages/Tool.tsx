@@ -1064,7 +1064,7 @@ const ToolInner = () => {
                             if (data?.error) throw new Error(data.error);
                             if (data?.resultImage) {
                               dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
-                              if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as Record<string, unknown>, data.resultImage);
+                              if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as unknown as Record<string, unknown>, data.resultImage);
                               setLiveFilterCss("");
                               toast.success("הפילטרים הוחלו!");
                             }
