@@ -1,16 +1,18 @@
-import { useState } from "react";
-import { Target, Sparkles, Image as ImageIcon, RotateCcw } from "lucide-react";
+import { useState, useCallback } from "react";
+import { Target, Sparkles, RotateCcw, Paintbrush } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import RegionSelectCanvas from "./RegionSelectCanvas";
 
 interface RegionalMaskPanelProps {
   currentImage: string;
-  onApply: (region: "background" | "product", filterType: string, intensity: number) => void;
+  onApply: (region: "background" | "product" | "custom", filterType: string, intensity: number, maskDataUrl?: string) => void;
   isProcessing: boolean;
 }
 
 const regionOptions = [
   { id: "background" as const, label: "רקע בלבד", icon: "🖼️", desc: "החל פילטר רק על הרקע" },
   { id: "product" as const, label: "מוצר בלבד", icon: "📦", desc: "החל פילטר רק על המוצר" },
+  { id: "custom" as const, label: "בחירה חופשית", icon: "🎨", desc: "צייר ידנית את האזור לעריכה" },
 ];
 
 const filterOptions = [
@@ -24,10 +26,19 @@ const filterOptions = [
   { id: "dramatic", label: "דרמטי", icon: "🎭" },
 ];
 
+type RegionType = "background" | "product" | "custom";
+
 const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMaskPanelProps) => {
-  const [selectedRegion, setSelectedRegion] = useState<"background" | "product">("background");
+  const [selectedRegion, setSelectedRegion] = useState<RegionType>("background");
   const [selectedFilter, setSelectedFilter] = useState("blur");
   const [intensity, setIntensity] = useState(70);
+  const [maskDataUrl, setMaskDataUrl] = useState("");
+
+  const handleMaskReady = useCallback((mask: string) => {
+    setMaskDataUrl(mask);
+  }, []);
+
+  const canApplyCustom = selectedRegion !== "custom" || maskDataUrl;
 
   return (
     <div className="space-y-4">
@@ -38,7 +49,7 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
         </div>
         {(selectedRegion !== "background" || selectedFilter !== "blur" || intensity !== 70) && (
           <button
-            onClick={() => { setSelectedRegion("background"); setSelectedFilter("blur"); setIntensity(70); }}
+            onClick={() => { setSelectedRegion("background"); setSelectedFilter("blur"); setIntensity(70); setMaskDataUrl(""); }}
             className="flex items-center gap-1 font-body text-xs text-primary hover:underline"
           >
             <RotateCcw className="h-3 w-3" /> איפוס
@@ -47,17 +58,19 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
       </div>
 
       <p className="font-body text-[10px] text-muted-foreground">
-        החל פילטר רק על אזור מסוים — הרקע או המוצר — עם זיהוי אוטומטי.
+        החל פילטר על אזור מסוים — רקע, מוצר, או ציור ידני חופשי.
       </p>
 
       {/* Region selection */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {regionOptions.map(r => (
           <button
             key={r.id}
             onClick={() => setSelectedRegion(r.id)}
-            className={`rounded-lg border-2 p-3 text-center transition-all ${
-              selectedRegion === r.id ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"
+            className={`rounded-lg border-2 p-2.5 text-center transition-all ${
+              selectedRegion === r.id
+                ? "border-primary bg-primary/5"
+                : "border-border hover:border-primary/50"
             }`}
           >
             <span className="text-lg">{r.icon}</span>
@@ -66,6 +79,15 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
           </button>
         ))}
       </div>
+
+      {/* Custom region drawing canvas */}
+      {selectedRegion === "custom" && currentImage && (
+        <RegionSelectCanvas
+          imageSrc={currentImage}
+          onMaskReady={handleMaskReady}
+          active={selectedRegion === "custom"}
+        />
+      )}
 
       {/* Filter selection */}
       <div className="grid grid-cols-4 gap-1.5">
@@ -103,8 +125,8 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
         />
       </div>
 
-      {/* Preview hint */}
-      {currentImage && (
+      {/* Preview hint for non-custom */}
+      {selectedRegion !== "custom" && currentImage && (
         <div className="relative rounded-lg overflow-hidden border border-border aspect-video">
           <img src={currentImage} alt="preview" className="w-full h-full object-cover" />
           <div className="absolute inset-0 flex items-center justify-center">
@@ -118,12 +140,18 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
       )}
 
       <button
-        onClick={() => onApply(selectedRegion, selectedFilter, intensity)}
-        disabled={isProcessing}
+        onClick={() => onApply(selectedRegion, selectedFilter, intensity, selectedRegion === "custom" ? maskDataUrl : undefined)}
+        disabled={isProcessing || !canApplyCustom}
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-gold py-2.5 font-display text-sm font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
       >
-        <Sparkles className="h-4 w-4" />
-        {isProcessing ? "מעבד..." : `החל ${filterOptions.find(f => f.id === selectedFilter)?.label} על ${selectedRegion === "background" ? "הרקע" : "המוצר"}`}
+        {selectedRegion === "custom" && <Paintbrush className="h-4 w-4" />}
+        {selectedRegion !== "custom" && <Sparkles className="h-4 w-4" />}
+        {isProcessing
+          ? "מעבד..."
+          : selectedRegion === "custom"
+            ? `החל ${filterOptions.find(f => f.id === selectedFilter)?.label} על האזור המסומן`
+            : `החל ${filterOptions.find(f => f.id === selectedFilter)?.label} על ${selectedRegion === "background" ? "הרקע" : "המוצר"}`
+        }
       </button>
     </div>
   );
