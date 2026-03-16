@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput, Sparkles, AlertCircle, Eye, GripVertical, FolderInput, Save, CheckSquare, Square, Folder, FolderPlus } from "lucide-react";
+import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput, Sparkles, AlertCircle, Eye, GripVertical, FolderInput, Save, CheckSquare, Square, Folder, FolderPlus, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { extractPdfPages, buildPdfFromImages, downloadBlob, type PdfPage } from "@/lib/pdf-utils";
