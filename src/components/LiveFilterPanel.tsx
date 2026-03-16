@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { Slider } from "@/components/ui/slider";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Sun, Contrast, Droplets, Thermometer, RotateCcw, Sparkles, Monitor, Maximize2, Save, Trash2, Star, RotateCcw as ResetIcon } from "lucide-react";
+import { Sun, Contrast, Droplets, Thermometer, RotateCcw, Sparkles, Monitor, Maximize2, Save, Trash2, Star } from "lucide-react";
 import { toast } from "sonner";
 
 interface LiveFilters {
