@@ -44,8 +44,10 @@ const ImageHoverMenu = ({
 }: ImageHoverMenuProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showFolderSub, setShowFolderSub] = useState(false);
+  const [position, setPosition] = useState<"top" | "bottom">("top");
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const startHover = useCallback(() => {
     if (leaveTimer.current) {
@@ -53,6 +55,11 @@ const ImageHoverMenu = ({
       leaveTimer.current = null;
     }
     hoverTimer.current = setTimeout(() => {
+      // Check if near top of viewport
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setPosition(rect.top < 160 ? "bottom" : "top");
+      }
       setShowMenu(true);
     }, hoverDelay);
   }, [hoverDelay]);
@@ -95,6 +102,7 @@ const ImageHoverMenu = ({
 
   return (
     <div
+      ref={containerRef}
       className={`relative ${className}`}
       onMouseEnter={startHover}
       onMouseLeave={handleMouseLeave}
@@ -104,12 +112,17 @@ const ImageHoverMenu = ({
       {showMenu && (
         <div
           ref={menuRef}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200"
+          className={`absolute left-1/2 -translate-x-1/2 z-[100] animate-in fade-in duration-200 ${
+            position === "top"
+              ? "bottom-full mb-2 slide-in-from-bottom-2"
+              : "top-full mt-2 slide-in-from-top-2"
+          }`}
           onMouseEnter={handleMouseEnterMenu}
           onMouseLeave={handleMouseLeave}
           onClick={(e) => e.stopPropagation()}
           style={{ pointerEvents: "auto" }}
         >
+          <div className="flex flex-col">
           <div className="grid grid-cols-4 gap-1 rounded-xl bg-card shadow-xl border border-border p-2 min-w-[180px]">
             {/* Favorite */}
             {actions.onFavorite && (
@@ -263,9 +276,16 @@ const ImageHoverMenu = ({
               </button>
             )}
           </div>
-          {/* Arrow pointing down */}
-          <div className="flex justify-center">
-            <div className="w-3 h-3 bg-card border-b border-r border-border rotate-45 -mt-1.5" />
+          {/* Arrow */}
+          {position === "top" ? (
+            <div className="flex justify-center">
+              <div className="w-3 h-3 bg-card border-b border-r border-border rotate-45 -mt-1.5" />
+            </div>
+          ) : (
+            <div className="flex justify-center order-first">
+              <div className="w-3 h-3 bg-card border-t border-l border-border rotate-45 -mb-1.5" />
+            </div>
+          )}
           </div>
         </div>
       )}
