@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { useAiMode } from "@/hooks/use-ai-mode";
 import {
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, autoEnhance, sharpenImage,
@@ -114,6 +115,10 @@ export default function CatalogBuilder() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const workspaceTabs = [
+    { label: "קולאז", path: "/collage" },
+    { label: "קטלוג", path: "/catalog" },
+  ];
   // Products & Categories
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
@@ -148,6 +153,7 @@ export default function CatalogBuilder() {
   const [gallerySortDir, setGallerySortDir] = useState<"asc" | "desc">("desc");
   const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
   const [galleryMode, setGalleryMode] = useState<"products" | "logo">("products");
+  const { aiEnabled, setAiMode } = useAiMode(true);
   // Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -248,6 +254,23 @@ export default function CatalogBuilder() {
     setPages([]);
     setCurrentPage(0);
   }, []);
+
+  const openWorkspaceFromCatalog = useCallback((path: "/collage" | "/catalog") => {
+    if (path === "/catalog") {
+      navigate(path);
+      return;
+    }
+    const activeImage = products[0]?.image;
+    if (!activeImage) {
+      navigate(path);
+      return;
+    }
+    const importKey = `catalog-transfer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(importKey, activeImage);
+    navigate(`${path}?importKey=${encodeURIComponent(importKey)}`, {
+      state: { importImage: activeImage, importFrom: "catalog" },
+    });
+  }, [navigate, products]);
 
   // ─── Category CRUD ────────────────────────────────────────
   const addCategory = useCallback(() => {
@@ -706,6 +729,25 @@ export default function CatalogBuilder() {
           <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <Home className="h-4 w-4" />
           </Link>
+          <div className="flex items-center gap-1 rounded-full border border-gold/25 bg-gold/5 p-1">
+            {workspaceTabs.map((tab) => {
+              const isActive = location.pathname.startsWith(tab.path);
+              return (
+                <button
+                  type="button"
+                  key={tab.path}
+                  onClick={() => openWorkspaceFromCatalog(tab.path as "/collage" | "/catalog")}
+                  className={`rounded-full px-4 py-1.5 font-body text-[12px] font-semibold leading-none tracking-[0.01em] transition-all ${
+                    isActive
+                      ? "bg-gold text-gold-foreground shadow-sm"
+                      : "text-foreground/80 hover:bg-gold/15 hover:text-foreground"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
           <Separator orientation="vertical" className="h-5" />
           <BookOpen className="h-5 w-5 text-primary" />
           <h1 className="font-bold text-lg">מחולל קטלוגים</h1>
@@ -718,6 +760,11 @@ export default function CatalogBuilder() {
           )}
           <div className="flex-1" />
           <div className="flex items-center gap-2">
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-border bg-background px-2.5 py-1">
+              <span className={`text-[10px] ${aiEnabled ? "text-muted-foreground" : "text-primary font-semibold"}`}>ללא AI</span>
+              <Switch checked={aiEnabled} onCheckedChange={setAiMode} />
+              <span className={`text-[10px] ${aiEnabled ? "text-primary font-semibold" : "text-muted-foreground"}`}>AI</span>
+            </div>
             <div className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
               <Label htmlFor="auto-preview" className="text-xs cursor-pointer">תצוגה אוטומטית</Label>
               <Switch id="auto-preview" checked={autoPreview} onCheckedChange={setAutoPreview} />
@@ -739,26 +786,35 @@ export default function CatalogBuilder() {
       </header>
 
       <div className="flex flex-col lg:flex-row h-auto lg:h-[calc(100vh-3.5rem)]">
-        {/* ── Sidebar ──────────────────────────────────────── */}
         <aside className="w-full lg:w-80 border-b lg:border-b-0 lg:border-r bg-muted/30 flex flex-col">
           {/* Side tabs */}
           <div className="flex border-b overflow-x-auto">
             {[
-              { id: "products" as const, icon: ImageIcon, label: "מוצרים" },
+              { id: "products" as const, icon: Grid3X3, label: "מוצרים" },
               { id: "categories" as const, icon: FolderOpen, label: "קטגוריות" },
               { id: "template" as const, icon: LayoutGrid, label: "תבנית" },
               { id: "design" as const, icon: Palette, label: "עיצוב" },
-              { id: "ai" as const, icon: Brain, label: "AI" },
               { id: "settings" as const, icon: Settings2, label: "הגדרות" },
+              { id: "ai" as const, icon: Brain, label: "AI", disabled: !aiEnabled },
             ].map(tab => (
               <button
                 key={tab.id}
-                onClick={() => setSideTab(tab.id)}
+                onClick={() => {
+                  if (tab.id === "ai" && !aiEnabled) {
+                    toast.info("AI כבוי כרגע. ניתן להפעיל מהמתג בראש המסך.");
+                    return;
+                  }
+                  setSideTab(tab.id);
+                }}
                 className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] transition-colors border-b-2 min-w-0 ${
                   sideTab === tab.id
                     ? "border-primary text-primary"
-                    : "border-transparent text-muted-foreground hover:text-foreground"
+                    : tab.id === "ai" && !aiEnabled
+                      ? "border-transparent text-muted-foreground/50"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
+                disabled={Boolean(tab.disabled)}
+                title={tab.id === "ai" && !aiEnabled ? "AI כבוי כרגע" : undefined}
               >
                 <tab.icon className="h-3.5 w-3.5" />
                 {tab.label}
@@ -1508,12 +1564,18 @@ export default function CatalogBuilder() {
                     <Label className="text-sm font-semibold">כלי AI לקטלוג</Label>
                   </div>
 
-                  {products.length === 0 ? (
+                  {!aiEnabled && (
+                    <div className="rounded-lg border border-border bg-muted/30 p-3 text-xs text-muted-foreground">
+                      מצב AI כבוי. להפעלת כלי AI העבר את המתג בראש המסך.
+                    </div>
+                  )}
+
+                  {aiEnabled && products.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <Brain className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-xs">הוסף תמונות תחילה כדי להשתמש בכלי AI</p>
                     </div>
-                  ) : (
+                  ) : aiEnabled ? (
                     <>
                       {aiProcessing && aiBatchProgress && (
                         <div className="bg-primary/10 rounded-lg p-3 space-y-2">
@@ -1855,7 +1917,7 @@ export default function CatalogBuilder() {
                         <p>💡 Drop Shadow — צל אלגוריתמי</p>
                       </div>
                     </>
-                  )}
+                  ) : null}
                 </>
               )}
 

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ import {
   autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP, calcOptimalCanvasHeight
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
+import { useAiMode } from "@/hooks/use-ai-mode";
 
 // ─── Page Size Presets ───────────────────────────────────────
 type CollagePageSize = "custom" | "A4" | "A3" | "A5" | "ig-post" | "ig-story" | "ig-reel" | "fb-post" | "fb-cover" | "square-hd";
@@ -341,6 +343,11 @@ export default function CollageBuilder() {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { aiEnabled, setAiMode } = useAiMode(true);
+  const workspaceTabs = [
+    { label: 'קולאז', path: '/collage' },
+    { label: 'קטלוג', path: '/catalog' },
+  ];
   // Images
   const [images, setImages] = useState<CollageImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -1286,6 +1293,23 @@ export default function CollageBuilder() {
     });
   }, [pages]);
 
+  const openWorkspaceFromCollage = useCallback((path: '/collage' | '/catalog') => {
+    if (path === '/collage') {
+      navigate(path);
+      return;
+    }
+    const activeSrc = (selectedImage ? images.find((img) => img.id === selectedImage)?.src : undefined) || images[0]?.src;
+    if (!activeSrc) {
+      navigate(path);
+      return;
+    }
+    const importKey = `collage-transfer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(importKey, activeSrc);
+    navigate(`${path}?importKey=${encodeURIComponent(importKey)}`, {
+      state: { importImage: activeSrc, importFrom: 'collage' },
+    });
+  }, [navigate, images, selectedImage]);
+
   // ── Save to Gallery ─────────────────────────────────────────
   const [savingToGallery, setSavingToGallery] = useState(false);
 
@@ -1345,7 +1369,34 @@ export default function CollageBuilder() {
               קולאז׳ מתקדם עם מסגרות יוקרתיות, טקסט מעוצב וכלים חכמים
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-1 rounded-full border border-gold/25 bg-gold/5 p-1">
+              {workspaceTabs.map((tab) => {
+                const isActive = location.pathname.startsWith(tab.path);
+                return (
+                  <button
+                    type="button"
+                    key={tab.path}
+                    onClick={() => openWorkspaceFromCollage(tab.path as '/collage' | '/catalog')}
+                    className={`rounded-full px-4 py-1.5 font-body text-[12px] font-semibold leading-none tracking-[0.01em] transition-all ${
+                      isActive
+                        ? 'bg-gold text-gold-foreground shadow-sm'
+                        : 'text-foreground/80 hover:bg-gold/15 hover:text-foreground'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+            <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
+              <span className={`font-body text-[11px] ${aiEnabled ? "text-muted-foreground" : "text-primary font-semibold"}`}>ללא AI</span>
+              <Switch checked={aiEnabled} onCheckedChange={setAiMode} />
+              <span className={`font-body text-[11px] ${aiEnabled ? "text-primary font-semibold" : "text-muted-foreground"}`}>AI</span>
+            </div>
+            <Badge variant="outline" className="text-[11px]">מנוע הקולאז׳: ללא AI</Badge>
             <Button variant="outline" onClick={() => window.history.back()}>חזור</Button>
             {result && (
               <>
@@ -1359,6 +1410,7 @@ export default function CollageBuilder() {
                 </Button>
               </>
             )}
+            </div>
           </div>
         </div>
       </div>

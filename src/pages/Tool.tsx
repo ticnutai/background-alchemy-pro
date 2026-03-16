@@ -10,6 +10,7 @@ import { imageProcessingQueue } from "@/lib/job-queue";
 import { compressImage } from "@/lib/image-compress";
 import { useToolState, useToolDispatch, ToolProvider } from "@/lib/tool-context";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useAiMode } from "@/hooks/use-ai-mode";
 import { downloadImagesAsZip } from "@/lib/zip-download";
 import ImageUploader from "@/components/ImageUploader";
 import ImageCanvas from "@/components/ImageCanvas";
@@ -32,10 +33,12 @@ import LiveHistogram from "@/components/LiveHistogram";
 import CropTransformPanel from "@/components/CropTransformPanel";
 import FloatingSaveAction from "@/components/FloatingSaveAction";
 import AdvancedFiltersPanel from "@/components/AdvancedFiltersPanel";
+import NonAiLabPanel from "@/components/NonAiLabPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
 import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
 import type { User } from "@supabase/supabase-js";
+import { Switch } from "@/components/ui/switch";
 
 // Lazy-load heavy components that aren't needed on initial render
 const MockupPreview = lazy(() => import("@/components/MockupPreview"));
@@ -108,6 +111,7 @@ const ToolInner = () => {
   const [filterProcessing, setFilterProcessing] = useState(false);
   const [liveFilterCss, setLiveFilterCss] = useState("");
   const [localApplying, setLocalApplying] = useState(false);
+  const { aiEnabled, setAiMode } = useAiMode(true);
 
   const {
     originalImage, resultImage, adjustments, referenceImages,
@@ -787,7 +791,7 @@ const ToolInner = () => {
                 {!multiSelectMode ? (
                   <button
                     onClick={handleProcess}
-                    disabled={isProcessing || (!activePrompt && !customPrompt.trim())}
+                    disabled={!aiEnabled || isProcessing || (!activePrompt && !customPrompt.trim())}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2.5 sm:px-6 sm:py-3 font-display text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed ${
                       selectedPresetType === "scene"
                         ? "bg-gradient-to-l from-emerald-500 to-teal-600 text-white"
@@ -802,7 +806,7 @@ const ToolInner = () => {
                 ) : (
                   <button
                     onClick={handleMultiProcess}
-                    disabled={batchProcessing || selectedPresetIds.length === 0}
+                    disabled={!aiEnabled || batchProcessing || selectedPresetIds.length === 0}
                     className="flex items-center gap-2 rounded-lg bg-gradient-to-l from-accent to-primary px-6 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Layers className="h-4 w-4" />
@@ -841,7 +845,7 @@ const ToolInner = () => {
 
                 <button
                   onClick={handleEnhance}
-                  disabled={isEnhancing || isProcessing}
+                  disabled={!aiEnabled || isEnhancing || isProcessing}
                   className="flex items-center gap-2 rounded-lg bg-primary px-5 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Wand2 className="h-4 w-4" />
@@ -940,6 +944,11 @@ const ToolInner = () => {
                     תוצאות — {batchResults.length} רקעים
                   </h3>
                   <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
+                      <span className={`font-body text-[11px] ${aiEnabled ? "text-muted-foreground" : "text-primary font-semibold"}`}>ללא AI</span>
+                      <Switch checked={aiEnabled} onCheckedChange={setAiMode} />
+                      <span className={`font-body text-[11px] ${aiEnabled ? "text-primary font-semibold" : "text-muted-foreground"}`}>AI</span>
+                    </div>
                     <button
                       onClick={() => {
                         downloadImagesAsZip(batchResults).then(() => toast.success("ZIP הורד בהצלחה!")).catch(() => toast.error("שגיאה בהורדה"));
@@ -1006,6 +1015,7 @@ const ToolInner = () => {
                   {[
                     { key: "backgrounds" as const, label: "רקעים", icon: "" },
                     { key: "smart" as const, label: "חכם", icon: "🧠" },
+                    { key: "nonai" as const, label: "Pro ללא AI", icon: "⚙️" },
                     { key: "filters" as const, label: "פילטרים", icon: "⚡" },
                     { key: "advanced" as const, label: "מתקדם", icon: "🎛️" },
                     { key: "crop" as const, label: "חיתוך", icon: "✂️" },
@@ -1067,6 +1077,11 @@ const ToolInner = () => {
                   {activeTab === "smart" && (
                     <ErrorBoundary>
                     <Suspense fallback={<LazyFallback />}>
+                      {!aiEnabled ? (
+                        <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+                          מצב AI כבוי. להפעלת כלי AI העבר את המתג למצב AI.
+                        </div>
+                      ) : (
                       <SmartSuggestPanel
                         imageBase64={originalImage}
                         onSelectPrompt={(prompt, name) => {
@@ -1074,8 +1089,15 @@ const ToolInner = () => {
                           toast.success(`רקע "${name}" הוגדר — לחץ "החלף רקע" להחיל`);
                         }}
                       />
+                      )}
                     </Suspense>
                     </ErrorBoundary>
+                  )}
+                  {activeTab === "nonai" && (
+                    <NonAiLabPanel
+                      currentImage={resultImage || originalImage}
+                      onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                    />
                   )}
                   {activeTab === "filters" && (
                     <div className="space-y-6">

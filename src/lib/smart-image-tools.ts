@@ -485,6 +485,203 @@ export async function sharpenImage(
   return canvasToDataUrl(canvas);
 }
 
+function convolveRGB(
+  src: Uint8ClampedArray,
+  width: number,
+  height: number,
+  kernel: number[],
+  divisor = 1,
+  bias = 0,
+): Uint8ClampedArray {
+  const dst = new Uint8ClampedArray(src.length);
+  const kSize = Math.sqrt(kernel.length);
+  const half = Math.floor(kSize / 2);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      const outIdx = (y * width + x) * 4;
+
+      for (let ky = -half; ky <= half; ky++) {
+        for (let kx = -half; kx <= half; kx++) {
+          const sx = Math.min(width - 1, Math.max(0, x + kx));
+          const sy = Math.min(height - 1, Math.max(0, y + ky));
+          const srcIdx = (sy * width + sx) * 4;
+          const kv = kernel[(ky + half) * kSize + (kx + half)];
+          r += src[srcIdx] * kv;
+          g += src[srcIdx + 1] * kv;
+          b += src[srcIdx + 2] * kv;
+        }
+      }
+
+      dst[outIdx] = Math.max(0, Math.min(255, Math.round(r / divisor + bias)));
+      dst[outIdx + 1] = Math.max(0, Math.min(255, Math.round(g / divisor + bias)));
+      dst[outIdx + 2] = Math.max(0, Math.min(255, Math.round(b / divisor + bias)));
+      dst[outIdx + 3] = src[outIdx + 3];
+    }
+  }
+
+  return dst;
+}
+
+export async function sobelEdgeDetect(
+  imageSrc: string,
+  options: { strength?: number; invert?: boolean } = {}
+): Promise<string> {
+  const { strength = 1, invert = false } = options;
+  const img = await loadImage(imageSrc);
+  const { canvas, ctx } = imageToCanvas(img);
+  const w = canvas.width;
+  const h = canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const src = imageData.data;
+  const gray = new Float32Array(w * h);
+
+  for (let i = 0, p = 0; i < src.length; i += 4, p++) {
+    gray[p] = 0.299 * src[i] + 0.587 * src[i + 1] + 0.114 * src[i + 2];
+  }
+
+  const gxK = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+  const gyK = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+  const out = new Uint8ClampedArray(src.length);
+  const edgeScale = Math.max(0.2, Math.min(3, strength));
+
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      let gx = 0;
+      let gy = 0;
+      let k = 0;
+      for (let ky = -1; ky <= 1; ky++) {
+        for (let kx = -1; kx <= 1; kx++, k++) {
+          const v = gray[(y + ky) * w + (x + kx)];
+          gx += v * gxK[k];
+          gy += v * gyK[k];
+        }
+      }
+      const mag = Math.min(255, Math.sqrt(gx * gx + gy * gy) * edgeScale);
+      const value = invert ? 255 - mag : mag;
+      const idx = (y * w + x) * 4;
+      out[idx] = value;
+      out[idx + 1] = value;
+      out[idx + 2] = value;
+      out[idx + 3] = src[idx + 3];
+    }
+  }
+
+  imageData.data.set(out);
+  ctx.putImageData(imageData, 0, 0);
+  return canvasToDataUrl(canvas);
+}
+
+export async function medianDenoise(
+  imageSrc: string,
+  options: { radius?: number } = {}
+): Promise<string> {
+  const { radius = 1 } = options;
+  const img = await loadImage(imageSrc);
+  const { canvas, ctx } = imageToCanvas(img);
+  const w = canvas.width;
+  const h = canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const src = imageData.data;
+  const dst = new Uint8ClampedArray(src.length);
+  const r = Math.max(1, Math.min(3, Math.round(radius)));
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const rs: number[] = [];
+      const gs: number[] = [];
+      const bs: number[] = [];
+      for (let ky = -r; ky <= r; ky++) {
+        for (let kx = -r; kx <= r; kx++) {
+          const sx = Math.min(w - 1, Math.max(0, x + kx));
+          const sy = Math.min(h - 1, Math.max(0, y + ky));
+          const si = (sy * w + sx) * 4;
+          rs.push(src[si]);
+          gs.push(src[si + 1]);
+          bs.push(src[si + 2]);
+        }
+      }
+      rs.sort((a, b) => a - b);
+      gs.sort((a, b) => a - b);
+      bs.sort((a, b) => a - b);
+      const mid = Math.floor(rs.length / 2);
+      const di = (y * w + x) * 4;
+      dst[di] = rs[mid];
+      dst[di + 1] = gs[mid];
+      dst[di + 2] = bs[mid];
+      dst[di + 3] = src[di + 3];
+    }
+  }
+
+  imageData.data.set(dst);
+  ctx.putImageData(imageData, 0, 0);
+  return canvasToDataUrl(canvas);
+}
+
+export async function posterizeImage(
+  imageSrc: string,
+  options: { levels?: number } = {}
+): Promise<string> {
+  const { levels = 6 } = options;
+  const img = await loadImage(imageSrc);
+  const { canvas, ctx } = imageToCanvas(img);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const steps = Math.max(2, Math.min(32, Math.round(levels)));
+  const scale = 255 / (steps - 1);
+
+  for (let i = 0; i < data.length; i += 4) {
+    data[i] = Math.round((data[i] / 255) * (steps - 1)) * scale;
+    data[i + 1] = Math.round((data[i + 1] / 255) * (steps - 1)) * scale;
+    data[i + 2] = Math.round((data[i + 2] / 255) * (steps - 1)) * scale;
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvasToDataUrl(canvas);
+}
+
+export async function embossImage(imageSrc: string): Promise<string> {
+  const img = await loadImage(imageSrc);
+  const { canvas, ctx } = imageToCanvas(img);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const convolved = convolveRGB(
+    imageData.data,
+    canvas.width,
+    canvas.height,
+    [-2, -1, 0, -1, 1, 1, 0, 1, 2],
+    1,
+    128,
+  );
+  imageData.data.set(convolved);
+  ctx.putImageData(imageData, 0, 0);
+  return canvasToDataUrl(canvas);
+}
+
+export async function addFilmGrain(
+  imageSrc: string,
+  options: { amount?: number } = {}
+): Promise<string> {
+  const { amount = 0.08 } = options;
+  const img = await loadImage(imageSrc);
+  const { canvas, ctx } = imageToCanvas(img);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const data = imageData.data;
+  const amp = Math.max(0.01, Math.min(0.35, amount));
+
+  for (let i = 0; i < data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 255 * amp;
+    data[i] = Math.max(0, Math.min(255, data[i] + n));
+    data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + n));
+    data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + n));
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvasToDataUrl(canvas);
+}
+
 // ─── 11. Collage Layout Engine ──────────────────────────────────
 
 // Canvas size presets for common aspect ratios
