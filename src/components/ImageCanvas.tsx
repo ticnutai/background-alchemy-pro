@@ -10,6 +10,7 @@ interface ImageCanvasProps {
   isProcessing: boolean;
   adjustments: ImageAdjustments;
   compareMode?: CompareMode;
+  liveFilterCss?: string;
 }
 
 const compareModeLabels: Record<CompareMode, string> = {
@@ -19,7 +20,7 @@ const compareModeLabels: Record<CompareMode, string> = {
   split: "פיצול",
 };
 
-const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustments, compareMode = "slider" }: ImageCanvasProps) => {
+const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustments, compareMode = "slider", liveFilterCss }: ImageCanvasProps) => {
   const [sliderPos, setSliderPos] = useState(50);
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const [localMode, setLocalMode] = useState<CompareMode>(compareMode);
@@ -39,7 +40,7 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
   const filterStyle = getFilterString(adjustments);
   const svgFilterId = getSvgFilterId(adjustments);
   const svgMarkup = useMemo(() => getSvgFilterMarkup(adjustments), [adjustments]);
-  const combinedFilter = svgFilterId ? `${filterStyle} url(#${svgFilterId})` : filterStyle;
+  const combinedFilter = [svgFilterId ? `${filterStyle} url(#${svgFilterId})` : filterStyle, liveFilterCss].filter(Boolean).join(" ");
   const overlayStyles = getOverlayStyles(adjustments);
   const hasAdjustments = JSON.stringify(adjustments) !== JSON.stringify(defaultAdjustments);
 
@@ -189,7 +190,7 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
         </>
       ) : (
         <div className="relative">
-          <img src={originalImage} alt="Original" className="block w-full" />
+          <img src={originalImage} alt="Original" className="block w-full" style={liveFilterCss ? { filter: liveFilterCss } : undefined} />
         </div>
       )}
     </div>

@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { Slider } from "@/components/ui/slider";
-import { Sun, Contrast, Droplets, Thermometer, RotateCcw, Sparkles } from "lucide-react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Sun, Contrast, Droplets, Thermometer, RotateCcw, Sparkles, Monitor, Maximize2 } from "lucide-react";
 import { toast } from "sonner";
 
 interface LiveFilters {
@@ -20,6 +21,8 @@ const defaultFilters: LiveFilters = {
   sepia: 0,
   blur: 0,
 };
+
+type PreviewMode = "mini" | "main" | "fullscreen";
 
 interface LiveFilterPanelProps {
   currentImage: string;
@@ -48,8 +51,16 @@ export function buildCssFilter(f: LiveFilters): string {
   ].filter(Boolean).join(" ");
 }
 
+const previewModes: { id: PreviewMode; label: string; icon: typeof Sun }[] = [
+  { id: "mini", label: "מקומי", icon: Sun },
+  { id: "main", label: "תמונה ראשית", icon: Monitor },
+  { id: "fullscreen", label: "מסך מלא", icon: Maximize2 },
+];
+
 const LiveFilterPanel = ({ currentImage, onPreviewFilter, onApply, isProcessing }: LiveFilterPanelProps) => {
   const [filters, setFilters] = useState<LiveFilters>({ ...defaultFilters });
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("mini");
+  const [showFullscreen, setShowFullscreen] = useState(false);
 
   const isDefault = useMemo(() => JSON.stringify(filters) === JSON.stringify(defaultFilters), [filters]);
 
@@ -62,7 +73,17 @@ const LiveFilterPanel = ({ currentImage, onPreviewFilter, onApply, isProcessing 
   const handleReset = useCallback(() => {
     setFilters({ ...defaultFilters });
     onPreviewFilter("");
+    setShowFullscreen(false);
   }, [onPreviewFilter]);
+
+  const handleModeChange = useCallback((mode: PreviewMode) => {
+    setPreviewMode(mode);
+    if (mode === "fullscreen") {
+      setShowFullscreen(true);
+    } else {
+      setShowFullscreen(false);
+    }
+  }, []);
 
   return (
     <div className="space-y-4">
@@ -81,8 +102,26 @@ const LiveFilterPanel = ({ currentImage, onPreviewFilter, onApply, isProcessing 
         כוון את הסליידרים — התצוגה המקדימה מיידית. לחץ "החל עם AI" לתוצאה סופית מקצועית.
       </p>
 
-      {/* Mini preview */}
-      {currentImage && (
+      {/* Preview mode selector */}
+      <div className="flex gap-1 rounded-lg border border-border bg-muted/50 p-1">
+        {previewModes.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            onClick={() => handleModeChange(id)}
+            className={`flex flex-1 items-center justify-center gap-1 rounded-md px-2 py-1.5 font-accent text-[10px] font-semibold transition-colors ${
+              (previewMode === id || (id === "fullscreen" && showFullscreen))
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Icon className="h-3 w-3" />
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Mini preview - only when mode is "mini" */}
+      {previewMode === "mini" && currentImage && (
         <div className="relative rounded-lg overflow-hidden border border-border aspect-video">
           <img
             src={currentImage}
@@ -95,6 +134,15 @@ const LiveFilterPanel = ({ currentImage, onPreviewFilter, onApply, isProcessing 
               תצוגה מקדימה
             </div>
           )}
+        </div>
+      )}
+
+      {/* Main image mode hint */}
+      {previewMode === "main" && !isDefault && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-2 text-center">
+          <p className="font-accent text-[10px] text-primary font-semibold">
+            📐 התצוגה המקדימה מוחלת על התמונה הראשית
+          </p>
         </div>
       )}
 
@@ -125,6 +173,28 @@ const LiveFilterPanel = ({ currentImage, onPreviewFilter, onApply, isProcessing 
         <Sparkles className="h-4 w-4" />
         {isProcessing ? "מעבד עם AI..." : "החל עם AI"}
       </button>
+
+      {/* Fullscreen dialog */}
+      <Dialog open={showFullscreen} onOpenChange={(open) => {
+        setShowFullscreen(open);
+        if (!open) setPreviewMode("mini");
+      }}>
+        <DialogContent className="max-w-[90vw] max-h-[90vh] p-2">
+          <div className="relative rounded-lg overflow-hidden bg-muted">
+            <img
+              src={currentImage}
+              alt="fullscreen preview"
+              className="w-full h-full object-contain max-h-[75vh] transition-all duration-150"
+              style={{ filter: buildCssFilter(filters) }}
+            />
+            {!isDefault && (
+              <div className="absolute top-2 left-2 rounded bg-primary/80 px-2 py-1 font-accent text-xs text-primary-foreground">
+                תצוגה מקדימה — מסך מלא
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

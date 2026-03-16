@@ -707,6 +707,7 @@ const ToolInner = () => {
                   resultImage={resultImage}
                   isProcessing={isProcessing || isEnhancing}
                   adjustments={adjustments}
+                  liveFilterCss={liveFilterCss}
                 />
                 <FloatingSaveAction
                   visible={!!originalImage && hasUnsavedChanges && !!user}
@@ -1047,7 +1048,7 @@ const ToolInner = () => {
                         onApply={async (filters) => {
                           setFilterProcessing(true);
                           const currentImg = resultImage || originalImage;
-                          const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as Record<string, unknown>) : null;
+                          const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as unknown as Record<string, unknown>) : null;
                           if (cached) {
                             dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
                             setLiveFilterCss("");
@@ -1063,7 +1064,7 @@ const ToolInner = () => {
                             if (data?.error) throw new Error(data.error);
                             if (data?.resultImage) {
                               dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
-                              if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as Record<string, unknown>, data.resultImage);
+                              if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as unknown as Record<string, unknown>, data.resultImage);
                               setLiveFilterCss("");
                               toast.success("הפילטרים הוחלו!");
                             }
