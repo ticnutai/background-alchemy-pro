@@ -112,7 +112,11 @@ const ImageHoverMenu = ({
       {showMenu && (
         <div
           ref={menuRef}
-          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[100] animate-in fade-in slide-in-from-bottom-2 duration-200"
+          className={`absolute left-1/2 -translate-x-1/2 z-[100] animate-in fade-in duration-200 ${
+            position === "top"
+              ? "bottom-full mb-2 slide-in-from-bottom-2"
+              : "top-full mt-2 slide-in-from-top-2"
+          }`}
           onMouseEnter={handleMouseEnterMenu}
           onMouseLeave={handleMouseLeave}
           onClick={(e) => e.stopPropagation()}
