@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Target, Sparkles, Image as ImageIcon } from "lucide-react";
+import { Target, Sparkles, Image as ImageIcon, RotateCcw } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface RegionalMaskPanelProps {
