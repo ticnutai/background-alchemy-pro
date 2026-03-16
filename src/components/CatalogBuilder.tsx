@@ -145,6 +145,7 @@ export default function CatalogBuilder() {
   const [galleryHideText, setGalleryHideText] = useState<{ name: boolean; description: boolean; price: boolean }>({ name: false, description: false, price: false });
   const [gallerySortDir, setGallerySortDir] = useState<"asc" | "desc">("desc");
   const [galleryViewMode, setGalleryViewMode] = useState<"grid" | "list">("grid");
+  const [galleryMode, setGalleryMode] = useState<"products" | "logo">("products");
   // Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);

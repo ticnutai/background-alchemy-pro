@@ -81,6 +81,8 @@ export interface CatalogSettings {
   title: string;
   subtitle?: string;
   logo?: string;          // base64 or URL
+  logoPosition?: "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  logoScale?: number;
   brandColor: string;
   accentColor: string;
   bgColor: string;
