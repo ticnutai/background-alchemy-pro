@@ -3,7 +3,7 @@ import { Upload, X, Sparkles, Download, CheckCircle2, AlertCircle, Loader2 } fro
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { type Preset } from "@/components/BackgroundPresets";
-import { imageProcessingQueue } from "@/lib/job-queue";
+import { batchProcessingQueue } from "@/lib/job-queue";
 import { compressImage } from "@/lib/image-compress";
 
 interface BatchItem {
