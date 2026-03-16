@@ -813,7 +813,7 @@ const ToolInner = () => {
                   </button>
                 </div>
                 {showPdfProcessor && (
-                  <Suspense fallback={<FallbackSpinner />}>
+                  <Suspense fallback={<LazyFallback />}>
                     <PdfProcessor
                       onSelectPage={(dataUrl) => {
                         handleImageSelect(dataUrl);
