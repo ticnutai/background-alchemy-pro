@@ -29,7 +29,7 @@ import {
   generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, compositeImages, adjustImage,
-  autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP
+  autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP, calcOptimalCanvasHeight
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
 
@@ -199,7 +199,7 @@ interface CollageTemplate {
   borderRadius: number;
   bgColor: string;
   canvasHeight: number;
-  fitMode: 'contain' | 'cover';
+  fitMode: 'contain' | 'cover' | 'smart-pad';
   frameStyle: FrameStyle;
   bgGradientEnabled: boolean;
   bgGradient: { from: string; to: string; angle: number };
@@ -328,7 +328,7 @@ export default function CollageBuilder() {
   const [canvasWidth, setCanvasWidth] = useState(1200);
   const [canvasHeight, setCanvasHeight] = useState(1200);
   const [selectedPageSize, setSelectedPageSize] = useState<CollagePageSize>("custom");
-  const [fitMode, setFitMode] = useState<'contain' | 'cover'>('contain');
+  const [fitMode, setFitMode] = useState<'contain' | 'cover' | 'smart-pad'>('contain');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
   const [bgGradient, setBgGradient] = useState({ from: "#1a1a2e", to: "#c9a84c", angle: 135 });
@@ -358,6 +358,7 @@ export default function CollageBuilder() {
   const [currentPage, setCurrentPage] = useState(0);
   const [processing, setProcessing] = useState(false);
   const result = pages[currentPage] || null;
+  const [autoFitProcessing, setAutoFitProcessing] = useState(false);
   const currentLayoutMaxImages = useMemo(() => LAYOUT_OPTIONS.find((l) => l.id === layout)?.maxImages || 9, [layout]);
   const mainPageStart = currentPage * currentLayoutMaxImages;
   const mainPageEnd = Math.min(mainPageStart + currentLayoutMaxImages, images.length);
@@ -365,6 +366,58 @@ export default function CollageBuilder() {
     () => images.slice(mainPageStart, mainPageEnd),
     [images, mainPageStart, mainPageEnd]
   );
+
+  const estimatedPageCount = useMemo(
+    () => Math.ceil(images.length / currentLayoutMaxImages),
+    [images.length, currentLayoutMaxImages]
+  );
+
+  const estimateColsForLayout = useCallback((layoutId: CollageLayout) => {
+    switch (layoutId) {
+      case 'grid-2x2': return 2;
+      case 'grid-3x3': return 3;
+      case 'grid-2x3': return 2;
+      case 'grid-3x2': return 3;
+      case 'grid-4x4': return 4;
+      case 'pinterest': return 2;
+      case 'strip': return 5;
+      case 'featured-grid': return 2;
+      default: return 3;
+    }
+  }, []);
+
+  const applyAutoFitToPage = useCallback(async () => {
+    if (images.length === 0) {
+      toast.error('אין תמונות להתאמה');
+      return;
+    }
+
+    setAutoFitProcessing(true);
+    try {
+      const sample = images.slice(0, Math.min(images.length, 16));
+      const dimensions = await Promise.all(sample.map((img) =>
+        new Promise<{ width: number; height: number }>((resolve, reject) => {
+          const imageEl = new Image();
+          imageEl.onload = () => resolve({ width: imageEl.naturalWidth || imageEl.width, height: imageEl.naturalHeight || imageEl.height });
+          imageEl.onerror = reject;
+          imageEl.src = img.src;
+        })
+      ));
+
+      const cols = estimateColsForLayout(layout);
+      const optimalHeight = calcOptimalCanvasHeight(dimensions, canvasWidth, cols, gap);
+      const clampedHeight = Math.max(600, Math.min(5000, Math.round(optimalHeight / 10) * 10));
+
+      setSelectedPageSize('custom');
+      setCanvasHeight(clampedHeight);
+      setFitMode('smart-pad');
+
+      toast.success(`הותאם אוטומטית: ${canvasWidth}×${clampedHeight} + מצב התאמה חכם`);
+    } catch {
+      toast.error('לא הצלחנו לנתח את התמונות להתאמה אוטומטית');
+    }
+    setAutoFitProcessing(false);
+  }, [images, layout, canvasWidth, gap, estimateColsForLayout]);
 
   // Comparison preview dialog
   const [compareItems, setCompareItems] = useState<ComparePreviewItem[]>([]);
@@ -937,13 +990,16 @@ export default function CollageBuilder() {
                       <ScrollArea className="max-h-[240px]">
                         <div className="grid grid-cols-3 gap-2">
                           {images.map((img, idx) => (
+                            (() => {
+                              const isOnCurrentPage = idx >= mainPageStart && idx < mainPageEnd;
+                              return (
                             <ImageHoverMenu
                               key={img.id}
                               imageUrl={img.src}
                               hoverDelay={800}
                               className={`relative border rounded aspect-square transition-all ${
                                 selectedImage === img.id ? "ring-2 ring-primary" : ""
-                              } ${dragIdx === idx ? "opacity-50 scale-95" : ""}`}
+                              } ${isOnCurrentPage ? "border-primary/70 bg-primary/5" : ""} ${dragIdx === idx ? "opacity-50 scale-95" : ""}`}
                               actions={{
                                 onZoom: () => setSelectedImage(img.id),
                                 onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(img.src)}`),
@@ -982,6 +1038,11 @@ export default function CollageBuilder() {
                                 <div className="absolute top-0.5 right-0.5 bg-foreground/60 text-background rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-bold">
                                   {idx + 1}
                                 </div>
+                                {isOnCurrentPage && (
+                                  <div className="absolute bottom-0.5 right-0.5 bg-primary text-primary-foreground rounded px-1 py-0.5 text-[8px] font-semibold">
+                                    עמוד {currentPage + 1}
+                                  </div>
+                                )}
                                 <button
                                   className="absolute top-0.5 left-0.5 bg-destructive text-destructive-foreground rounded-full p-0.5"
                                   onClick={(e) => { e.stopPropagation(); setImages(prev => prev.filter(i => i.id !== img.id)); }}
@@ -990,6 +1051,8 @@ export default function CollageBuilder() {
                                 </button>
                               </div>
                             </ImageHoverMenu>
+                              );
+                            })()
                           ))}
                         </div>
                       </ScrollArea>
@@ -1134,13 +1197,35 @@ export default function CollageBuilder() {
                       {selectedPageSize !== "custom" && (
                         <p className="text-[10px] text-muted-foreground">{canvasWidth}×{canvasHeight}px</p>
                       )}
+                      {images.length > 0 && (
+                        <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+                          <p className="text-[10px] font-medium">התאמה לתמונות: {images.length} תמונות | {estimatedPageCount} דפים צפויים</p>
+                          <p className="text-[10px] text-muted-foreground">עמוד פעיל: תמונות {mainPageStart + 1}-{mainPageEnd} מתוך {images.length}</p>
+                        </div>
+                      )}
                     </div>
                     <div className="space-y-2">
-                      <Label className="text-xs">התאמת תמונה</Label>
-                      <div className="flex gap-1">
-                        <Button size="sm" variant={fitMode === "contain" ? "default" : "outline"} onClick={() => setFitMode("contain")} className="flex-1 text-xs">התאם (מלא)</Button>
-                        <Button size="sm" variant={fitMode === "cover" ? "default" : "outline"} onClick={() => setFitMode("cover")} className="flex-1 text-xs">חיתוך למילוי</Button>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs">התאמת תמונה</Label>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-[10px] h-7"
+                          onClick={applyAutoFitToPage}
+                          disabled={autoFitProcessing || images.length === 0}
+                        >
+                          {autoFitProcessing ? <RefreshCw className="h-3 w-3 ml-1 animate-spin" /> : <Sparkles className="h-3 w-3 ml-1" />}
+                          התאמה אוטומטית
+                        </Button>
                       </div>
+                      <div className="grid grid-cols-3 gap-1">
+                        <Button size="sm" variant={fitMode === "contain" ? "default" : "outline"} onClick={() => setFitMode("contain")} className="text-xs">ללא חיתוך</Button>
+                        <Button size="sm" variant={fitMode === "cover" ? "default" : "outline"} onClick={() => setFitMode("cover")} className="text-xs">מילוי (חיתוך)</Button>
+                        <Button size="sm" variant={fitMode === "smart-pad" ? "default" : "outline"} onClick={() => setFitMode("smart-pad")} className="text-xs">חכם</Button>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        מצב נוכחי: {fitMode === 'contain' ? 'ללא חיתוך - יתכנו שוליים' : fitMode === 'cover' ? 'מילוי מלא - יתכן חיתוך' : 'חכם - שומר תוכן ומאזן שוליים'}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
