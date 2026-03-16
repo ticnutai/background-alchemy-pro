@@ -1515,14 +1515,7 @@ async function renderCoverPage(
   }
 
   // Logo
-  if (settings.logo) {
-    try {
-      const logoImg = await loadImage(settings.logo);
-      const logoH = pageH * 0.08;
-      const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
-      ctx.drawImage(logoImg, (pageW - logoW) / 2, pageH * 0.12, logoW, logoH);
-    } catch { /* skip */ }
-  }
+  await drawPlacedLogo(ctx, settings, pageW, pageH, 0.08);
 
   // Title
   ctx.textAlign = "center";
