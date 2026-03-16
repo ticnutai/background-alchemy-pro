@@ -146,7 +146,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemo
             alt="bg removed"
             className="w-full h-auto max-h-48 object-contain"
           />
-          <div className="absolute top-1.5 right-1.5 rounded-full bg-emerald-500/90 px-2 py-0.5 font-accent text-[9px] font-bold text-white flex items-center gap-1">
+          <div className="absolute top-1.5 right-1.5 rounded-full bg-primary/90 px-2 py-0.5 font-accent text-[9px] font-bold text-primary-foreground flex items-center gap-1">
             <CheckCircle2 className="h-2.5 w-2.5" />
             הרקע הוסר
           </div>
