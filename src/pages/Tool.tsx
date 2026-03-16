@@ -13,6 +13,7 @@ import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useAiMode } from "@/hooks/use-ai-mode";
 import { downloadImagesAsZip } from "@/lib/zip-download";
 import ImageUploader from "@/components/ImageUploader";
+const PdfProcessor = lazy(() => import("@/components/PdfProcessor"));
 import ImageCanvas from "@/components/ImageCanvas";
 import BackgroundPresets, { type Preset, presets } from "@/components/BackgroundPresets";
 import ImageAdjustmentsPanel, {
