@@ -20,7 +20,7 @@ import {
   AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
   BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram,
   Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
-  FileDown, FilePlus2, X, Film, Maximize2, Target, Hash, Footprints, Square,
+  FileDown, FilePlus2, X, Film, Maximize2, Target, Hash, Footprints, Square, ZoomIn,
   Ratio, Newspaper, RectangleHorizontal, SplitSquareHorizontal, PanelTopClose, GalleryVerticalEnd
 } from "lucide-react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
@@ -34,6 +34,7 @@ import {
 } from "@/lib/smart-image-tools";
 import SplitImageDialog from "@/components/SplitImageDialog";
 import { useAiMode } from "@/hooks/use-ai-mode";
+import { upscaleImage } from "@/lib/ai-tools";
 
 // ─── Page Size Presets ───────────────────────────────────────
 type CollagePageSize = "custom" | "A4" | "A3" | "A5" | "ig-post" | "ig-story" | "ig-reel" | "fb-post" | "fb-cover" | "square-hd";
@@ -202,6 +203,8 @@ const BG_GRADIENT_PRESETS = [
   { label: "קרח", from: "#e0eafc", to: "#cfdef3" },
 ];
 
+const PRINT_DPI = 300;
+
 const TEXTURE_PRESETS: { id: 'none' | 'paper' | 'linen' | 'noise' | 'grain'; label: string }[] = [
   { id: 'none', label: 'ללא' },
   { id: 'paper', label: 'נייר' },
@@ -351,6 +354,8 @@ export default function CollageBuilder() {
   // Images
   const [images, setImages] = useState<CollageImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [slotImportTargetIndex, setSlotImportTargetIndex] = useState<number | null>(null);
+  const slotFileInputRef = useRef<HTMLInputElement>(null);
 
   // Layout & design
   const [layout, setLayout] = useState<CollageLayout>("grid-2x2");
@@ -417,6 +422,17 @@ export default function CollageBuilder() {
   const activePageImages = useMemo(
     () => images.slice(activePageStart, activePageEnd),
     [images, activePageStart, activePageEnd]
+  );
+  const activePageSlots = useMemo(
+    () => Array.from({ length: currentLayoutMaxImages }, (_, idx) => {
+      const absoluteIndex = activePageStart + idx;
+      return {
+        slotIndex: idx,
+        absoluteIndex,
+        image: images[absoluteIndex] || null,
+      };
+    }),
+    [currentLayoutMaxImages, activePageStart, images]
   );
 
   const pagePreviewCols = useMemo(() => {
@@ -584,6 +600,7 @@ export default function CollageBuilder() {
   const [compareSavedSnapshots, setCompareSavedSnapshots] = useState<CompareDialogSnapshot[]>([]);
   const comparePanStartRef = useRef<{ x: number; y: number } | null>(null);
   const [imageDimensions, setImageDimensions] = useState<Record<string, { width: number; height: number }>>({});
+  const [upscaleProcessingImageId, setUpscaleProcessingImageId] = useState<string | null>(null);
 
   // Gallery import
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -591,7 +608,7 @@ export default function CollageBuilder() {
   const [galleryItems, setGalleryItems] = useState<{ id: string; image: string; name: string }[]>([]);
   const [gallerySelected, setGallerySelected] = useState<Set<string>>(new Set());
   const [galleryLoading, setGalleryLoading] = useState(false);
-  const [galleryImportMode, setGalleryImportMode] = useState<'collage' | 'split' | 'logo'>('collage');
+  const [galleryImportMode, setGalleryImportMode] = useState<'collage' | 'split' | 'logo' | 'replace-slot'>('collage');
 
   // Smart tool processing
   const [toolProcessing, setToolProcessing] = useState<string | null>(null);
@@ -706,6 +723,87 @@ export default function CollageBuilder() {
 
     return warnings;
   }, [images, fitMode, imageScale, pagePadding, frameInset, gap, imageDimensions, canvasWidth, canvasHeight, compareSelectedLayouts.length]);
+
+  const selectedPagePresetInfo = useMemo(
+    () => COLLAGE_PAGE_SIZES.find((preset) => preset.id === selectedPageSize) || null,
+    [selectedPageSize]
+  );
+
+  const printSizeInfo = useMemo(() => {
+    const widthCm = ((canvasWidth / PRINT_DPI) * 2.54).toFixed(1);
+    const heightCm = ((canvasHeight / PRINT_DPI) * 2.54).toFixed(1);
+    return `${widthCm}×${heightCm} ס"מ @${PRINT_DPI}DPI`;
+  }, [canvasWidth, canvasHeight]);
+
+  const requiredPixelsPerCell = useMemo(
+    () => Math.max(1, Math.round((canvasWidth * canvasHeight) / Math.max(currentLayoutMaxImages, 1))),
+    [canvasWidth, canvasHeight, currentLayoutMaxImages]
+  );
+
+  const getImageQualityInfo = useCallback((imageId: string) => {
+    const dims = imageDimensions[imageId];
+    if (!dims) {
+      return { label: 'בבדיקה', tone: 'text-muted-foreground' };
+    }
+
+    const ratio = (dims.width * dims.height) / requiredPixelsPerCell;
+    if (ratio >= 1.6) return { label: 'איכות גבוהה', tone: 'text-emerald-600 dark:text-emerald-400' };
+    if (ratio >= 1) return { label: 'איכות טובה', tone: 'text-blue-600 dark:text-blue-400' };
+    if (ratio >= 0.6) return { label: 'איכות בינונית', tone: 'text-amber-600 dark:text-amber-400' };
+    return { label: 'איכות נמוכה', tone: 'text-rose-600 dark:text-rose-400' };
+  }, [imageDimensions, requiredPixelsPerCell]);
+
+  const upscaleWithoutAi = useCallback(async (imageSrc: string, scale = 2) => {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error('failed to load image'));
+      el.src = imageSrc;
+    });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas not available');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL('image/png', 1);
+  }, []);
+
+  const applyUpscale = useCallback(async (imageId: string, mode: 'ai' | 'non-ai') => {
+    const source = images.find((img) => img.id === imageId);
+    if (!source) return;
+    if (mode === 'ai' && !aiEnabled) {
+      toast.info('AI כבוי כרגע. ניתן להפעיל מהמתג בראש המסך.');
+      return;
+    }
+
+    setUpscaleProcessingImageId(imageId);
+    try {
+      let nextSrc = source.src;
+      if (mode === 'ai') {
+        const result = await upscaleImage(source.src, 2);
+        nextSrc = result.resultImage.startsWith('data:') ? result.resultImage : `data:image/png;base64,${result.resultImage}`;
+      } else {
+        nextSrc = await upscaleWithoutAi(source.src, 2);
+      }
+
+      setImages((prev) => prev.map((img) => (img.id === imageId ? { ...img, src: nextSrc } : img)));
+      setImageDimensions((prev) => {
+        const next = { ...prev };
+        delete next[imageId];
+        return next;
+      });
+      toast.success(mode === 'ai' ? 'בוצעה הגדלה ×2 עם AI' : 'בוצעה הגדלה ×2 ללא AI');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'שגיאה בהגדלה';
+      toast.error(message || 'שגיאה בהגדלה');
+    } finally {
+      setUpscaleProcessingImageId(null);
+    }
+  }, [images, aiEnabled, upscaleWithoutAi]);
 
   const resetCompareView = useCallback(() => {
     setCompareZoom(1);
@@ -972,6 +1070,43 @@ export default function CollageBuilder() {
     });
   }, []);
 
+  const setImageAtSlot = useCallback((slotIndex: number, src: string, name: string) => {
+    setImages((prev) => {
+      const next = [...prev];
+      const normalizedIndex = Math.max(0, slotIndex);
+      const image: CollageImage = {
+        id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        src,
+        name,
+      };
+
+      if (normalizedIndex < next.length) {
+        next[normalizedIndex] = image;
+      } else {
+        next.push(image);
+      }
+
+      return next;
+    });
+  }, []);
+
+  const handleSlotFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const targetIndex = slotImportTargetIndex;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const src = ev.target?.result as string;
+      const effectiveIndex = targetIndex ?? images.length;
+      setImageAtSlot(effectiveIndex, src, file.name);
+      setSelectedImage(null);
+      toast.success(`התמונה הוכנסה לתא ${effectiveIndex + 1}`);
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+    setSlotImportTargetIndex(null);
+  }, [slotImportTargetIndex, images.length, setImageAtSlot]);
+
   // ── Gallery Import ──────────────────────────────────────────
   const loadGalleryItems = useCallback(async (tab: "history" | "products") => {
     setGalleryLoading(true);
@@ -998,12 +1133,35 @@ export default function CollageBuilder() {
     }
   }, []);
 
-  const openGalleryImport = useCallback((mode: 'collage' | 'split' | 'logo' = 'collage') => {
+  const openGalleryImport = useCallback((mode: 'collage' | 'split' | 'logo' | 'replace-slot' = 'collage') => {
     setGalleryImportMode(mode);
     setGalleryOpen(true);
     setGallerySelected(new Set());
     loadGalleryItems(galleryTab);
   }, [galleryTab, loadGalleryItems]);
+
+  const openSlotCloudImport = useCallback((slotIndex: number) => {
+    setSlotImportTargetIndex(slotIndex);
+    setGalleryImportMode('replace-slot');
+    setGalleryTab('history');
+    setGalleryOpen(true);
+    setGallerySelected(new Set());
+    loadGalleryItems('history');
+  }, [loadGalleryItems]);
+
+  const openSlotDatabaseImport = useCallback((slotIndex: number) => {
+    setSlotImportTargetIndex(slotIndex);
+    setGalleryImportMode('replace-slot');
+    setGalleryTab('products');
+    setGalleryOpen(true);
+    setGallerySelected(new Set());
+    loadGalleryItems('products');
+  }, [loadGalleryItems]);
+
+  const openSlotComputerImport = useCallback((slotIndex: number) => {
+    setSlotImportTargetIndex(slotIndex);
+    slotFileInputRef.current?.click();
+  }, []);
 
   const importSelected = useCallback(() => {
     const selected = galleryItems.filter((i) => gallerySelected.has(i.id));
@@ -1016,6 +1174,10 @@ export default function CollageBuilder() {
     } else if (galleryImportMode === 'logo') {
       // Use first selected image as watermark logo
       setWatermark(w => ({ ...w, imageSrc: selected[0].image }));
+    } else if (galleryImportMode === 'replace-slot') {
+      const targetIndex = slotImportTargetIndex ?? images.length;
+      setImageAtSlot(targetIndex, selected[0].image, selected[0].name || `תמונה ${targetIndex + 1}`);
+      setSelectedImage(null);
     } else {
       // Default: add to collage
       const newImages = selected.map((item) => ({
@@ -1030,9 +1192,13 @@ export default function CollageBuilder() {
     toast.success(
       galleryImportMode === 'split' ? "תמונה נבחרה לפיצול" :
       galleryImportMode === 'logo' ? "לוגו נטען מהגלריה" :
+      galleryImportMode === 'replace-slot' ? `התמונה הוכנסה לתא ${(slotImportTargetIndex ?? images.length) + 1}` :
       `${selected.length} תמונות יובאו בהצלחה`
     );
-  }, [galleryItems, gallerySelected, galleryImportMode]);
+    if (galleryImportMode === 'replace-slot') {
+      setSlotImportTargetIndex(null);
+    }
+  }, [galleryItems, gallerySelected, galleryImportMode, slotImportTargetIndex, images.length, setImageAtSlot]);
 
   // ── Smart Tools ─────────────────────────────────────────────
   const applySmartTool = useCallback(async (toolId: string, imageId: string) => {
@@ -1433,6 +1599,13 @@ export default function CollageBuilder() {
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm">הוסף תמונות</h3>
+                    <input
+                      ref={slotFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleSlotFileUpload}
+                    />
                     <div className="flex flex-col gap-2">
                       <label className="cursor-pointer">
                         <Button variant="outline" className="w-full" asChild>
@@ -1535,6 +1708,41 @@ export default function CollageBuilder() {
                   <Card>
                     <CardContent className="p-4 space-y-3">
                       <h3 className="font-semibold text-sm flex items-center gap-2"><Wand2 className="h-4 w-4" />כלים חכמים</h3>
+                      {(() => {
+                        const img = images.find((i) => i.id === selectedImage);
+                        if (!img) return null;
+                        const dims = imageDimensions[img.id];
+                        const quality = getImageQualityInfo(img.id);
+                        return (
+                          <div className="rounded-md border bg-muted/25 p-2 space-y-1">
+                            <p className="text-[11px] font-semibold truncate">{img.name}</p>
+                            <p className="text-[10px] text-muted-foreground">מקור: {dims ? `${dims.width}×${dims.height}px` : 'טוען...'}</p>
+                            <p className={`text-[10px] font-semibold ${quality.tone}`}>{quality.label}</p>
+                          </div>
+                        );
+                      })()}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="justify-start text-xs"
+                          disabled={upscaleProcessingImageId === selectedImage || !selectedImage}
+                          onClick={() => selectedImage && applyUpscale(selectedImage, 'non-ai')}
+                        >
+                          {upscaleProcessingImageId === selectedImage ? <RefreshCw className="h-3 w-3 ml-1 animate-spin" /> : <ZoomIn className="h-3 w-3 ml-1" />}
+                          הגדלה ×2 ללא AI
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="justify-start text-xs"
+                          disabled={upscaleProcessingImageId === selectedImage || !selectedImage || !aiEnabled}
+                          onClick={() => selectedImage && applyUpscale(selectedImage, 'ai')}
+                        >
+                          {upscaleProcessingImageId === selectedImage ? <RefreshCw className="h-3 w-3 ml-1 animate-spin" /> : <Sparkles className="h-3 w-3 ml-1" />}
+                          הגדלה ×2 עם AI
+                        </Button>
+                      </div>
                       <div className="grid grid-cols-1 gap-1.5">
                         {SMART_TOOLS.map((tool) => (
                           <Button key={tool.id} variant="outline" size="sm" className="justify-start text-xs" disabled={toolProcessing !== null} onClick={() => applySmartTool(tool.id, selectedImage)}>
@@ -1690,7 +1898,16 @@ export default function CollageBuilder() {
                         </div>
                       )}
                       {selectedPageSize !== "custom" && (
-                        <p className="text-[10px] text-muted-foreground">{canvasWidth}×{canvasHeight}px</p>
+                        <div className="rounded-md border bg-muted/25 p-2 space-y-1">
+                          <p className="text-[10px] text-muted-foreground">{canvasWidth}×{canvasHeight}px</p>
+                          <p className="text-[10px] font-medium text-foreground">גודל הדפסה אמיתי: {printSizeInfo}</p>
+                          {selectedPagePresetInfo && <p className="text-[10px] text-muted-foreground">פריסט פעיל: {selectedPagePresetInfo.label}</p>}
+                        </div>
+                      )}
+                      {selectedPageSize === "custom" && (
+                        <div className="rounded-md border bg-muted/25 p-2">
+                          <p className="text-[10px] font-medium text-foreground">גודל הדפסה מחושב: {printSizeInfo}</p>
+                        </div>
                       )}
                       {images.length > 0 && (
                         <div className="rounded-md border bg-muted/30 p-2 space-y-2">
@@ -2433,23 +2650,109 @@ export default function CollageBuilder() {
                   <Badge variant="outline" className="text-xs">עמוד {safeReferencePageIndex + 1} / {Math.max(estimatedPageCount, 1)}</Badge>
                 </div>
 
+                <div className="rounded-lg border bg-card p-3">
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <p className="text-xs font-semibold">מילוי תאים: לחץ על תא והוסף תמונה מהמחשב, מהענן או מהדאטאבייס</p>
+                    <Badge variant="outline" className="text-[10px]">{currentLayoutMaxImages} תאים בעמוד</Badge>
+                  </div>
+                  <div className="mb-3 rounded-md border bg-muted/20 px-2 py-1.5 text-[10px] text-muted-foreground">
+                    תצוגת פרונט אמיתית לפי דף: {selectedPagePresetInfo?.label || 'מותאם אישית'} · {printSizeInfo}
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2">
+                    {activePageSlots.map((slot) => (
+                      <div key={slot.absoluteIndex} className="rounded-lg border bg-background p-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground">תא #{slot.absoluteIndex + 1}</span>
+                          {slot.image ? (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 px-1.5 text-[10px]"
+                              onClick={() => {
+                                setImages((prev) => prev.filter((_, index) => index !== slot.absoluteIndex));
+                                if (selectedImage && images[slot.absoluteIndex]?.id === selectedImage) setSelectedImage(null);
+                              }}
+                            >
+                              נקה
+                            </Button>
+                          ) : (
+                            <Badge variant="secondary" className="text-[9px]">ריק</Badge>
+                          )}
+                        </div>
+
+                        <div className="aspect-square rounded-md border bg-muted/20 overflow-hidden flex items-center justify-center">
+                          {slot.image ? (
+                            <img src={slot.image.src} alt={slot.image.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="text-center px-2 text-[10px] text-muted-foreground">
+                              הוסף תמונה לתא
+                            </div>
+                          )}
+                        </div>
+                        {slot.image && (
+                          <div className="space-y-0.5">
+                            <p className="text-[10px] truncate">{slot.image.name}</p>
+                            <p className="text-[10px] text-muted-foreground">
+                              {imageDimensions[slot.image.id] ? `${imageDimensions[slot.image.id].width}×${imageDimensions[slot.image.id].height}px` : 'טוען רזולוציה...'}
+                            </p>
+                            <p className={`text-[10px] font-semibold ${getImageQualityInfo(slot.image.id).tone}`}>{getImageQualityInfo(slot.image.id).label}</p>
+                          </div>
+                        )}
+
+                        <div className="grid grid-cols-3 gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-1 text-[10px]"
+                            onClick={() => openSlotComputerImport(slot.absoluteIndex)}
+                          >
+                            <Plus className="h-3 w-3 ml-1" />מחשב
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-1 text-[10px]"
+                            onClick={() => openSlotCloudImport(slot.absoluteIndex)}
+                          >
+                            <CloudDownload className="h-3 w-3 ml-1" />ענן
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-1 text-[10px]"
+                            onClick={() => openSlotDatabaseImport(slot.absoluteIndex)}
+                          >
+                            <Database className="h-3 w-3 ml-1" />DB
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div className="mx-auto w-full max-w-3xl">
                   <div
                     className="relative mx-auto rounded-lg border-2 border-dashed bg-muted/20 p-3"
                     style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}`, ...getTexturePreviewStyle(textureStyle) }}
                   >
                     <div className={`grid gap-2 h-full`} style={{ gridTemplateColumns: `repeat(${pagePreviewCols}, minmax(0, 1fr))`, padding: `${pagePadding / 2}px` }}>
-                      {activePageImages.length > 0 ? (
-                        activePageImages.map((img, idx) => (
-                          <div key={`${img.id}_${idx}`} className="relative rounded-md border bg-background/70 overflow-hidden" style={{ padding: `${frameInset / 3}px` }}>
-                            <img
-                              src={img.src}
-                              alt={img.name}
+                      {activePageSlots.length > 0 ? (
+                        activePageSlots.map((slot) => (
+                          <div key={`slot_${slot.absoluteIndex}`} className="relative rounded-md border bg-background/70 overflow-hidden" style={{ padding: `${frameInset / 3}px` }}>
+                            {slot.image ? (
+                              <img
+                              src={slot.image.src}
+                              alt={slot.image.name}
                               className={`w-full h-full ${fitMode === 'cover' ? 'object-cover' : 'object-contain'} ${fitMode === 'smart-pad' ? 'bg-muted/40 p-1' : ''}`}
                               style={{ transform: `scale(${imageScale})`, transformOrigin: 'center center' }}
-                            />
+                              />
+                            ) : (
+                              <div className="w-full h-full min-h-[84px] flex items-center justify-center text-[10px] text-muted-foreground bg-muted/30">
+                                תא ריק
+                              </div>
+                            )}
                             <div className="absolute top-1 right-1 bg-foreground/70 text-background rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">
-                              {activePageStart + idx + 1}
+                              {slot.absoluteIndex + 1}
                             </div>
                           </div>
                         ))
@@ -2853,7 +3156,7 @@ export default function CollageBuilder() {
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] flex flex-col" dir="rtl">
           <DialogHeader>
-            <DialogTitle>{galleryImportMode === 'split' ? 'בחר תמונה לפיצול' : galleryImportMode === 'logo' ? 'בחר לוגו מהגלריה' : 'ייבוא תמונות מהגלריה / מהענן'}</DialogTitle>
+            <DialogTitle>{galleryImportMode === 'split' ? 'בחר תמונה לפיצול' : galleryImportMode === 'logo' ? 'בחר לוגו מהגלריה' : galleryImportMode === 'replace-slot' ? `בחר תמונה לתא ${(slotImportTargetIndex ?? 0) + 1}` : 'ייבוא תמונות מהגלריה / מהענן'}</DialogTitle>
           </DialogHeader>
           <div className="flex gap-2 mb-3">
             <Button variant={galleryTab === "history" ? "default" : "outline"} size="sm" onClick={() => { setGalleryTab("history"); loadGalleryItems("history"); }}>תמונות מעובדות</Button>
@@ -2871,7 +3174,7 @@ export default function CollageBuilder() {
               <span className="text-sm">בחר הכל ({gallerySelected.size}/{galleryItems.length})</span>
             </div>
           )}
-          {(galleryImportMode === 'split' || galleryImportMode === 'logo') && (
+          {(galleryImportMode === 'split' || galleryImportMode === 'logo' || galleryImportMode === 'replace-slot') && (
             <p className="text-xs text-muted-foreground mb-2">בחר תמונה אחת</p>
           )}
           <ScrollArea className="flex-1 min-h-0 max-h-[55vh] overflow-y-auto">
@@ -2900,7 +3203,7 @@ export default function CollageBuilder() {
                   >
                     <div
                       onClick={() => {
-                        if (galleryImportMode === 'split' || galleryImportMode === 'logo') {
+                        if (galleryImportMode === 'split' || galleryImportMode === 'logo' || galleryImportMode === 'replace-slot') {
                           setGallerySelected(new Set([item.id]));
                         } else {
                           setGallerySelected((prev) => { const next = new Set(prev); if (next.has(item.id)) next.delete(item.id); else next.add(item.id); return next; });
@@ -2921,7 +3224,7 @@ export default function CollageBuilder() {
           <DialogFooter>
             <Button disabled={gallerySelected.size === 0} onClick={importSelected}>
               <CloudDownload className="h-4 w-4 ml-2" />
-              {galleryImportMode === 'split' ? 'בחר לפיצול' : galleryImportMode === 'logo' ? 'בחר כלוגו' : `ייבא ${gallerySelected.size} תמונות`}
+              {galleryImportMode === 'split' ? 'בחר לפיצול' : galleryImportMode === 'logo' ? 'בחר כלוגו' : galleryImportMode === 'replace-slot' ? 'שבץ בתא' : `ייבא ${gallerySelected.size} תמונות`}
             </Button>
           </DialogFooter>
         </DialogContent>

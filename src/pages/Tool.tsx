@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -587,10 +587,47 @@ const ToolInner = () => {
   );
 
   const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
-    const img = resultImage;
-    if (!img || !user) return;
+    if (!user) return;
     setIsSaving(true);
     try {
+      let img = resultImage;
+      const hasAdj = JSON.stringify(adjustments) !== JSON.stringify(defaultAdjustments);
+      if (!img && originalImage && hasAdj) {
+        const opts: CanvasFilterOptions = {
+          brightness: adjustments.brightness,
+          contrast: adjustments.contrast,
+          saturation: adjustments.saturation,
+          exposure: adjustments.exposure,
+          highlights: adjustments.highlights,
+          shadows: adjustments.shadows,
+          warmth: adjustments.warmth,
+          tint: adjustments.tint,
+          hue: adjustments.hue,
+          vibrance: adjustments.vibrance,
+          clarity: adjustments.clarity,
+          sharpness: adjustments.sharpness,
+          grain: adjustments.grain,
+          vignette: adjustments.vignette,
+          fade: adjustments.fade,
+          blackAndWhite: adjustments.blackAndWhite,
+          sepiaTone: adjustments.sepiaTone,
+          dehaze: adjustments.dehaze,
+          levelsBlack: adjustments.levelsBlack,
+          levelsWhite: adjustments.levelsWhite,
+          levelsMidtones: adjustments.levelsMidtones,
+          cbShadowsR: adjustments.cbShadowsR, cbShadowsG: adjustments.cbShadowsG, cbShadowsB: adjustments.cbShadowsB,
+          cbMidtonesR: adjustments.cbMidtonesR, cbMidtonesG: adjustments.cbMidtonesG, cbMidtonesB: adjustments.cbMidtonesB,
+          cbHighlightsR: adjustments.cbHighlightsR, cbHighlightsG: adjustments.cbHighlightsG, cbHighlightsB: adjustments.cbHighlightsB,
+        };
+        img = await applyCanvasFilters(originalImage, opts);
+        dispatch({ type: "SET_RESULT_IMAGE", payload: img });
+        dispatch({ type: "RESET_ADJUSTMENTS" });
+      }
+      if (!img) {
+        toast.error("אין גרסה לשמירה. בצע שינוי או צור תוצאה קודם");
+        return;
+      }
+
       const uid = user.id;
       const ts = Date.now();
       const resultBlob = await fetch(img).then(r => r.blob());
@@ -639,7 +676,7 @@ const ToolInner = () => {
       setShowSaveDialog(false);
       setSaveNewName("");
     }
-  }, [resultImage, originalImage, user, saveNewName, suggestedName, customPrompt, activePrompt, searchParams]);
+  }, [resultImage, originalImage, user, saveNewName, suggestedName, customPrompt, activePrompt, searchParams, adjustments, dispatch]);
 
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
@@ -857,7 +894,7 @@ const ToolInner = () => {
                   onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "mockup", value: true } })}
                     className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
                   >
-                    <Eye className="h-4 w-4" />
+                    <Frame className="h-4 w-4" />
                     מוקאפ
                   </button>
                 )}
@@ -1369,7 +1406,7 @@ const ToolInner = () => {
                     disabled={isSaving}
                     className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
                   >
-                    {isSaving ? "שומר..." : "🔄 החלף קיים"}
+                    {isSaving ? "שומר..." : "🔄 החלף ושמור"}
                   </button>
                 )}
                 <button
@@ -1377,7 +1414,7 @@ const ToolInner = () => {
                   disabled={isSaving}
                   className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
                 >
-                  {isSaving ? "שומר..." : "💾 שמור חדש"}
+                  {isSaving ? "שומר..." : "🧬 שכפל ושמור"}
                 </button>
               </div>
             </div>
