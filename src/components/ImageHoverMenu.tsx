@@ -44,8 +44,10 @@ const ImageHoverMenu = ({
 }: ImageHoverMenuProps) => {
   const [showMenu, setShowMenu] = useState(false);
   const [showFolderSub, setShowFolderSub] = useState(false);
+  const [position, setPosition] = useState<"top" | "bottom">("top");
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const startHover = useCallback(() => {
     if (leaveTimer.current) {
