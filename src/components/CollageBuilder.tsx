@@ -188,6 +188,14 @@ const BG_GRADIENT_PRESETS = [
   { label: "קרח", from: "#e0eafc", to: "#cfdef3" },
 ];
 
+const TEXTURE_PRESETS: { id: 'none' | 'paper' | 'linen' | 'noise' | 'grain'; label: string }[] = [
+  { id: 'none', label: 'ללא' },
+  { id: 'paper', label: 'נייר' },
+  { id: 'linen', label: 'פשתן' },
+  { id: 'noise', label: 'רעש' },
+  { id: 'grain', label: 'גרעיניות' },
+];
+
 type CollageImage = { id: string; src: string; name: string; cellBgColor?: string };
 
 interface CollageTemplate {
@@ -204,6 +212,10 @@ interface CollageTemplate {
   bgGradientEnabled: boolean;
   bgGradient: { from: string; to: string; angle: number };
   textOverlays: CollageTextOverlay[];
+  imageScale?: number;
+  frameInset?: number;
+  pagePadding?: number;
+  textureStyle?: 'none' | 'paper' | 'linen' | 'noise' | 'grain';
 }
 
 const TEMPLATES_STORAGE_KEY = 'collage-templates';
@@ -331,6 +343,10 @@ export default function CollageBuilder() {
   const [customAspectRatio, setCustomAspectRatio] = useState(1);
   const [selectedPageSize, setSelectedPageSize] = useState<CollagePageSize>("custom");
   const [fitMode, setFitMode] = useState<'contain' | 'cover' | 'smart-pad'>('contain');
+  const [imageScale, setImageScale] = useState(1);
+  const [frameInset, setFrameInset] = useState(0);
+  const [pagePadding, setPagePadding] = useState(0);
+  const [textureStyle, setTextureStyle] = useState<'none' | 'paper' | 'linen' | 'noise' | 'grain'>('none');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
   const [bgGradient, setBgGradient] = useState({ from: "#1a1a2e", to: "#c9a84c", angle: 135 });
@@ -430,6 +446,32 @@ export default function CollageBuilder() {
     setPageReferenceIndex(0);
   }, []);
 
+  const getTexturePreviewStyle = useCallback((style: 'none' | 'paper' | 'linen' | 'noise' | 'grain') => {
+    switch (style) {
+      case 'paper':
+        return {
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.25) 0.6px, transparent 0.6px)',
+          backgroundSize: '6px 6px',
+        };
+      case 'linen':
+        return {
+          backgroundImage: 'repeating-linear-gradient(0deg, rgba(255,255,255,0.12), rgba(255,255,255,0.12) 1px, transparent 1px, transparent 6px), repeating-linear-gradient(90deg, rgba(255,255,255,0.07), rgba(255,255,255,0.07) 1px, transparent 1px, transparent 8px)',
+        };
+      case 'noise':
+        return {
+          backgroundImage: 'radial-gradient(rgba(255,255,255,0.16) 0.5px, rgba(0,0,0,0) 0.5px)',
+          backgroundSize: '4px 4px',
+        };
+      case 'grain':
+        return {
+          backgroundImage: 'radial-gradient(rgba(0,0,0,0.08) 0.5px, transparent 0.5px)',
+          backgroundSize: '3px 3px',
+        };
+      default:
+        return {};
+    }
+  }, []);
+
   const applyAutoFitToPage = useCallback(async () => {
     if (images.length === 0) {
       toast.error('אין תמונות להתאמה');
@@ -520,6 +562,10 @@ export default function CollageBuilder() {
       bgColor,
       canvasHeight,
       fitMode,
+      imageScale,
+      frameInset,
+      pagePadding,
+      textureStyle,
       frameStyle,
       bgGradientEnabled,
       bgGradient,
@@ -530,7 +576,7 @@ export default function CollageBuilder() {
     saveTemplatesToStorage(updated);
     setTemplateName("");
     toast.success(`תבנית "${name}" נשמרה בהצלחה`);
-  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasHeight, fitMode, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
+  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasHeight, fitMode, imageScale, frameInset, pagePadding, textureStyle, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
 
   const loadTemplate = useCallback((template: CollageTemplate) => {
     setLayout(template.layout);
@@ -539,6 +585,10 @@ export default function CollageBuilder() {
     setBgColor(template.bgColor);
     setCanvasHeight(template.canvasHeight);
     setFitMode(template.fitMode);
+    setImageScale(template.imageScale ?? 1);
+    setFrameInset(template.frameInset ?? 0);
+    setPagePadding(template.pagePadding ?? 0);
+    setTextureStyle(template.textureStyle ?? 'none');
     setFrameStyle(template.frameStyle);
     setBgGradientEnabled(template.bgGradientEnabled);
     setBgGradient(template.bgGradient);
@@ -772,6 +822,10 @@ export default function CollageBuilder() {
           bgGradient: bgGradientEnabled ? bgGradient : undefined,
           cellBgColors: pageCellColors,
           watermark: watermarkEnabled ? watermark : undefined,
+          textureStyle,
+          imageScale,
+          frameInset,
+          pagePadding,
         };
         const dataUrl = await generateCollage(pageSrcs, collageOptions);
         results.push(dataUrl);
@@ -785,7 +839,7 @@ export default function CollageBuilder() {
       toast.error("שגיאה ביצירת הקולאז׳");
     }
     setProcessing(false);
-  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
+  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark, textureStyle, imageScale, frameInset, pagePadding]);
 
   const toggleCompareLayout = useCallback((layoutId: CollageLayout) => {
     setCompareSelectedLayouts((prev) => {
@@ -860,6 +914,10 @@ export default function CollageBuilder() {
             bgGradient: bgGradientEnabled ? bgGradient : undefined,
             cellBgColors: pageCellColors,
             watermark: watermarkEnabled ? watermark : undefined,
+            textureStyle,
+            imageScale,
+            frameInset,
+            pagePadding,
           };
 
           try {
@@ -887,7 +945,7 @@ export default function CollageBuilder() {
       toast.error("שגיאה ביצירת תצוגות מקדימות");
     }
     setCompareProcessing(false);
-  }, [images, compareSelectedLayouts, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
+  }, [images, compareSelectedLayouts, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark, textureStyle, imageScale, frameInset, pagePadding]);
 
   const selectCompareLayout = useCallback((selectedLayout: CollageLayout) => {
     setLayout(selectedLayout);
@@ -1319,6 +1377,34 @@ export default function CollageBuilder() {
                       <p className="text-[10px] text-muted-foreground">
                         מצב נוכחי: {fitMode === 'contain' ? 'ללא חיתוך - יתכנו שוליים' : fitMode === 'cover' ? 'מילוי מלא - יתכן חיתוך' : 'חכם - שומר תוכן ומאזן שוליים'}
                       </p>
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">ידית תמונה: {Math.round(imageScale * 100)}%</Label>
+                        <Slider value={[imageScale]} onValueChange={([v]) => setImageScale(v)} min={0.7} max={1.6} step={0.05} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">ידית מסגרת/תא: {frameInset}px</Label>
+                        <Slider value={[frameInset]} onValueChange={([v]) => setFrameInset(v)} min={0} max={40} step={1} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">ידית התאמה לדף: {pagePadding}px</Label>
+                        <Slider value={[pagePadding]} onValueChange={([v]) => setPagePadding(v)} min={0} max={120} step={2} />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px]">טקסטורת רקע (מקדימה + יצירה)</Label>
+                        <div className="grid grid-cols-5 gap-1">
+                          {TEXTURE_PRESETS.map((tx) => (
+                            <Button
+                              key={tx.id}
+                              size="sm"
+                              variant={textureStyle === tx.id ? 'default' : 'outline'}
+                              className="text-[10px] h-7 px-1"
+                              onClick={() => setTextureStyle(tx.id)}
+                            >
+                              {tx.label}
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -1973,16 +2059,17 @@ export default function CollageBuilder() {
                 <div className="mx-auto w-full max-w-3xl">
                   <div
                     className="relative mx-auto rounded-lg border-2 border-dashed bg-muted/20 p-3"
-                    style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
+                    style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}`, ...getTexturePreviewStyle(textureStyle) }}
                   >
-                    <div className={`grid gap-2 h-full`} style={{ gridTemplateColumns: `repeat(${pagePreviewCols}, minmax(0, 1fr))` }}>
+                    <div className={`grid gap-2 h-full`} style={{ gridTemplateColumns: `repeat(${pagePreviewCols}, minmax(0, 1fr))`, padding: `${pagePadding / 2}px` }}>
                       {activePageImages.length > 0 ? (
                         activePageImages.map((img, idx) => (
-                          <div key={`${img.id}_${idx}`} className="relative rounded-md border bg-background/70 overflow-hidden">
+                          <div key={`${img.id}_${idx}`} className="relative rounded-md border bg-background/70 overflow-hidden" style={{ padding: `${frameInset / 3}px` }}>
                             <img
                               src={img.src}
                               alt={img.name}
                               className={`w-full h-full ${fitMode === 'cover' ? 'object-cover' : 'object-contain'} ${fitMode === 'smart-pad' ? 'bg-muted/40 p-1' : ''}`}
+                              style={{ transform: `scale(${imageScale})`, transformOrigin: 'center center' }}
                             />
                             <div className="absolute top-1 right-1 bg-foreground/70 text-background rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">
                               {activePageStart + idx + 1}

@@ -560,6 +560,10 @@ export interface CollageOptions {
   bgGradient?: { from: string; to: string; angle: number };
   cellBgColors?: (string | null)[];
   watermark?: CollageWatermark;
+  textureStyle?: 'none' | 'paper' | 'linen' | 'noise' | 'grain';
+  imageScale?: number;
+  frameInset?: number;
+  pagePadding?: number;
 }
 
 export const COLLAGE_FONT_MAP: Record<string, string> = {
@@ -737,7 +741,24 @@ export async function generateCollage(
   images: string[],
   options: CollageOptions
 ): Promise<string> {
-  const { layout, width, height, gap, bgColor, borderRadius, fitMode = 'contain', frameStyle = 'none', textOverlays = [], bgGradient, cellBgColors = [], watermark } = options;
+  const {
+    layout,
+    width,
+    height,
+    gap,
+    bgColor,
+    borderRadius,
+    fitMode = 'contain',
+    frameStyle = 'none',
+    textOverlays = [],
+    bgGradient,
+    cellBgColors = [],
+    watermark,
+    textureStyle = 'none',
+    imageScale = 1,
+    frameInset = 0,
+    pagePadding = 0,
+  } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -760,48 +781,64 @@ export async function generateCollage(
   }
   ctx.fillRect(0, 0, width, height);
 
+  if (textureStyle !== 'none') {
+    drawCanvasTexture(ctx, width, height, textureStyle);
+  }
+
   const loadedImages = await Promise.all(images.slice(0, getMaxImages(layout)).map(loadImage));
-  const cells = getCells(layout, width, height, gap, loadedImages.length);
+  const safePadding = Math.max(0, Math.min(pagePadding, Math.min(width, height) * 0.25));
+  const innerW = Math.max(10, width - safePadding * 2);
+  const innerH = Math.max(10, height - safePadding * 2);
+  const rawCells = getCells(layout, innerW, innerH, gap, loadedImages.length);
+  const cells = rawCells.map((cell) => ({ x: cell.x + safePadding, y: cell.y + safePadding, w: cell.w, h: cell.h }));
 
   for (let i = 0; i < Math.min(loadedImages.length, cells.length); i++) {
     const cell = cells[i];
     const img = loadedImages[i];
+    const inset = Math.max(0, Math.min(frameInset, Math.min(cell.w, cell.h) * 0.35));
+    const rx = cell.x + inset;
+    const ry = cell.y + inset;
+    const rw = Math.max(1, cell.w - inset * 2);
+    const rh = Math.max(1, cell.h - inset * 2);
+    const safeScale = Math.max(0.5, Math.min(imageScale, 2));
 
     ctx.save();
     if (borderRadius > 0) {
-      roundedClip(ctx, cell.x, cell.y, cell.w, cell.h, borderRadius);
+      roundedClip(ctx, rx, ry, rw, rh, borderRadius);
     }
 
     if (fitMode === 'contain' || fitMode === 'smart-pad') {
       const cellBg = cellBgColors[i] || bgColor;
       ctx.fillStyle = cellBg;
-      ctx.fillRect(cell.x, cell.y, cell.w, cell.h);
+      ctx.fillRect(rx, ry, rw, rh);
       const imgRatio = img.width / img.height;
-      const cellRatio = cell.w / cell.h;
+      const cellRatio = rw / rh;
       let dw: number, dh: number;
       if (fitMode === 'smart-pad') {
         // Smart-pad: scale to 90% of cell, always pad
         const padScale = 0.9;
         if (imgRatio > cellRatio) {
-          dw = cell.w * padScale;
+          dw = rw * padScale;
           dh = dw / imgRatio;
         } else {
-          dh = cell.h * padScale;
+          dh = rh * padScale;
           dw = dh * imgRatio;
         }
       } else if (imgRatio > cellRatio) {
-        dw = cell.w;
-        dh = cell.w / imgRatio;
+        dw = rw;
+        dh = rw / imgRatio;
       } else {
-        dh = cell.h;
-        dw = cell.h * imgRatio;
+        dh = rh;
+        dw = rh * imgRatio;
       }
-      const dx = cell.x + (cell.w - dw) / 2;
-      const dy = cell.y + (cell.h - dh) / 2;
+      dw *= safeScale;
+      dh *= safeScale;
+      const dx = rx + (rw - dw) / 2;
+      const dy = ry + (rh - dh) / 2;
       ctx.drawImage(img, 0, 0, img.width, img.height, dx, dy, dw, dh);
     } else {
       const imgRatio = img.width / img.height;
-      const cellRatio = cell.w / cell.h;
+      const cellRatio = rw / rh;
       let sx = 0, sy = 0, sw = img.width, sh = img.height;
       if (imgRatio > cellRatio) {
         sw = img.height * cellRatio;
@@ -810,13 +847,17 @@ export async function generateCollage(
         sh = img.width / cellRatio;
         sy = (img.height - sh) / 2;
       }
-      ctx.drawImage(img, sx, sy, sw, sh, cell.x, cell.y, cell.w, cell.h);
+      const dw = rw * safeScale;
+      const dh = rh * safeScale;
+      const dx = rx + (rw - dw) / 2;
+      const dy = ry + (rh - dh) / 2;
+      ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
     }
     ctx.restore();
 
     // Frame on each cell
     if (frameStyle && frameStyle !== 'none') {
-      drawFrameOnCell(ctx, cell.x, cell.y, cell.w, cell.h, frameStyle);
+      drawFrameOnCell(ctx, rx, ry, rw, rh, frameStyle);
     }
   }
 
@@ -831,6 +872,60 @@ export async function generateCollage(
   }
 
   return canvasToDataUrl(canvas);
+}
+
+function drawCanvasTexture(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  style: 'paper' | 'linen' | 'noise' | 'grain'
+) {
+  ctx.save();
+  switch (style) {
+    case 'paper': {
+      for (let i = 0; i < 800; i++) {
+        ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.05})`;
+        ctx.fillRect(Math.random() * width, Math.random() * height, 1, 1);
+      }
+      break;
+    }
+    case 'linen': {
+      ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+      ctx.lineWidth = 1;
+      for (let y = 0; y < height; y += 6) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      for (let x = 0; x < width; x += 8) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+      }
+      break;
+    }
+    case 'noise': {
+      for (let i = 0; i < 1500; i++) {
+        const alpha = Math.random() * 0.12;
+        const shade = Math.floor(150 + Math.random() * 100);
+        ctx.fillStyle = `rgba(${shade},${shade},${shade},${alpha})`;
+        ctx.fillRect(Math.random() * width, Math.random() * height, 1.3, 1.3);
+      }
+      break;
+    }
+    case 'grain': {
+      for (let i = 0; i < 1200; i++) {
+        ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.06})`;
+        ctx.fillRect(Math.random() * width, Math.random() * height, 1, 1);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.03)';
+      ctx.fillRect(0, 0, width, height);
+      break;
+    }
+  }
+  ctx.restore();
 }
 
 async function drawCollageWatermark(
