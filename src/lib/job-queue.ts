@@ -21,7 +21,7 @@ interface QueuedJob<T> extends Job<T> {
 export class JobQueue<T = unknown> {
   private queue: QueuedJob<T>[] = [];
   private runningJobs = new Map<string, QueuedJob<T>>();
-  private readonly concurrency: number;
+  private concurrency: number;
   private readonly maxRetries: number;
 
   constructor(concurrency = 3, maxRetries = 2) {
