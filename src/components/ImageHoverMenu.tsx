@@ -275,10 +275,16 @@ const ImageHoverMenu = ({
               </button>
             )}
           </div>
-          {/* Arrow pointing down */}
-          <div className="flex justify-center">
-            <div className="w-3 h-3 bg-card border-b border-r border-border rotate-45 -mt-1.5" />
-          </div>
+          {/* Arrow */}
+          {position === "top" ? (
+            <div className="flex justify-center">
+              <div className="w-3 h-3 bg-card border-b border-r border-border rotate-45 -mt-1.5" />
+            </div>
+          ) : (
+            <div className="flex justify-center order-first">
+              <div className="w-3 h-3 bg-card border-t border-l border-border rotate-45 -mb-1.5" />
+            </div>
+          )}
         </div>
       )}
     </div>
