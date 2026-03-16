@@ -346,10 +346,12 @@ async function drawHeader(
   if (settings.logo) {
     try {
       const logoImg = await loadImage(settings.logo);
-      const logoH = headerH * 0.6;
+      const logoH = headerH * Math.max(0.35, Math.min(settings.logoScale || 0.04, 0.08) * 8);
       const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
-      ctx.drawImage(logoImg, padding, (headerH - logoH) / 2, logoW, logoH);
-      textX = padding + logoW + padding * 0.5;
+      const isLeft = (settings.logoPosition || "top-left") === "top-left" || (settings.logoPosition || "top-left") === "bottom-left";
+      const logoX = isLeft ? padding : pageW - padding - logoW;
+      ctx.drawImage(logoImg, logoX, (headerH - logoH) / 2, logoW, logoH);
+      textX = isLeft ? padding + logoW + padding * 0.5 : padding;
     } catch { /* no logo */ }
   }
 
