@@ -958,16 +958,17 @@ export default function CollageBuilder() {
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm">לייאאוט</h3>
-                    <ScrollArea className="max-h-[380px]">
+                    <ScrollArea className="max-h-[500px]">
                       {(['basic', 'advanced', 'special'] as const).map((cat) => {
                         const catLayouts = LAYOUT_OPTIONS.filter(l => l.category === cat);
                         if (catLayouts.length === 0) return null;
                         return (
-                          <div key={cat} className="mb-3">
-                            <h4 className="text-[10px] font-semibold text-muted-foreground mb-1.5 border-b pb-1">
-                              {LAYOUT_CATEGORY_LABELS[cat]}
-                            </h4>
-                            <div className="grid grid-cols-3 gap-1.5">
+                          <details key={cat} open className="mb-3">
+                            <summary className="text-[11px] font-bold text-muted-foreground mb-1.5 border-b pb-1 cursor-pointer select-none hover:text-foreground transition-colors list-none flex items-center gap-1">
+                              <ChevronRight className="h-3 w-3 transition-transform [details[open]>&]:rotate-90" />
+                              {LAYOUT_CATEGORY_LABELS[cat]} ({catLayouts.length})
+                            </summary>
+                            <div className="grid grid-cols-3 gap-1.5 pt-1">
                               {catLayouts.map((opt) => (
                                 <Button key={opt.id} variant={layout === opt.id ? "default" : "outline"} size="sm" className="flex-col h-auto py-1.5 text-[9px] gap-0.5" onClick={() => setLayout(opt.id)}>
                                   {opt.icon}
@@ -976,7 +977,7 @@ export default function CollageBuilder() {
                                 </Button>
                               ))}
                             </div>
-                          </div>
+                          </details>
                         );
                       })}
                     </ScrollArea>
@@ -1741,7 +1742,7 @@ export default function CollageBuilder() {
                   <Badge variant="outline">8 סגנונות גרדיאנט</Badge>
                   <Badge variant="outline">25 גופנים</Badge>
                   <Badge variant="outline">כלים חכמים</Badge>
-                  <Badge variant="outline">14 לייאאוטים</Badge>
+                  <Badge variant="outline">26 לייאאוטים</Badge>
                   <Badge variant="outline">מרובה עמודים</Badge>
                 </div>
               </div>
