@@ -4,7 +4,7 @@ import {
   Sun, Contrast, Droplets, Focus, Thermometer, Aperture, SunDim,
   Highlighter, Moon, Flower2, CircleDot, Palette, Paintbrush,
   ChevronDown, ChevronUp, Sparkles, EyeOff, Blend, Layers,
-  SlidersHorizontal, BarChart3, Pipette,
+  SlidersHorizontal, BarChart3, Pipette, RotateCcw,
 } from "lucide-react";
 
 // ─── Interface ───────────────────────────────────────────────
