@@ -20,6 +20,7 @@ interface RecentImage {
   background_name: string | null;
   created_at: string;
   is_favorite: boolean;
+  folder_id?: string | null;
 }
 
 export default function Workspace() {
