@@ -76,9 +76,10 @@ const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchPro
     // Process in parallel using job queue (max 3 concurrent)
     const jobs = pending.map((item) => ({
       id: item.id,
-      fn: async () => {
-        // Compress image before sending
-        const compressed = await compressImage(item.originalImage);
+      fn: async (signal: AbortSignal) => {
+        // Compress to 1024px for batch (smaller = faster)
+        const compressed = await compressImage(item.originalImage, 1024);
+        if (signal.aborted) throw new DOMException("Cancelled", "AbortError");
         const { data, error } = await supabase.functions.invoke("replace-background", {
           body: {
             imageBase64: compressed,
@@ -90,6 +91,7 @@ const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchPro
         if (data?.error) throw new Error(data.error);
         return data.resultImage as string;
       },
+      priority: 0, // all batch items equal priority
       onProgress: (status: "pending" | "running" | "done" | "error") => {
         const mappedStatus = status === "running" ? "processing" : status;
         setItems((prev) =>
@@ -98,7 +100,7 @@ const BatchProcessor = ({ backgroundPrompt, referenceImages, onClose }: BatchPro
       },
     }));
 
-    const results = await imageProcessingQueue.addAll(jobs);
+    const results = await batchProcessingQueue.addAll(jobs);
 
     // Apply results
     results.forEach((result, idx) => {
