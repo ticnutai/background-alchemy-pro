@@ -122,6 +122,7 @@ const ImageHoverMenu = ({
           onClick={(e) => e.stopPropagation()}
           style={{ pointerEvents: "auto" }}
         >
+          <div className="flex flex-col">
           <div className="grid grid-cols-4 gap-1 rounded-xl bg-card shadow-xl border border-border p-2 min-w-[180px]">
             {/* Favorite */}
             {actions.onFavorite && (
