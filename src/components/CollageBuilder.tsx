@@ -19,7 +19,8 @@ import {
   AlignRight, AlignCenter, AlignLeft, Eye, Layers, Save, FolderOpen,
   BookmarkPlus, Clock, SplitSquareVertical, LayoutGrid, Instagram,
   Columns3, PanelTop, ArrowDownUp, Sparkle, LayoutList, ChevronLeft, ChevronRight,
-  FileDown, FilePlus2, X
+  FileDown, FilePlus2, X, Film, Maximize2, Target, Hash, Footprints, Square,
+  Ratio, Newspaper, RectangleHorizontal, SplitSquareHorizontal, PanelTopClose, GalleryVerticalEnd
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -49,22 +50,43 @@ const COLLAGE_PAGE_SIZES: { id: CollagePageSize; label: string; w: number; h: nu
 ];
 
 // ─── Constants ──────────────────────────────────────────────────
-const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number }[] = [
-  { id: "grid-2x2", label: "רשת 2×2", icon: <Grid2X2 className="h-5 w-5" />, maxImages: 4 },
-  { id: "grid-3x3", label: "רשת 3×3", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 9 },
-  { id: "grid-2x3", label: "רשת 2×3", icon: <LayoutGrid className="h-5 w-5" />, maxImages: 6 },
-  { id: "grid-3x2", label: "רשת 3×2", icon: <Columns3 className="h-5 w-5" />, maxImages: 6 },
-  { id: "grid-4x4", label: "רשת 4×4", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 16 },
-  { id: "hero-side", label: "Hero + צד", icon: <LayoutDashboard className="h-5 w-5" />, maxImages: 3 },
-  { id: "hero-top", label: "Hero למעלה", icon: <PanelTop className="h-5 w-5" />, maxImages: 4 },
-  { id: "strip", label: "סטריפ אופקי", icon: <Rows3 className="h-5 w-5" />, maxImages: 5 },
-  { id: "strip-vertical", label: "סטריפ אנכי", icon: <ArrowDownUp className="h-5 w-5" />, maxImages: 5 },
-  { id: "masonry", label: "Masonry", icon: <GalleryHorizontalEnd className="h-5 w-5" />, maxImages: 6 },
-  { id: "pinterest", label: "Pinterest", icon: <GalleryHorizontalEnd className="h-5 w-5 rotate-90" />, maxImages: 6 },
-  { id: "diagonal", label: "אלכסוני", icon: <Sparkle className="h-5 w-5" />, maxImages: 4 },
-  { id: "l-shape", label: "צורת L", icon: <LayoutList className="h-5 w-5" />, maxImages: 5 },
-  { id: "featured-grid", label: "מודגש + רשת", icon: <LayoutDashboard className="h-5 w-5 rotate-180" />, maxImages: 5 },
+const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode; maxImages: number; category: 'basic' | 'advanced' | 'special' }[] = [
+  // ─── Basic ───
+  { id: "grid-2x2", label: "רשת 2×2", icon: <Grid2X2 className="h-5 w-5" />, maxImages: 4, category: 'basic' },
+  { id: "grid-3x3", label: "רשת 3×3", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 9, category: 'basic' },
+  { id: "grid-2x3", label: "רשת 2×3", icon: <LayoutGrid className="h-5 w-5" />, maxImages: 6, category: 'basic' },
+  { id: "grid-3x2", label: "רשת 3×2", icon: <Columns3 className="h-5 w-5" />, maxImages: 6, category: 'basic' },
+  { id: "grid-4x4", label: "רשת 4×4", icon: <Grid3X3 className="h-5 w-5" />, maxImages: 16, category: 'basic' },
+  { id: "hero-side", label: "Hero + צד", icon: <LayoutDashboard className="h-5 w-5" />, maxImages: 3, category: 'basic' },
+  { id: "hero-top", label: "Hero למעלה", icon: <PanelTop className="h-5 w-5" />, maxImages: 4, category: 'basic' },
+  { id: "strip", label: "סטריפ אופקי", icon: <Rows3 className="h-5 w-5" />, maxImages: 5, category: 'basic' },
+  { id: "strip-vertical", label: "סטריפ אנכי", icon: <ArrowDownUp className="h-5 w-5" />, maxImages: 5, category: 'basic' },
+  { id: "masonry", label: "Masonry", icon: <GalleryHorizontalEnd className="h-5 w-5" />, maxImages: 6, category: 'basic' },
+  { id: "pinterest", label: "Pinterest", icon: <GalleryHorizontalEnd className="h-5 w-5 rotate-90" />, maxImages: 6, category: 'basic' },
+  { id: "diagonal", label: "אלכסוני", icon: <Sparkle className="h-5 w-5" />, maxImages: 4, category: 'basic' },
+  { id: "l-shape", label: "צורת L", icon: <LayoutList className="h-5 w-5" />, maxImages: 5, category: 'basic' },
+  { id: "featured-grid", label: "מודגש + רשת", icon: <LayoutDashboard className="h-5 w-5 rotate-180" />, maxImages: 5, category: 'basic' },
+  // ─── Advanced ───
+  { id: "t-shape", label: "צורת T", icon: <PanelTopClose className="h-5 w-5" />, maxImages: 4, category: 'advanced' },
+  { id: "mosaic", label: "פסיפס", icon: <LayoutGrid className="h-5 w-5 rotate-45" />, maxImages: 5, category: 'advanced' },
+  { id: "golden-ratio", label: "יחס הזהב", icon: <Ratio className="h-5 w-5" />, maxImages: 3, category: 'advanced' },
+  { id: "magazine", label: "מגזין", icon: <Newspaper className="h-5 w-5" />, maxImages: 4, category: 'advanced' },
+  { id: "filmstrip", label: "פילם סטריפ", icon: <Film className="h-5 w-5" />, maxImages: 6, category: 'advanced' },
+  { id: "big-small", label: "גדול + קטנים", icon: <Maximize2 className="h-5 w-5" />, maxImages: 5, category: 'advanced' },
+  // ─── Special ───
+  { id: "panoramic-stack", label: "פנורמי", icon: <RectangleHorizontal className="h-5 w-5" />, maxImages: 3, category: 'special' },
+  { id: "focus-center", label: "מוקד מרכזי", icon: <Target className="h-5 w-5" />, maxImages: 5, category: 'special' },
+  { id: "checkerboard", label: "שחמט", icon: <Hash className="h-5 w-5" />, maxImages: 5, category: 'special' },
+  { id: "staircase", label: "מדרגות", icon: <GalleryVerticalEnd className="h-5 w-5" />, maxImages: 4, category: 'special' },
+  { id: "frame-in-frame", label: "מסגרת במסגרת", icon: <Square className="h-5 w-5" />, maxImages: 2, category: 'special' },
+  { id: "split-thirds", label: "חלוקת שלישים", icon: <SplitSquareHorizontal className="h-5 w-5" />, maxImages: 4, category: 'special' },
 ];
+
+const LAYOUT_CATEGORY_LABELS: Record<string, string> = {
+  basic: 'בסיסי',
+  advanced: 'מתקדם',
+  special: 'מיוחד',
+};
 
 const SMART_TOOLS = [
   { id: "remove-white-bg", label: "הסר רקע לבן", icon: <Eraser className="h-4 w-4" /> },
@@ -936,16 +958,27 @@ export default function CollageBuilder() {
                 <Card>
                   <CardContent className="p-4 space-y-3">
                     <h3 className="font-semibold text-sm">לייאאוט</h3>
-                    <ScrollArea className="max-h-[280px]">
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {LAYOUT_OPTIONS.map((opt) => (
-                          <Button key={opt.id} variant={layout === opt.id ? "default" : "outline"} size="sm" className="flex-col h-auto py-1.5 text-[9px] gap-0.5" onClick={() => setLayout(opt.id)}>
-                            {opt.icon}
-                            {opt.label}
-                            <span className="text-[8px] opacity-60">עד {opt.maxImages}</span>
-                          </Button>
-                        ))}
-                      </div>
+                    <ScrollArea className="max-h-[380px]">
+                      {(['basic', 'advanced', 'special'] as const).map((cat) => {
+                        const catLayouts = LAYOUT_OPTIONS.filter(l => l.category === cat);
+                        if (catLayouts.length === 0) return null;
+                        return (
+                          <div key={cat} className="mb-3">
+                            <h4 className="text-[10px] font-semibold text-muted-foreground mb-1.5 border-b pb-1">
+                              {LAYOUT_CATEGORY_LABELS[cat]}
+                            </h4>
+                            <div className="grid grid-cols-3 gap-1.5">
+                              {catLayouts.map((opt) => (
+                                <Button key={opt.id} variant={layout === opt.id ? "default" : "outline"} size="sm" className="flex-col h-auto py-1.5 text-[9px] gap-0.5" onClick={() => setLayout(opt.id)}>
+                                  {opt.icon}
+                                  {opt.label}
+                                  <span className="text-[8px] opacity-60">עד {opt.maxImages}</span>
+                                </Button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
                     </ScrollArea>
                   </CardContent>
                 </Card>

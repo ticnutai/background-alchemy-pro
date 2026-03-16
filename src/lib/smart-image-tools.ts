@@ -511,7 +511,7 @@ export function calcOptimalCanvasHeight(
   return Math.round(rows * cellH + gap * (rows + 1));
 }
 
-export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'grid-2x3' | 'grid-3x2' | 'grid-4x4' | 'hero-side' | 'hero-top' | 'strip' | 'strip-vertical' | 'masonry' | 'pinterest' | 'diagonal' | 'l-shape' | 'featured-grid';
+export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'grid-2x3' | 'grid-3x2' | 'grid-4x4' | 'hero-side' | 'hero-top' | 'strip' | 'strip-vertical' | 'masonry' | 'pinterest' | 'diagonal' | 'l-shape' | 'featured-grid' | 't-shape' | 'mosaic' | 'golden-ratio' | 'magazine' | 'filmstrip' | 'big-small' | 'panoramic-stack' | 'focus-center' | 'checkerboard' | 'staircase' | 'frame-in-frame' | 'split-thirds';
 
 export interface CollageTextOverlay {
   id: string;
@@ -925,6 +925,18 @@ function getMaxImages(layout: CollageLayout): number {
     case 'diagonal': return 4;
     case 'l-shape': return 5;
     case 'featured-grid': return 5;
+    case 't-shape': return 4;
+    case 'mosaic': return 5;
+    case 'golden-ratio': return 3;
+    case 'magazine': return 4;
+    case 'filmstrip': return 6;
+    case 'big-small': return 5;
+    case 'panoramic-stack': return 3;
+    case 'focus-center': return 5;
+    case 'checkerboard': return 5;
+    case 'staircase': return 4;
+    case 'frame-in-frame': return 2;
+    case 'split-thirds': return 4;
     default: return 9;
   }
 }
@@ -1045,6 +1057,149 @@ function getCells(layout: CollageLayout, W: number, H: number, gap: number, coun
       cells.push({ x: ox + cw + gap, y: gap, w: cw, h: ch });
       cells.push({ x: ox, y: ch + gap * 2, w: cw, h: ch });
       cells.push({ x: ox + cw + gap, y: ch + gap * 2, w: cw, h: ch });
+      break;
+    }
+
+    // ─── Advanced Layouts ───
+    case 't-shape': {
+      // Wide top spanning full width, 3 equal columns below
+      const topH = H * 0.45 - gap;
+      const botH = H * 0.55 - gap;
+      cells.push({ x: gap, y: gap, w: W - gap * 2, h: topH });
+      const n = Math.min(count - 1, 3);
+      if (n > 0) {
+        const cw2 = (W - gap * (n + 1)) / n;
+        for (let i = 0; i < n; i++)
+          cells.push({ x: gap + i * (cw2 + gap), y: topH + gap * 2, w: cw2, h: botH - gap });
+      }
+      break;
+    }
+    case 'mosaic': {
+      // Large top-left, medium right, 2 small bottom
+      const bigW = W * 0.6 - gap * 1.5;
+      const bigH = H * 0.6 - gap * 1.5;
+      const smallW = W * 0.4 - gap * 1.5;
+      const smallH = H * 0.4 - gap * 1.5;
+      cells.push({ x: gap, y: gap, w: bigW, h: bigH });
+      cells.push({ x: bigW + gap * 2, y: gap, w: smallW, h: bigH });
+      const bottomN = Math.min(count - 2, 3);
+      if (bottomN > 0) {
+        const bw = (W - gap * (bottomN + 1)) / bottomN;
+        for (let i = 0; i < bottomN; i++)
+          cells.push({ x: gap + i * (bw + gap), y: bigH + gap * 2, w: bw, h: smallH });
+      }
+      break;
+    }
+    case 'golden-ratio': {
+      // Golden ratio: left 61.8%, right 38.2% split vertically
+      const phi = 0.618;
+      const leftW = (W - gap * 3) * phi;
+      const rightW = (W - gap * 3) * (1 - phi);
+      cells.push({ x: gap, y: gap, w: leftW, h: H - gap * 2 });
+      const rh = (H - gap * 3) / 2;
+      cells.push({ x: leftW + gap * 2, y: gap, w: rightW, h: rh });
+      cells.push({ x: leftW + gap * 2, y: rh + gap * 2, w: rightW, h: rh });
+      break;
+    }
+    case 'magazine': {
+      // Editorial: top row split 60/40, bottom row split 40/60
+      const topH2 = (H - gap * 3) / 2;
+      const botH2 = topH2;
+      const w1 = (W - gap * 3) * 0.6;
+      const w2 = (W - gap * 3) * 0.4;
+      cells.push({ x: gap, y: gap, w: w1, h: topH2 });
+      cells.push({ x: w1 + gap * 2, y: gap, w: w2, h: topH2 });
+      cells.push({ x: gap, y: topH2 + gap * 2, w: w2, h: botH2 });
+      cells.push({ x: w2 + gap * 2, y: topH2 + gap * 2, w: w1, h: botH2 });
+      break;
+    }
+    case 'filmstrip': {
+      // Cinema filmstrip: equal cells with 3:2 aspect ratio feel
+      const n = Math.min(count, 6);
+      const padding = H * 0.1;
+      const innerH = H - padding * 2;
+      const cw3 = (W - gap * (n + 1)) / n;
+      for (let i = 0; i < n; i++)
+        cells.push({ x: gap + i * (cw3 + gap), y: padding, w: cw3, h: innerH });
+      break;
+    }
+    case 'big-small': {
+      // One large image top (70%), row of small at bottom (30%)
+      const bigH2 = H * 0.7 - gap * 1.5;
+      const smallH2 = H * 0.3 - gap * 1.5;
+      cells.push({ x: gap, y: gap, w: W - gap * 2, h: bigH2 });
+      const n = Math.min(count - 1, 4);
+      if (n > 0) {
+        const cw4 = (W - gap * (n + 1)) / n;
+        for (let i = 0; i < n; i++)
+          cells.push({ x: gap + i * (cw4 + gap), y: bigH2 + gap * 2, w: cw4, h: smallH2 });
+      }
+      break;
+    }
+
+    // ─── Special Layouts ───
+    case 'panoramic-stack': {
+      // 3 wide panoramic rows
+      const n = Math.min(count, 3);
+      const ch2 = (H - gap * (n + 1)) / n;
+      for (let i = 0; i < n; i++)
+        cells.push({ x: gap, y: gap + i * (ch2 + gap), w: W - gap * 2, h: ch2 });
+      break;
+    }
+    case 'focus-center': {
+      // Large center image + 4 small corners
+      const margin = W * 0.18;
+      const centerW = W - margin * 2 - gap * 2;
+      const centerH = H - margin * 2 - gap * 2;
+      cells.push({ x: margin + gap, y: margin + gap, w: centerW, h: centerH });
+      const cornerW = margin - gap;
+      const cornerH = margin - gap;
+      cells.push({ x: gap, y: gap, w: cornerW, h: cornerH });
+      cells.push({ x: W - cornerW - gap, y: gap, w: cornerW, h: cornerH });
+      cells.push({ x: gap, y: H - cornerH - gap, w: cornerW, h: cornerH });
+      cells.push({ x: W - cornerW - gap, y: H - cornerH - gap, w: cornerW, h: cornerH });
+      break;
+    }
+    case 'checkerboard': {
+      // 3x3 checkerboard with only odd cells filled
+      const cw5 = (W - gap * 4) / 3;
+      const ch3 = (H - gap * 4) / 3;
+      const positions = [[0,0],[1,1],[2,0],[0,2],[2,2]];
+      for (let i = 0; i < Math.min(count, 5); i++) {
+        const [c, r] = positions[i];
+        cells.push({ x: gap + c * (cw5 + gap), y: gap + r * (ch3 + gap), w: cw5, h: ch3 });
+      }
+      break;
+    }
+    case 'staircase': {
+      // Stepped descending layout
+      const n = Math.min(count, 4);
+      const stepW = (W - gap * 2) * 0.55;
+      const stepH = (H - gap * (n + 1)) / n;
+      const xStep = (W - stepW - gap * 2) / Math.max(n - 1, 1);
+      for (let i = 0; i < n; i++)
+        cells.push({ x: gap + xStep * i, y: gap + i * (stepH + gap), w: stepW, h: stepH });
+      break;
+    }
+    case 'frame-in-frame': {
+      // Full background + centered inset
+      cells.push({ x: gap, y: gap, w: W - gap * 2, h: H - gap * 2 });
+      const insetW = W * 0.5;
+      const insetH = H * 0.5;
+      cells.push({ x: (W - insetW) / 2, y: (H - insetH) / 2, w: insetW, h: insetH });
+      break;
+    }
+    case 'split-thirds': {
+      // Left 1/3 tall, right 2/3 split into 3 rows
+      const leftW2 = (W - gap * 3) / 3;
+      const rightW2 = (W - gap * 3) * 2 / 3;
+      cells.push({ x: gap, y: gap, w: leftW2, h: H - gap * 2 });
+      const rn = Math.min(count - 1, 3);
+      if (rn > 0) {
+        const rh2 = (H - gap * (rn + 1)) / rn;
+        for (let i = 0; i < rn; i++)
+          cells.push({ x: leftW2 + gap * 2, y: gap + i * (rh2 + gap), w: rightW2, h: rh2 });
+      }
       break;
     }
   }
