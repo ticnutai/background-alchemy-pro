@@ -286,7 +286,7 @@ const ImageHoverMenu = ({
               <div className="w-3 h-3 bg-card border-t border-l border-border rotate-45 -mb-1.5" />
             </div>
           )}
-        </div>
+          </div>
       )}
     </div>
   );
