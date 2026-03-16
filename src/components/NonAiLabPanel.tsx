@@ -48,7 +48,17 @@ export default function NonAiLabPanel({ currentImage, onResult }: NonAiLabPanelP
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <Label className="text-sm font-semibold">Non-AI Pro Lab</Label>
-        <Badge variant="secondary">ללא AI</Badge>
+        <div className="flex items-center gap-2">
+          {(edgeStrength !== 1.1 || denoiseRadius !== 1 || posterizeLevels !== 6 || filmGrain !== 0.08 || sharpness !== 1.2) && (
+            <button
+              onClick={() => { setEdgeStrength(1.1); setDenoiseRadius(1); setPosterizeLevels(6); setFilmGrain(0.08); setSharpness(1.2); }}
+              className="flex items-center gap-1 font-body text-xs text-primary hover:underline"
+            >
+              <RotateCcw className="h-3 w-3" /> איפוס הכל
+            </button>
+          )}
+          <Badge variant="secondary">ללא AI</Badge>
+        </div>
       </div>
 
       <div className="space-y-2">

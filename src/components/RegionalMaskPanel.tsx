@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Target, Sparkles, Image as ImageIcon } from "lucide-react";
+import { Target, Sparkles, Image as ImageIcon, RotateCcw } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 interface RegionalMaskPanelProps {
@@ -31,9 +31,19 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Target className="h-4 w-4 text-gold" />
-        <h3 className="font-display text-sm font-semibold text-foreground">פילטרים אזוריים</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-gold" />
+          <h3 className="font-display text-sm font-semibold text-foreground">פילטרים אזוריים</h3>
+        </div>
+        {(selectedRegion !== "background" || selectedFilter !== "blur" || intensity !== 70) && (
+          <button
+            onClick={() => { setSelectedRegion("background"); setSelectedFilter("blur"); setIntensity(70); }}
+            className="flex items-center gap-1 font-body text-xs text-primary hover:underline"
+          >
+            <RotateCcw className="h-3 w-3" /> איפוס
+          </button>
+        )}
       </div>
 
       <p className="font-body text-[10px] text-muted-foreground">
@@ -77,7 +87,12 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
       <div className="space-y-1.5 rounded-lg border border-border bg-card p-3">
         <div className="flex items-center justify-between">
           <label className="font-display text-xs font-semibold text-foreground">עוצמה</label>
-          <span className="font-accent text-xs font-bold text-primary">{intensity}%</span>
+          <div className="flex items-center gap-1">
+            <span className="font-accent text-xs font-bold text-primary">{intensity}%</span>
+            {intensity !== 70 && (
+              <button onClick={() => setIntensity(70)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider
           value={[intensity]}
