@@ -112,6 +112,7 @@ const ToolInner = () => {
   const [filterProcessing, setFilterProcessing] = useState(false);
   const [liveFilterCss, setLiveFilterCss] = useState("");
   const [localApplying, setLocalApplying] = useState(false);
+  const [showPdfProcessor, setShowPdfProcessor] = useState(false);
   const { aiEnabled, setAiMode } = useAiMode(true);
 
   const {
