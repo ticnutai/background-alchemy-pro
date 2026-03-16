@@ -54,7 +54,12 @@ export default function NonAiLabPanel({ currentImage, onResult }: NonAiLabPanelP
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>זיהוי קצוות (Sobel)</span>
-          <span>{edgeStrength.toFixed(2)}</span>
+          <div className="flex items-center gap-1">
+            <span>{edgeStrength.toFixed(2)}</span>
+            {edgeStrength !== 1.1 && (
+              <button onClick={() => setEdgeStrength(1.1)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[edgeStrength]} onValueChange={([v]) => setEdgeStrength(v)} min={0.4} max={2.8} step={0.1} />
         <Button disabled={busy} variant="outline" className="w-full" onClick={() => run("זיהוי קצוות", () => sobelEdgeDetect(currentImage, { strength: edgeStrength }))}>
