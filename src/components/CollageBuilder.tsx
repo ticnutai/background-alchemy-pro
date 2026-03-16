@@ -358,21 +358,35 @@ export default function CollageBuilder() {
   // Result — multi-page
   const [pages, setPages] = useState<string[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
+  const [pageReferenceIndex, setPageReferenceIndex] = useState(0);
   const [processing, setProcessing] = useState(false);
   const result = pages[currentPage] || null;
   const [autoFitProcessing, setAutoFitProcessing] = useState(false);
   const currentLayoutMaxImages = useMemo(() => LAYOUT_OPTIONS.find((l) => l.id === layout)?.maxImages || 9, [layout]);
-  const mainPageStart = currentPage * currentLayoutMaxImages;
-  const mainPageEnd = Math.min(mainPageStart + currentLayoutMaxImages, images.length);
-  const mainPageImages = useMemo(
-    () => images.slice(mainPageStart, mainPageEnd),
-    [images, mainPageStart, mainPageEnd]
-  );
 
   const estimatedPageCount = useMemo(
     () => Math.ceil(images.length / currentLayoutMaxImages),
     [images.length, currentLayoutMaxImages]
   );
+
+  const safeReferencePageIndex = useMemo(
+    () => Math.max(0, Math.min(pageReferenceIndex, Math.max(estimatedPageCount - 1, 0))),
+    [pageReferenceIndex, estimatedPageCount]
+  );
+
+  const activePageForMapping = result ? currentPage : safeReferencePageIndex;
+  const activePageStart = activePageForMapping * currentLayoutMaxImages;
+  const activePageEnd = Math.min(activePageStart + currentLayoutMaxImages, images.length);
+  const activePageImages = useMemo(
+    () => images.slice(activePageStart, activePageEnd),
+    [images, activePageStart, activePageEnd]
+  );
+
+  const pagePreviewCols = useMemo(() => {
+    if (activePageImages.length <= 1) return 1;
+    if (activePageImages.length <= 4) return 2;
+    return 3;
+  }, [activePageImages.length]);
 
   const estimateColsForLayout = useCallback((layoutId: CollageLayout) => {
     switch (layoutId) {
@@ -407,6 +421,14 @@ export default function CollageBuilder() {
     const nextWidth = clampValue(Math.round(nextHeight * ratio), 600, 4000);
     setCanvasWidth(nextWidth);
   }, [lockAspectRatio, customAspectRatio, canvasWidth, canvasHeight, clampValue]);
+
+  const applyPagePreset = useCallback((size: { id: CollagePageSize; w: number; h: number }) => {
+    setSelectedPageSize(size.id);
+    setCanvasWidth(size.w);
+    setCanvasHeight(size.h);
+    setCustomAspectRatio(size.w / size.h);
+    setPageReferenceIndex(0);
+  }, []);
 
   const applyAutoFitToPage = useCallback(async () => {
     if (images.length === 0) {
@@ -757,6 +779,7 @@ export default function CollageBuilder() {
 
       setPages(results);
       setCurrentPage(0);
+      setPageReferenceIndex(0);
       toast.success(results.length > 1 ? `${results.length} עמודי קולאז׳ נוצרו!` : "הקולאז׳ נוצר בהצלחה!");
     } catch {
       toast.error("שגיאה ביצירת הקולאז׳");
@@ -1014,7 +1037,7 @@ export default function CollageBuilder() {
                         <div className="grid grid-cols-3 gap-2">
                           {images.map((img, idx) => (
                             (() => {
-                              const isOnCurrentPage = idx >= mainPageStart && idx < mainPageEnd;
+                              const isOnCurrentPage = idx >= activePageStart && idx < activePageEnd;
                               return (
                             <ImageHoverMenu
                               key={img.id}
@@ -1063,7 +1086,7 @@ export default function CollageBuilder() {
                                 </div>
                                 {isOnCurrentPage && (
                                   <div className="absolute bottom-0.5 right-0.5 bg-primary text-primary-foreground rounded px-1 py-0.5 text-[8px] font-semibold">
-                                    עמוד {currentPage + 1}
+                                    עמוד {activePageForMapping + 1}
                                   </div>
                                 )}
                                 <button
@@ -1183,7 +1206,7 @@ export default function CollageBuilder() {
                         <div className="flex flex-wrap gap-1">
                           {COLLAGE_PAGE_SIZES.filter(p => p.category === "הדפסה").map(p => (
                             <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
-                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); setCustomAspectRatio(p.w / p.h); }}
+                              onClick={() => applyPagePreset(p)}
                               className="text-[10px] px-2 h-7"
                             >{p.label}</Button>
                           ))}
@@ -1191,7 +1214,7 @@ export default function CollageBuilder() {
                         <div className="flex flex-wrap gap-1">
                           {COLLAGE_PAGE_SIZES.filter(p => p.category === "סושיאל").map(p => (
                             <Button key={p.id} size="sm" variant={selectedPageSize === p.id ? "default" : "outline"}
-                              onClick={() => { setSelectedPageSize(p.id); setCanvasWidth(p.w); setCanvasHeight(p.h); setCustomAspectRatio(p.w / p.h); }}
+                              onClick={() => applyPagePreset(p)}
                               className="text-[10px] px-2 h-7"
                             >{p.label}</Button>
                           ))}
@@ -1203,11 +1226,9 @@ export default function CollageBuilder() {
                                 if (p.id === "custom") {
                                   setSelectedPageSize("custom");
                                   setCustomAspectRatio(canvasWidth / Math.max(canvasHeight, 1));
+                                  setPageReferenceIndex(0);
                                 } else {
-                                  setSelectedPageSize(p.id);
-                                  setCanvasWidth(p.w);
-                                  setCanvasHeight(p.h);
-                                  setCustomAspectRatio(p.w / p.h);
+                                  applyPagePreset(p);
                                 }
                               }}
                               className="text-[10px] px-2 h-7"
@@ -1247,9 +1268,32 @@ export default function CollageBuilder() {
                         <p className="text-[10px] text-muted-foreground">{canvasWidth}×{canvasHeight}px</p>
                       )}
                       {images.length > 0 && (
-                        <div className="rounded-md border bg-muted/30 p-2 space-y-1">
+                        <div className="rounded-md border bg-muted/30 p-2 space-y-2">
                           <p className="text-[10px] font-medium">התאמה לתמונות: {images.length} תמונות | {estimatedPageCount} דפים צפויים</p>
-                          <p className="text-[10px] text-muted-foreground">עמוד פעיל: תמונות {mainPageStart + 1}-{mainPageEnd} מתוך {images.length}</p>
+                          <p className="text-[10px] text-muted-foreground">עמוד פעיל: תמונות {activePageStart + 1}-{activePageEnd} מתוך {images.length}</p>
+                          {estimatedPageCount > 1 && (
+                            <div className="flex items-center justify-center gap-2">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                disabled={safeReferencePageIndex === 0}
+                                onClick={() => setPageReferenceIndex((p) => Math.max(0, p - 1))}
+                              >
+                                <ChevronRight className="h-3 w-3" />
+                              </Button>
+                              <Badge variant="outline" className="text-[10px]">ייחוס עמוד {safeReferencePageIndex + 1} / {estimatedPageCount}</Badge>
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-6 w-6"
+                                disabled={safeReferencePageIndex >= estimatedPageCount - 1}
+                                onClick={() => setPageReferenceIndex((p) => Math.min(estimatedPageCount - 1, p + 1))}
+                              >
+                                <ChevronLeft className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1852,7 +1896,7 @@ export default function CollageBuilder() {
                       <Badge variant="outline" className="text-xs">עמוד {currentPage + 1} / {pages.length}</Badge>
                     )}
                     {images.length > 0 && (
-                      <Badge variant="outline" className="text-xs">תמונות {mainPageStart + 1}-{mainPageEnd} מתוך {images.length}</Badge>
+                      <Badge variant="outline" className="text-xs">תמונות {activePageStart + 1}-{activePageEnd} מתוך {images.length}</Badge>
                     )}
                   </div>
                   <div className="flex items-center gap-1">
@@ -1870,19 +1914,19 @@ export default function CollageBuilder() {
                 {/* Page navigation */}
                 {pages.length > 1 && (
                   <div className="flex items-center justify-center gap-2">
-                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === 0} onClick={() => setCurrentPage(p => p - 1)}>
+                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === 0} onClick={() => { setCurrentPage(p => p - 1); setPageReferenceIndex(p => Math.max(0, p - 1)); }}>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                     {pages.map((_, i) => (
                       <button
                         key={i}
-                        onClick={() => setCurrentPage(i)}
+                        onClick={() => { setCurrentPage(i); setPageReferenceIndex(i); }}
                         className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors ${currentPage === i ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                       >
                         {i + 1}
                       </button>
                     ))}
-                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === pages.length - 1} onClick={() => setCurrentPage(p => p + 1)}>
+                    <Button size="icon" variant="outline" className="h-8 w-8" disabled={currentPage === pages.length - 1} onClick={() => { setCurrentPage(p => p + 1); setPageReferenceIndex(p => Math.min(Math.max(pages.length - 1, 0), p + 1)); }}>
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
                   </div>
@@ -1890,14 +1934,14 @@ export default function CollageBuilder() {
 
                 <img src={result} alt="Collage preview" className="w-full rounded-lg border shadow-md" />
 
-                {mainPageImages.length > 0 && (
+                {activePageImages.length > 0 && (
                   <div className="space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">תמונות מקור בעמוד הנוכחי</p>
                     <div className="flex gap-2 overflow-x-auto pb-1">
-                      {mainPageImages.map((img, idx) => (
+                      {activePageImages.map((img, idx) => (
                         <div key={`${img.id}_${idx}`} className="shrink-0">
                           <img src={img.src} alt={img.name} className="w-14 h-14 object-cover rounded-md border" />
-                          <p className="text-[10px] text-center text-muted-foreground mt-1">#{mainPageStart + idx + 1}</p>
+                          <p className="text-[10px] text-center text-muted-foreground mt-1">#{activePageStart + idx + 1}</p>
                         </div>
                       ))}
                     </div>
@@ -1910,7 +1954,7 @@ export default function CollageBuilder() {
                     {pages.map((page, i) => (
                       <button
                         key={i}
-                        onClick={() => setCurrentPage(i)}
+                        onClick={() => { setCurrentPage(i); setPageReferenceIndex(i); }}
                         className={`shrink-0 rounded-md border-2 overflow-hidden transition-all ${currentPage === i ? 'border-primary ring-2 ring-primary/30' : 'border-border hover:border-primary/50'}`}
                       >
                         <img src={page} alt={`עמוד ${i + 1}`} className="w-20 h-20 object-cover" />
@@ -1920,13 +1964,41 @@ export default function CollageBuilder() {
                 )}
               </div>
             ) : images.length > 0 ? (
-              <div className="text-center space-y-3">
-                <div className="grid grid-cols-3 gap-3 max-w-md mx-auto">
-                  {images.slice(0, 6).map((img) => (
-                    <img key={img.id} src={img.src} alt={img.name} className="w-full aspect-square object-cover rounded-lg border" />
-                  ))}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <Badge variant="secondary">תצוגת דף מקדימה (לפני יצירה)</Badge>
+                  <Badge variant="outline" className="text-xs">עמוד {safeReferencePageIndex + 1} / {Math.max(estimatedPageCount, 1)}</Badge>
                 </div>
-                <p className="text-muted-foreground text-sm">בחר עיצוב ולחץ "צור קולאז׳" או "השווה" להשוואת לייאאוטים</p>
+
+                <div className="mx-auto w-full max-w-3xl">
+                  <div
+                    className="relative mx-auto rounded-lg border-2 border-dashed bg-muted/20 p-3"
+                    style={{ aspectRatio: `${canvasWidth} / ${canvasHeight}` }}
+                  >
+                    <div className={`grid gap-2 h-full`} style={{ gridTemplateColumns: `repeat(${pagePreviewCols}, minmax(0, 1fr))` }}>
+                      {activePageImages.length > 0 ? (
+                        activePageImages.map((img, idx) => (
+                          <div key={`${img.id}_${idx}`} className="relative rounded-md border bg-background/70 overflow-hidden">
+                            <img
+                              src={img.src}
+                              alt={img.name}
+                              className={`w-full h-full ${fitMode === 'cover' ? 'object-cover' : 'object-contain'} ${fitMode === 'smart-pad' ? 'bg-muted/40 p-1' : ''}`}
+                            />
+                            <div className="absolute top-1 right-1 bg-foreground/70 text-background rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">
+                              {activePageStart + idx + 1}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-full h-full flex items-center justify-center text-xs text-muted-foreground">
+                          אין תמונות להצגה בעמוד הזה
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-muted-foreground text-sm text-center">תצוגת מודל לפי דף/קנבס נוכחי. לחץ "צור קולאז׳" כדי לייצר תוצאה מלאה.</p>
               </div>
             ) : (
               <div className="text-center space-y-4 py-20">
