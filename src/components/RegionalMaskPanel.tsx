@@ -31,9 +31,19 @@ const RegionalMaskPanel = ({ currentImage, onApply, isProcessing }: RegionalMask
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Target className="h-4 w-4 text-gold" />
-        <h3 className="font-display text-sm font-semibold text-foreground">פילטרים אזוריים</h3>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Target className="h-4 w-4 text-gold" />
+          <h3 className="font-display text-sm font-semibold text-foreground">פילטרים אזוריים</h3>
+        </div>
+        {(selectedRegion !== "background" || selectedFilter !== "blur" || intensity !== 70) && (
+          <button
+            onClick={() => { setSelectedRegion("background"); setSelectedFilter("blur"); setIntensity(70); }}
+            className="flex items-center gap-1 font-body text-xs text-primary hover:underline"
+          >
+            <RotateCcw className="h-3 w-3" /> איפוס
+          </button>
+        )}
       </div>
 
       <p className="font-body text-[10px] text-muted-foreground">
