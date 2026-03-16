@@ -20,6 +20,9 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
+      external: [
+        "onnxruntime-web/webgpu",
+      ],
       output: {
         manualChunks: {
           // Vendor chunks — loaded once, cached long-term
