@@ -102,7 +102,12 @@ export default function NonAiLabPanel({ currentImage, onResult }: NonAiLabPanelP
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>Film Grain</span>
-          <span>{Math.round(filmGrain * 100)}%</span>
+          <div className="flex items-center gap-1">
+            <span>{Math.round(filmGrain * 100)}%</span>
+            {filmGrain !== 0.08 && (
+              <button onClick={() => setFilmGrain(0.08)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[filmGrain]} onValueChange={([v]) => setFilmGrain(v)} min={0.01} max={0.25} step={0.01} />
         <Button disabled={busy} variant="outline" className="w-full" onClick={() => run("Film Grain", () => addFilmGrain(currentImage, { amount: filmGrain }))}>
