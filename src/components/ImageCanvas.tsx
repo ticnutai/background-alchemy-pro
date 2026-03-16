@@ -10,6 +10,7 @@ interface ImageCanvasProps {
   isProcessing: boolean;
   adjustments: ImageAdjustments;
   compareMode?: CompareMode;
+  liveFilterCss?: string;
 }
 
 const compareModeLabels: Record<CompareMode, string> = {
