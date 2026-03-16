@@ -190,7 +190,7 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
         </>
       ) : (
         <div className="relative">
-          <img src={originalImage} alt="Original" className="block w-full" />
+          <img src={originalImage} alt="Original" className="block w-full" style={liveFilterCss ? { filter: liveFilterCss } : undefined} />
         </div>
       )}
     </div>
