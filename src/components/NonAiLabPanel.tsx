@@ -86,7 +86,12 @@ export default function NonAiLabPanel({ currentImage, onResult }: NonAiLabPanelP
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>Posterize</span>
-          <span>{posterizeLevels} רמות</span>
+          <div className="flex items-center gap-1">
+            <span>{posterizeLevels} רמות</span>
+            {posterizeLevels !== 6 && (
+              <button onClick={() => setPosterizeLevels(6)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[posterizeLevels]} onValueChange={([v]) => setPosterizeLevels(v)} min={2} max={14} step={1} />
         <Button disabled={busy} variant="outline" className="w-full" onClick={() => run("Posterize", () => posterizeImage(currentImage, { levels: posterizeLevels }))}>
