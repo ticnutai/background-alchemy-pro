@@ -198,7 +198,7 @@ const PdfProcessor = ({ onSelectPage, onClose }: PdfProcessorProps) => {
               {page.pageNumber}
             </span>
             {page.processed && (
-              <CheckCircle2 className="absolute top-1 left-1 h-4 w-4 text-green-500" />
+              <CheckCircle2 className="absolute top-1 left-1 h-4 w-4 text-primary" />
             )}
           </button>
         ))}
