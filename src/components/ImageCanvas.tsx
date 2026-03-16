@@ -20,7 +20,7 @@ const compareModeLabels: Record<CompareMode, string> = {
   split: "פיצול",
 };
 
-const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustments, compareMode = "slider" }: ImageCanvasProps) => {
+const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustments, compareMode = "slider", liveFilterCss }: ImageCanvasProps) => {
   const [sliderPos, setSliderPos] = useState(50);
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const [localMode, setLocalMode] = useState<CompareMode>(compareMode);
