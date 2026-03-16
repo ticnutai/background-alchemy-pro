@@ -270,24 +270,38 @@ const LiveFilterPanel = ({ currentImage, onPreviewFilter, onApply, isProcessing 
         </div>
       )}
 
-      {sliderConfig.map(({ key, label, icon: Icon, min, max }) => (
-        <div key={key} className="space-y-1">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Icon className="h-3 w-3 text-muted-foreground" />
-              <span className="font-body text-xs text-foreground">{label}</span>
+      {sliderConfig.map(({ key, label, icon: Icon, min, max }) => {
+        const isModified = filters[key] !== defaultFilters[key];
+        return (
+          <div key={key} className="space-y-1">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Icon className="h-3 w-3 text-muted-foreground" />
+                <span className="font-body text-xs text-foreground">{label}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="font-accent text-xs text-muted-foreground tabular-nums">{filters[key]}</span>
+                {isModified && (
+                  <button
+                    onClick={() => updateFilter(key, defaultFilters[key])}
+                    className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                    title={`איפוס ${label}`}
+                  >
+                    <RotateCcw className="h-2.5 w-2.5" />
+                  </button>
+                )}
+              </div>
             </div>
-            <span className="font-accent text-xs text-muted-foreground tabular-nums">{filters[key]}</span>
+            <Slider
+              value={[filters[key]]}
+              onValueChange={([v]) => updateFilter(key, v)}
+              min={min}
+              max={max}
+              step={1}
+            />
           </div>
-          <Slider
-            value={[filters[key]]}
-            onValueChange={([v]) => updateFilter(key, v)}
-            min={min}
-            max={max}
-            step={1}
-          />
-        </div>
-      ))}
+        );
+      })}
 
       <button
         onClick={() => onApply(filters)}

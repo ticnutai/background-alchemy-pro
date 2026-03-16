@@ -127,7 +127,12 @@ export default function NonAiLabPanel({ currentImage, onResult }: NonAiLabPanelP
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>עוצמת חידוד</span>
-          <span>{sharpness.toFixed(1)}</span>
+          <div className="flex items-center gap-1">
+            <span>{sharpness.toFixed(1)}</span>
+            {sharpness !== 1.2 && (
+              <button onClick={() => setSharpness(1.2)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[sharpness]} onValueChange={([v]) => setSharpness(v)} min={0.4} max={2.6} step={0.1} />
       </div>
