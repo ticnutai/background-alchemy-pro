@@ -276,11 +276,13 @@ export default function CatalogBuilder() {
     }
   }, []);
 
-  const openGalleryImport = useCallback(() => {
+  const openGalleryImport = useCallback((mode: "products" | "logo" = "products") => {
+    setGalleryMode(mode);
     setGalleryOpen(true);
     setGallerySearch("");
     setGalleryNameEdits({});
     setGalleryEditingId(null);
+    setGallerySelected(new Set());
     loadGalleryItems(galleryTab);
   }, [galleryTab, loadGalleryItems]);
 
