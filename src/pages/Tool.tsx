@@ -124,6 +124,19 @@ const ToolInner = () => {
     { label: "קטלוג", path: "/catalog" },
   ];
 
+  const openWorkspaceWithSelectedImage = useCallback((path: "/collage" | "/catalog") => {
+    const sourceImage = resultImage || originalImage;
+    if (!sourceImage) {
+      navigate(path);
+      return;
+    }
+    const importKey = `tool-transfer-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    sessionStorage.setItem(importKey, sourceImage);
+    navigate(`${path}?importKey=${encodeURIComponent(importKey)}`, {
+      state: { importImage: sourceImage, importFrom: "tool" },
+    });
+  }, [resultImage, originalImage, navigate]);
+
   // ─── Keyboard Shortcuts ─────────────────────────────────────
   const shortcuts = useMemo(() => [
     { key: "z", ctrl: true, action: () => dispatch({ type: "UNDO" }), description: "בטל" },
@@ -635,7 +648,28 @@ const ToolInner = () => {
             </Link>
             <h1 className="font-display text-base sm:text-xl font-bold text-foreground">AI Background Replacer</h1>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-1 rounded-full border border-gold/25 bg-gold/5 p-1">
+              {studioTopTabs.map((tab) => {
+                const isActive = location.pathname.startsWith(tab.path);
+                return (
+                  <button
+                    type="button"
+                    key={tab.path}
+                    onClick={() => openWorkspaceWithSelectedImage(tab.path as "/collage" | "/catalog")}
+                    className={`rounded-full px-4 py-1.5 font-body text-[12px] font-semibold leading-none tracking-[0.01em] transition-all ${
+                      isActive
+                        ? "bg-gold text-gold-foreground shadow-sm"
+                        : "text-foreground/80 hover:bg-gold/15 hover:text-foreground"
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center gap-3">
             {user && (
               <>
                 <Link
@@ -698,6 +732,7 @@ const ToolInner = () => {
             >
               <ArrowRight className="h-4 w-4" />
             </button>
+            </div>
           </div>
         </div>
       </header>
@@ -969,25 +1004,28 @@ const ToolInner = () => {
                 {/* Tabs */}
                 <div className="overflow-x-auto scrollbar-hide border-b border-border">
                   {[
-                    { key: "backgrounds" as const, label: "רקעים" },
-                    { key: "smart" as const, label: "🧠 חכם" },
-                    { key: "filters" as const, label: "⚡ פילטרים" },
-                    { key: "advanced" as const, label: "🎛️ מתקדם" },
-                    { key: "crop" as const, label: "✂️ חיתוך" },
-                    { key: "tools" as const, label: "כלים" },
-                    { key: "adjust" as const, label: "התאמות" },
-                    { key: "export" as const, label: "ייצוא" },
+                    { key: "backgrounds" as const, label: "רקעים", icon: "" },
+                    { key: "smart" as const, label: "חכם", icon: "🧠" },
+                    { key: "filters" as const, label: "פילטרים", icon: "⚡" },
+                    { key: "advanced" as const, label: "מתקדם", icon: "🎛️" },
+                    { key: "crop" as const, label: "חיתוך", icon: "✂️" },
+                    { key: "tools" as const, label: "כלים", icon: "" },
+                    { key: "adjust" as const, label: "התאמות", icon: "" },
+                    { key: "export" as const, label: "ייצוא", icon: "" },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: tab.key })}
-                      className={`shrink-0 whitespace-nowrap flex-1 py-3 font-display text-xs font-semibold transition-colors ${
+                      className={`shrink-0 whitespace-nowrap flex-1 py-3 px-2 font-body text-[11px] font-semibold leading-normal tracking-[0.01em] transition-colors ${
                         activeTab === tab.key
                           ? "text-primary border-b-2 border-primary bg-primary/5"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {tab.label}
+                      <span className="inline-flex items-center gap-1.5">
+                        {tab.icon && <span aria-hidden="true">{tab.icon}</span>}
+                        <span>{tab.label}</span>
+                      </span>
                     </button>
                   ))}
                 </div>

@@ -22,7 +22,7 @@ import {
   FileDown, FilePlus2, X, Film, Maximize2, Target, Hash, Footprints, Square,
   Ratio, Newspaper, RectangleHorizontal, SplitSquareHorizontal, PanelTopClose, GalleryVerticalEnd
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ImageHoverMenu from "@/components/ImageHoverMenu";
 import {
@@ -339,6 +339,8 @@ const newTextId = () => `txt_${Date.now()}_${++_tid}`;
 
 export default function CollageBuilder() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   // Images
   const [images, setImages] = useState<CollageImage[]>([]);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -591,6 +593,7 @@ export default function CollageBuilder() {
   const dragItemRef = useRef<number | null>(null);
   const dragOverRef = useRef<number | null>(null);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const transferredImageHandledRef = useRef(false);
 
   // Active sidebar tab
   const [sidebarTab, setSidebarTab] = useState("images");
@@ -605,6 +608,30 @@ export default function CollageBuilder() {
   const splitFileRef = useRef<HTMLInputElement>(null);
 
   const editingText = useMemo(() => textOverlays.find(t => t.id === editingTextId) || null, [textOverlays, editingTextId]);
+
+  useEffect(() => {
+    if (transferredImageHandledRef.current) return;
+    const stateImage = (location.state as { importImage?: string } | null)?.importImage;
+    const importKey = searchParams.get("importKey");
+    const keyImage = importKey ? sessionStorage.getItem(importKey) : null;
+    const incomingImage = stateImage || keyImage;
+    if (!incomingImage) return;
+
+    transferredImageHandledRef.current = true;
+    const imported: CollageImage = {
+      id: `img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      src: incomingImage,
+      name: "תמונה מהעורך",
+    };
+
+    setImages((prev) => {
+      if (prev.some((img) => img.src === incomingImage)) return prev;
+      return [imported, ...prev];
+    });
+    setSelectedImage(imported.id);
+    toast.success("התמונה הועברה לקולאז׳");
+    if (importKey) sessionStorage.removeItem(importKey);
+  }, [location.state, searchParams]);
 
   useEffect(() => {
     let cancelled = false;

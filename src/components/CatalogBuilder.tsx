@@ -11,7 +11,7 @@ import {
   Search, Pencil, EyeOff as EyeOffIcon, List, Grid3X3, ArrowDownAZ, ArrowUpAZ,
   RotateCw, TextCursorInput,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import ImageHoverMenu from "@/components/ImageHoverMenu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -112,6 +112,8 @@ const CATEGORY_COLORS = [
 // ─── Component ───────────────────────────────────────────────
 export default function CatalogBuilder() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   // Products & Categories
   const [products, setProducts] = useState<CatalogProduct[]>([]);
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
@@ -149,6 +151,38 @@ export default function CatalogBuilder() {
   // Refs
   const logoInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const transferredImageHandledRef = useRef(false);
+
+  useEffect(() => {
+    if (transferredImageHandledRef.current) return;
+    const stateImage = (location.state as { importImage?: string } | null)?.importImage;
+    const importKey = searchParams.get("importKey");
+    const keyImage = importKey ? sessionStorage.getItem(importKey) : null;
+    const incomingImage = stateImage || keyImage;
+    if (!incomingImage) return;
+
+    transferredImageHandledRef.current = true;
+    setProducts((prev) => {
+      if (prev.some((p) => p.image === incomingImage)) return prev;
+      return [
+        {
+          id: newId(),
+          image: incomingImage,
+          name: "תמונה מהעורך",
+          description: "",
+          price: "",
+          sku: "",
+          badge: "",
+          category: categories.length > 0 ? categories[0].id : undefined,
+        },
+        ...prev,
+      ];
+    });
+
+    setSideTab("products");
+    toast.success("התמונה הועברה לקטלוג");
+    if (importKey) sessionStorage.removeItem(importKey);
+  }, [location.state, searchParams, categories]);
 
   // ─── Add products from files ─────────────────────────────
   const handleAddImages = useCallback(async (files: FileList | File[]) => {
