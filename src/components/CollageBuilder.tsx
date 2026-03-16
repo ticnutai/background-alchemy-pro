@@ -358,6 +358,13 @@ export default function CollageBuilder() {
   const [currentPage, setCurrentPage] = useState(0);
   const [processing, setProcessing] = useState(false);
   const result = pages[currentPage] || null;
+  const currentLayoutMaxImages = useMemo(() => LAYOUT_OPTIONS.find((l) => l.id === layout)?.maxImages || 9, [layout]);
+  const mainPageStart = currentPage * currentLayoutMaxImages;
+  const mainPageEnd = Math.min(mainPageStart + currentLayoutMaxImages, images.length);
+  const mainPageImages = useMemo(
+    () => images.slice(mainPageStart, mainPageEnd),
+    [images, mainPageStart, mainPageEnd]
+  );
 
   // Comparison preview dialog
   const [compareItems, setCompareItems] = useState<ComparePreviewItem[]>([]);
@@ -703,6 +710,16 @@ export default function CollageBuilder() {
   );
 
   const activeCompareItem = activeLayoutItems[activeComparePage] || null;
+  const activeCompareLayoutMaxImages = useMemo(
+    () => (activeCompareLayout ? (LAYOUT_OPTIONS.find((l) => l.id === activeCompareLayout)?.maxImages || 9) : 9),
+    [activeCompareLayout]
+  );
+  const comparePageStart = activeComparePage * activeCompareLayoutMaxImages;
+  const comparePageEnd = Math.min(comparePageStart + activeCompareLayoutMaxImages, images.length);
+  const comparePageImages = useMemo(
+    () => images.slice(comparePageStart, comparePageEnd),
+    [images, comparePageStart, comparePageEnd]
+  );
 
   // ── Compare Layouts ─────────────────────────────────────────
   const handleCompareLayouts = useCallback(async () => {
@@ -1700,6 +1717,9 @@ export default function CollageBuilder() {
                     {pages.length > 1 && (
                       <Badge variant="outline" className="text-xs">עמוד {currentPage + 1} / {pages.length}</Badge>
                     )}
+                    {images.length > 0 && (
+                      <Badge variant="outline" className="text-xs">תמונות {mainPageStart + 1}-{mainPageEnd} מתוך {images.length}</Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="outline" size="sm" onClick={saveToGallery} disabled={savingToGallery}>
@@ -1735,6 +1755,20 @@ export default function CollageBuilder() {
                 )}
 
                 <img src={result} alt="Collage preview" className="w-full rounded-lg border shadow-md" />
+
+                {mainPageImages.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">תמונות מקור בעמוד הנוכחי</p>
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                      {mainPageImages.map((img, idx) => (
+                        <div key={`${img.id}_${idx}`} className="shrink-0">
+                          <img src={img.src} alt={img.name} className="w-14 h-14 object-cover rounded-md border" />
+                          <p className="text-[10px] text-center text-muted-foreground mt-1">#{mainPageStart + idx + 1}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Page thumbnails strip */}
                 {pages.length > 1 && (
@@ -1869,11 +1903,28 @@ export default function CollageBuilder() {
                         <div className="flex items-center justify-between flex-wrap gap-2">
                           <Badge variant="secondary">{activeCompareItem.label}</Badge>
                           <Badge variant="outline">עמוד {activeCompareItem.pageIndex + 1} / {activeCompareItem.totalPages}</Badge>
+                          {images.length > 0 && (
+                            <Badge variant="outline" className="text-xs">תמונות {comparePageStart + 1}-{comparePageEnd} מתוך {images.length}</Badge>
+                          )}
                         </div>
 
                         <div className="flex-1 min-h-0 border rounded-lg bg-muted/20 p-2 flex items-center justify-center overflow-auto">
                           <img src={activeCompareItem.dataUrl} alt={activeCompareItem.label} className="max-w-full max-h-full object-contain rounded-md" />
                         </div>
+
+                        {comparePageImages.length > 0 && (
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium text-muted-foreground">תמונות מקור בעמוד הזה</p>
+                            <div className="flex gap-2 overflow-x-auto pb-1">
+                              {comparePageImages.map((img, idx) => (
+                                <div key={`${img.id}_${idx}`} className="shrink-0">
+                                  <img src={img.src} alt={img.name} className="w-12 h-12 object-cover rounded-md border" />
+                                  <p className="text-[10px] text-center text-muted-foreground mt-1">#{comparePageStart + idx + 1}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
 
                         {activeLayoutItems.length > 1 && (
                           <div className="flex items-center justify-center gap-2">
