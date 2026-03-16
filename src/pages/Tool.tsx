@@ -707,6 +707,7 @@ const ToolInner = () => {
                   resultImage={resultImage}
                   isProcessing={isProcessing || isEnhancing}
                   adjustments={adjustments}
+                  liveFilterCss={liveFilterCss}
                 />
                 <FloatingSaveAction
                   visible={!!originalImage && hasUnsavedChanges && !!user}
