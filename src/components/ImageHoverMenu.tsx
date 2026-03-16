@@ -102,6 +102,7 @@ const ImageHoverMenu = ({
 
   return (
     <div
+      ref={containerRef}
       className={`relative ${className}`}
       onMouseEnter={startHover}
       onMouseLeave={handleMouseLeave}
