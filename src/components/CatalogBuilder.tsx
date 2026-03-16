@@ -1407,11 +1407,11 @@ export default function CatalogBuilder() {
                   <Separator />
 
                   {/* Logo */}
-                  <div>
+                  <div className="space-y-3">
                     <Label className="text-xs">לוגו</Label>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
                       {settings.logo ? (
-                        <div className="relative w-12 h-12 rounded-lg border overflow-hidden">
+                        <div className="relative w-14 h-14 rounded-lg border overflow-hidden bg-background">
                           <img src={settings.logo} alt="Logo" className="w-full h-full object-contain" />
                           <button
                             onClick={() => updateSetting("logo", undefined)}
@@ -1420,12 +1420,15 @@ export default function CatalogBuilder() {
                             <X className="h-3 w-3" />
                           </button>
                         </div>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
-                          <Upload className="h-3 w-3" />
-                          העלה לוגו
-                        </Button>
-                      )}
+                      ) : null}
+                      <Button variant="outline" size="sm" onClick={() => logoInputRef.current?.click()}>
+                        <Upload className="h-3 w-3" />
+                        {settings.logo ? "החלף לוגו" : "העלה לוגו"}
+                      </Button>
+                      <Button variant="outline" size="sm" onClick={() => openGalleryImport("logo")}>
+                        <Database className="h-3 w-3" />
+                        בחר מהגלריה
+                      </Button>
                       <input
                         ref={logoInputRef}
                         type="file"
@@ -1434,6 +1437,31 @@ export default function CatalogBuilder() {
                         onChange={handleLogoUpload}
                       />
                     </div>
+                    {settings.logo && (
+                      <>
+                        <div className="space-y-2">
+                          <Label className="text-[10px]">מיקום לוגו</Label>
+                          <Select value={settings.logoPosition || "top-center"} onValueChange={(v) => updateSetting("logoPosition", v as NonNullable<CatalogSettings["logoPosition"]>)}>
+                            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="top-left">למעלה שמאל</SelectItem>
+                              <SelectItem value="top-center">למעלה מרכז</SelectItem>
+                              <SelectItem value="top-right">למעלה ימין</SelectItem>
+                              <SelectItem value="bottom-left">למטה שמאל</SelectItem>
+                              <SelectItem value="bottom-center">למטה מרכז</SelectItem>
+                              <SelectItem value="bottom-right">למטה ימין</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-[10px]">גודל לוגו</Label>
+                            <span className="text-[10px] text-muted-foreground">{Math.round((settings.logoScale || 0.08) * 100)}%</span>
+                          </div>
+                          <Slider value={[settings.logoScale || 0.08]} min={0.04} max={0.2} step={0.01} onValueChange={([v]) => updateSetting("logoScale", v)} />
+                        </div>
+                      </>
+                    )}
                   </div>
                 </>
               )}
