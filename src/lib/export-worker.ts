@@ -22,7 +22,7 @@ self.onmessage = async (e: MessageEvent<ExportMessage>) => {
 
     // Apply CSS filter equivalent
     if (filter && filter !== "none") {
-      (ctx as any).filter = filter;
+      (ctx as unknown as { filter: string }).filter = filter;
     }
 
     ctx.drawImage(imageData, 0, 0, width, height);
@@ -36,7 +36,7 @@ self.onmessage = async (e: MessageEvent<ExportMessage>) => {
     const blob = await canvas.convertToBlob({ type: mimeType, quality: q });
 
     self.postMessage({ type: "result", blob });
-  } catch (err: any) {
-    self.postMessage({ type: "error", error: err.message });
+  } catch (err) {
+    self.postMessage({ type: "error", error: err instanceof Error ? err.message : String(err) });
   }
 };

@@ -69,7 +69,7 @@ const Auth = () => {
         if (error) throw error;
         toast.success("נרשמת בהצלחה! בדוק את המייל לאימות.");
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error(err.message || "שגיאה");
     } finally {
       setLoading(false);

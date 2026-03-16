@@ -97,7 +97,7 @@ const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
       };
 
       if (editingId) {
-        const updatePayload: Record<string, any> = {
+        const updatePayload: Record<string, unknown> = {
           title: productData.title,
           description: productData.description,
           category: productData.category,
@@ -117,14 +117,14 @@ const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
         const { error } = await supabase.from("products").insert({
           ...productData,
           created_by: userId,
-        } as any);
+        } as Record<string, unknown>);
         if (error) throw error;
         toast.success("המוצר נוסף בהצלחה!");
       }
 
       resetForm();
       loadProducts();
-    } catch (err: any) {
+    } catch (err) {
       toast.error(err.message || "שגיאה בשמירה");
     } finally {
       setSaving(false);

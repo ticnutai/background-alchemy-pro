@@ -204,6 +204,7 @@ function applyPixelFiltersMainThread(data: Uint8ClampedArray, options: CanvasFil
     b = clamp(Math.round(b + (cbSB * sw + cbMB * mw + cbHB * hw) * 50));
     if (warmShift !== 0) { r = clamp(Math.round(r + warmShift)); b = clamp(Math.round(b - warmShift * 0.7)); }
     if (tintShift !== 0) { g = clamp(Math.round(g + tintShift)); }
+    // eslint-disable-next-line prefer-const
     let [h, s, l] = rgbToHsl(r, g, b);
     if (hueShift !== 0) h = (h + hueShift + 1) % 1;
     s = Math.max(0, Math.min(1, s * satFactor));

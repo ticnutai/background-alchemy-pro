@@ -360,9 +360,9 @@ const ImageAdjustmentsPanel = forwardRef<HTMLDivElement, ImageAdjustmentsProps>(
       for (const [key, val] of Object.entries(preset.adjustments)) {
         const defVal = defaultAdjustments[key as keyof ImageAdjustments];
         if (typeof val === "number" && typeof defVal === "number") {
-          (blended as any)[key] = Math.round(defVal + (val - defVal) * strength);
+          (blended as Record<string, unknown>)[key] = Math.round(defVal + (val - defVal) * strength);
         } else {
-          (blended as any)[key] = val;
+          (blended as Record<string, unknown>)[key] = val;
         }
       }
       onChange({ ...defaultAdjustments, ...blended });
@@ -434,9 +434,9 @@ const ImageAdjustmentsPanel = forwardRef<HTMLDivElement, ImageAdjustmentsProps>(
                         for (const [key, val] of Object.entries(p.adjustments)) {
                           const defVal = defaultAdjustments[key as keyof ImageAdjustments];
                           if (typeof val === "number" && typeof defVal === "number") {
-                            (blended as any)[key] = Math.round(defVal + (val - defVal) * strength);
+                            (blended as Record<string, unknown>)[key] = Math.round(defVal + (val - defVal) * strength);
                           } else {
-                            (blended as any)[key] = val;
+                            (blended as Record<string, unknown>)[key] = val;
                           }
                         }
                         onChange({ ...defaultAdjustments, ...blended });

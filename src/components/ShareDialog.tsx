@@ -64,7 +64,7 @@ const ShareDialog = ({ imageUrl, title, onClose }: ShareDialogProps) => {
     if (navigator.share) {
       try {
         await navigator.share({ title: title || "תמונת מוצר", url: shareUrl });
-      } catch {}
+      } catch { /* share cancelled */ }
     } else {
       copyLink();
     }

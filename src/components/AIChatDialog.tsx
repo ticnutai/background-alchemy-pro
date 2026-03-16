@@ -239,7 +239,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
               (c): c is ColorSwatch => c && typeof c.hex === "string" && typeof c.name === "string"
             );
           }
-        } catch {}
+        } catch { /* parse error ignored */ }
       }
 
       // Parse visual options
@@ -254,7 +254,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
               (v): v is VisualOption => v && typeof v.prompt === "string" && typeof v.label === "string"
             );
           }
-        } catch {}
+        } catch { /* parse error ignored */ }
       }
 
       return { quickReplies, colorPalette, visualOptions };
@@ -303,7 +303,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           variant: "destructive",
         });
       }
-    } catch (err: any) {
+    } catch (err) {
       toast({
         title: "שגיאה",
         description: err.message,
@@ -583,7 +583,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           }
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: `❌ ${err.message}` },

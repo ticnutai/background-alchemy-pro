@@ -40,7 +40,7 @@ const SmartSuggestPanel = ({ imageBase64, onSelectPrompt }: SmartSuggestPanelPro
       setProduct(data.product);
       setSuggestions(data.suggestions || []);
       toast.success("ניתוח הושלם!");
-    } catch (err: any) {
+    } catch (err) {
       toast.error(err.message || "שגיאה בניתוח");
     } finally {
       setLoading(false);

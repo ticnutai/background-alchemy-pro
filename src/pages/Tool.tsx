@@ -302,7 +302,7 @@ const ToolInner = () => {
       } else if (selectedPresetName) {
         dispatch({ type: "SET_SUGGESTED_NAME", payload: selectedPresetName });
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error(err.message || "שגיאה בעיבוד התמונה");
     } finally {
       dispatch({ type: "SET_PROCESSING", payload: false });
@@ -378,7 +378,7 @@ const ToolInner = () => {
       if (data?.error) throw new Error(data.error);
       dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
       toast.success("התמונה שופרה!");
-    } catch (err: any) {
+    } catch (err) {
       toast.error(err.message || "שגיאה בשיפור התמונה");
     } finally {
       dispatch({ type: "SET_ENHANCING", payload: false });
@@ -554,7 +554,7 @@ const ToolInner = () => {
         }
 
         toast.success("התמונה יוצאה בהצלחה!");
-      } catch (err: any) {
+      } catch (err) {
         toast.error("שגיאה בייצוא");
       } finally {
         dispatch({ type: "SET_EXPORTING", payload: false });
@@ -609,7 +609,7 @@ const ToolInner = () => {
           }
         }
       }
-    } catch (err: any) {
+    } catch (err) {
       toast.error(err.message || "שגיאה בשמירה");
     } finally {
       setIsSaving(false);
@@ -1047,7 +1047,7 @@ const ToolInner = () => {
                         onApply={async (filters) => {
                           setFilterProcessing(true);
                           const currentImg = resultImage || originalImage;
-                          const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as any) : null;
+                          const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as Record<string, unknown>) : null;
                           if (cached) {
                             dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
                             setLiveFilterCss("");
@@ -1063,11 +1063,11 @@ const ToolInner = () => {
                             if (data?.error) throw new Error(data.error);
                             if (data?.resultImage) {
                               dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
-                              if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as any, data.resultImage);
+                              if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as Record<string, unknown>, data.resultImage);
                               setLiveFilterCss("");
                               toast.success("הפילטרים הוחלו!");
                             }
-                          } catch (err: any) {
+                          } catch (err) {
                             toast.error(err.message || "שגיאה בעיבוד");
                           } finally {
                             setFilterProcessing(false);
@@ -1095,7 +1095,7 @@ const ToolInner = () => {
                                 setLiveFilterCss("");
                                 toast.success("השכבות הוחלו!");
                               }
-                            } catch (err: any) {
+                            } catch (err) {
                               toast.error(err.message || "שגיאה בעיבוד");
                             } finally {
                               setFilterProcessing(false);
@@ -1124,7 +1124,7 @@ const ToolInner = () => {
                                 dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
                                 toast.success("הפלטה הועברה בהצלחה!");
                               }
-                            } catch (err: any) {
+                            } catch (err) {
                               toast.error(err.message || "שגיאה בהעברת צבע");
                             } finally {
                               setFilterProcessing(false);
@@ -1159,7 +1159,7 @@ const ToolInner = () => {
                                 if (currentImg) setCachedResult(currentImg, "regional-mask", params, data.resultImage);
                                 toast.success("הפילטר האזורי הוחל!");
                               }
-                            } catch (err: any) {
+                            } catch (err) {
                               toast.error(err.message || "שגיאה בעיבוד");
                             } finally {
                               setFilterProcessing(false);

@@ -147,6 +147,7 @@ function processPixels(data: Uint8ClampedArray, o: Record<string, number>): void
     }
 
     // Hue shift + Saturation + Vibrance
+    // eslint-disable-next-line prefer-const
     let [h, s, l] = rgbToHsl(r, g, b);
     if (hueShift !== 0) h = (h + hueShift + 1) % 1;
     if (saturationF !== 1) s = Math.min(1, s * saturationF);

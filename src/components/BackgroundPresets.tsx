@@ -794,7 +794,7 @@ const BackgroundPresets = ({
         if (data?.error) throw new Error(data.error);
         setAnalysisResult(data as AnalysisResult);
         toast.success("ניתוח הושלם!");
-      } catch (err: any) {
+      } catch (err) {
         toast.error(err.message || "שגיאה בניתוח התמונה");
       } finally {
         setAnalyzing(false);
@@ -1491,7 +1491,7 @@ const BackgroundPresets = ({
               <div className="flex gap-2 pt-3 justify-center">
                 <button
                   onClick={() => {
-                    multiSelectMode && onTogglePreset ? onTogglePreset(previewPreset) : onSelect(previewPreset);
+                    if (multiSelectMode && onTogglePreset) { onTogglePreset(previewPreset); } else { onSelect(previewPreset); }
                     setPreviewPreset(null);
                   }}
                   className="rounded-lg bg-gold px-5 py-2 font-display text-sm font-semibold text-gold-foreground hover:brightness-110 transition-all"
