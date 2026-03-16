@@ -55,6 +55,11 @@ const ImageHoverMenu = ({
       leaveTimer.current = null;
     }
     hoverTimer.current = setTimeout(() => {
+      // Check if near top of viewport
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setPosition(rect.top < 160 ? "bottom" : "top");
+      }
       setShowMenu(true);
     }, hoverDelay);
   }, [hoverDelay]);
