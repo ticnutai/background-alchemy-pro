@@ -40,7 +40,7 @@ const ImageCanvas = memo(({ originalImage, resultImage, isProcessing, adjustment
   const filterStyle = getFilterString(adjustments);
   const svgFilterId = getSvgFilterId(adjustments);
   const svgMarkup = useMemo(() => getSvgFilterMarkup(adjustments), [adjustments]);
-  const combinedFilter = svgFilterId ? `${filterStyle} url(#${svgFilterId})` : filterStyle;
+  const combinedFilter = [svgFilterId ? `${filterStyle} url(#${svgFilterId})` : filterStyle, liveFilterCss].filter(Boolean).join(" ");
   const overlayStyles = getOverlayStyles(adjustments);
   const hasAdjustments = JSON.stringify(adjustments) !== JSON.stringify(defaultAdjustments);
 
