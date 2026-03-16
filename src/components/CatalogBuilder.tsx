@@ -761,7 +761,7 @@ export default function CatalogBuilder() {
                   <Button
                     variant="outline"
                     className="w-full gap-2 h-9"
-                    onClick={openGalleryImport}
+                    onClick={() => openGalleryImport()}
                   >
                     <Database className="h-4 w-4 text-primary" />
                     <span className="text-xs font-medium">ייבוא מהגלריה / מהענן</span>
