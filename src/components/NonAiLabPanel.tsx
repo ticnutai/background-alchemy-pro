@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { RotateCcw } from "lucide-react";
 import {
   addFilmGrain,
   embossImage,
