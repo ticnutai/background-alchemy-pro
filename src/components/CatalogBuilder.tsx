@@ -2348,7 +2348,9 @@ export default function CatalogBuilder() {
             className="gap-1.5"
           >
             <CloudDownload className="h-4 w-4" />
-            ייבא {gallerySelected.size > 0 ? `${gallerySelected.size} פריטים` : ""}
+            {galleryMode === "logo"
+              ? "בחר כלוגו"
+              : `ייבא ${gallerySelected.size > 0 ? `${gallerySelected.size} פריטים` : ""}`}
           </Button>
         </DialogFooter>
       </DialogContent>

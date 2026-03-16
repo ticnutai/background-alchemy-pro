@@ -398,15 +398,46 @@ export default function Workspace() {
                     imageUrl={img.result_image_url}
                     isFavorite={img.is_favorite}
                     hoverDelay={800}
-                    className="group aspect-square rounded-xl overflow-hidden border border-border hover:border-gold/40 transition-all hover:shadow-md"
+                    className="group aspect-square rounded-xl border border-border hover:border-gold/40 transition-all hover:shadow-md"
                     actions={{
+                      onFavorite: async () => {
+                        const newValue = !img.is_favorite;
+                        const { error } = await supabase
+                          .from("processing_history")
+                          .update({ is_favorite: newValue })
+                          .eq("id", img.id);
+                        if (error) {
+                          toast.error("שגיאה בעדכון מועדף");
+                          return;
+                        }
+                        setRecentImages((prev) => prev.map((item) => item.id === img.id ? { ...item, is_favorite: newValue } : item));
+                        toast.success(newValue ? "נוסף למועדפים" : "הוסר ממועדפים");
+                      },
                       onZoom: () => navigate("/gallery"),
                       onEdit: () => navigate(`/tool?editImage=${encodeURIComponent(img.result_image_url)}`),
                       onCollage: () => navigate(`/collage?importImage=${encodeURIComponent(img.result_image_url)}`),
                       onCatalog: () => navigate(`/catalog?importImage=${encodeURIComponent(img.result_image_url)}`),
+                      onDelete: async () => {
+                        const { error } = await supabase
+                          .from("processing_history")
+                          .delete()
+                          .eq("id", img.id);
+                        if (error) {
+                          toast.error("שגיאה במחיקת תמונה");
+                          return;
+                        }
+                        setRecentImages((prev) => prev.filter((item) => item.id !== img.id));
+                        toast.success("התמונה נמחקה");
+                      },
+                      onDownload: () => {
+                        const link = document.createElement("a");
+                        link.href = img.result_image_url;
+                        link.download = `${img.background_name || "image"}.png`;
+                        link.click();
+                      },
                     }}
                   >
-                    <div className="h-full w-full cursor-pointer" onClick={() => navigate("/gallery")}>
+                    <div className="h-full w-full cursor-pointer overflow-hidden rounded-xl" onClick={() => navigate("/gallery")}>
                       <img
                         src={img.result_image_url}
                         alt={img.background_name || ""}

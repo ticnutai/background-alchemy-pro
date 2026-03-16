@@ -1878,6 +1878,8 @@ export async function catalogToPDF(pages: CatalogPage[]): Promise<Blob> {
 export const defaultCatalogSettings: CatalogSettings = {
   title: "קטלוג מוצרים",
   subtitle: "",
+  logoPosition: "top-center",
+  logoScale: 0.08,
   brandColor: "#6366f1",
   accentColor: "#f59e0b",
   bgColor: "#ffffff",

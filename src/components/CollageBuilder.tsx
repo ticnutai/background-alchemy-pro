@@ -1132,6 +1132,9 @@ export default function CollageBuilder() {
                               <div className="flex items-center gap-2">
                                 <img src={watermark.imageSrc} alt="logo" className="w-10 h-10 object-contain rounded border bg-muted" />
                                 <span className="text-[10px] text-muted-foreground">לוגו נטען</span>
+                                <Button variant="ghost" size="sm" className="h-7 px-2 text-[10px]" onClick={() => setWatermark(w => ({ ...w, imageSrc: undefined }))}>
+                                  הסר
+                                </Button>
                               </div>
                             )}
                           </div>
