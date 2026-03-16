@@ -428,6 +428,19 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
           </>
         )}
 
+        {/* Reorder toggle */}
+        <button
+          onClick={() => { setReorderMode(!reorderMode); if (!reorderMode) { setSelectMode(false); deselectAll(); } }}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-accent text-xs font-semibold transition-all ${
+            reorderMode
+              ? "border-accent bg-accent/10 text-accent"
+              : "border-border bg-card text-foreground hover:bg-secondary"
+          }`}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          {reorderMode ? "סיום סידור" : "שנה סדר"}
+        </button>
+
         <div className="flex-1" />
 
         {/* Save to gallery button */}
