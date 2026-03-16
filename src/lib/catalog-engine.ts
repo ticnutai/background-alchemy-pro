@@ -81,6 +81,8 @@ export interface CatalogSettings {
   title: string;
   subtitle?: string;
   logo?: string;          // base64 or URL
+  logoPosition?: "top-left" | "top-center" | "top-right" | "bottom-left" | "bottom-center" | "bottom-right";
+  logoScale?: number;
   brandColor: string;
   accentColor: string;
   bgColor: string;
@@ -207,6 +209,53 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function getLogoPlacement(
+  position: NonNullable<CatalogSettings["logoPosition"]>,
+  pageW: number,
+  pageH: number,
+  logoW: number,
+  logoH: number,
+  margin: number,
+) {
+  switch (position) {
+    case "top-left":
+      return { x: margin, y: margin };
+    case "top-center":
+      return { x: (pageW - logoW) / 2, y: margin };
+    case "top-right":
+      return { x: pageW - logoW - margin, y: margin };
+    case "bottom-left":
+      return { x: margin, y: pageH - logoH - margin };
+    case "bottom-center":
+      return { x: (pageW - logoW) / 2, y: pageH - logoH - margin };
+    case "bottom-right":
+    default:
+      return { x: pageW - logoW - margin, y: pageH - logoH - margin };
+  }
+}
+
+async function drawPlacedLogo(
+  ctx: CanvasRenderingContext2D,
+  settings: CatalogSettings,
+  pageW: number,
+  pageH: number,
+  fallbackScale: number,
+) {
+  if (!settings.logo) return;
+  try {
+    const logoImg = await loadImage(settings.logo);
+    const scale = settings.logoScale || fallbackScale;
+    const logoH = pageH * scale;
+    const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
+    const position = settings.logoPosition || "top-center";
+    const margin = pageW * 0.04;
+    const { x, y } = getLogoPlacement(position, pageW, pageH, logoW, logoH, margin);
+    ctx.drawImage(logoImg, x, y, logoW, logoH);
+  } catch {
+    /* skip */
+  }
+}
+
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number, r: number,
@@ -297,10 +346,12 @@ async function drawHeader(
   if (settings.logo) {
     try {
       const logoImg = await loadImage(settings.logo);
-      const logoH = headerH * 0.6;
+      const logoH = headerH * Math.max(0.35, Math.min(settings.logoScale || 0.04, 0.08) * 8);
       const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
-      ctx.drawImage(logoImg, padding, (headerH - logoH) / 2, logoW, logoH);
-      textX = padding + logoW + padding * 0.5;
+      const isLeft = (settings.logoPosition || "top-left") === "top-left" || (settings.logoPosition || "top-left") === "bottom-left";
+      const logoX = isLeft ? padding : pageW - padding - logoW;
+      ctx.drawImage(logoImg, logoX, (headerH - logoH) / 2, logoW, logoH);
+      textX = isLeft ? padding + logoW + padding * 0.5 : padding;
     } catch { /* no logo */ }
   }
 
@@ -1093,14 +1144,7 @@ async function renderBackCover(
   drawBgPattern(ctx, settings.bgPattern, pageW, pageH, "#ffffff");
 
   // Logo
-  if (settings.logo) {
-    try {
-      const logoImg = await loadImage(settings.logo);
-      const logoH = pageH * 0.12;
-      const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
-      ctx.drawImage(logoImg, (pageW - logoW) / 2, pageH * 0.3, logoW, logoH);
-    } catch { /* skip */ }
-  }
+  await drawPlacedLogo(ctx, settings, pageW, pageH, 0.12);
 
   ctx.textAlign = "center";
 
@@ -1471,14 +1515,7 @@ async function renderCoverPage(
   }
 
   // Logo
-  if (settings.logo) {
-    try {
-      const logoImg = await loadImage(settings.logo);
-      const logoH = pageH * 0.08;
-      const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
-      ctx.drawImage(logoImg, (pageW - logoW) / 2, pageH * 0.12, logoW, logoH);
-    } catch { /* skip */ }
-  }
+  await drawPlacedLogo(ctx, settings, pageW, pageH, 0.08);
 
   // Title
   ctx.textAlign = "center";
@@ -1841,6 +1878,8 @@ export async function catalogToPDF(pages: CatalogPage[]): Promise<Blob> {
 export const defaultCatalogSettings: CatalogSettings = {
   title: "קטלוג מוצרים",
   subtitle: "",
+  logoPosition: "top-center",
+  logoScale: 0.08,
   brandColor: "#6366f1",
   accentColor: "#f59e0b",
   bgColor: "#ffffff",
