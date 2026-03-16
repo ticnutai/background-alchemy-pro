@@ -336,6 +336,15 @@ export default function CatalogBuilder() {
   const importSelectedGallery = useCallback(() => {
     const selected = galleryItems.filter(i => gallerySelected.has(i.id));
     if (selected.length === 0) return;
+
+    if (galleryMode === "logo") {
+      setSettings(prev => ({ ...prev, logo: selected[0].image }));
+      toast.success("הלוגו נבחר מהגלריה");
+      setGalleryOpen(false);
+      setGallerySelected(new Set());
+      return;
+    }
+
     const newProducts: CatalogProduct[] = selected.map(item => ({
       id: newId(),
       image: item.image,
@@ -355,7 +364,7 @@ export default function CatalogBuilder() {
     toast.success(`${newProducts.length} פריטים יובאו מהגלריה`);
     setGalleryOpen(false);
     setGallerySelected(new Set());
-  }, [galleryItems, gallerySelected, categories, galleryNameEdits, galleryHideText]);
+  }, [galleryItems, gallerySelected, categories, galleryNameEdits, galleryHideText, galleryMode]);
 
   const bulkRenameGalleryPrefix = useCallback((prefix: string) => {
     const edits: Record<string, string> = {};
