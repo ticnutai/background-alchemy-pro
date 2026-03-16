@@ -117,7 +117,7 @@ const AdminProductForm = ({ onClose }: { onClose: () => void }) => {
         const { error } = await supabase.from("products").insert({
           ...productData,
           created_by: userId,
-        } as Record<string, unknown>);
+        } as any);
         if (error) throw error;
         toast.success("המוצר נוסף בהצלחה!");
       }
