@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput, Sparkles, AlertCircle, Eye, GripVertical, FolderInput, Save, CheckSquare, Square, Folder, FolderPlus } from "lucide-react";
+import { FileText, Download, Image as ImageIcon, Loader2, CheckCircle2, ArrowLeft, X, FileOutput, Sparkles, AlertCircle, Eye, GripVertical, FolderInput, Save, CheckSquare, Square, Folder, FolderPlus, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { extractPdfPages, buildPdfFromImages, downloadBlob, type PdfPage } from "@/lib/pdf-utils";
@@ -42,6 +42,43 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
   const [newFolderName, setNewFolderName] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState({ current: 0, total: 0 });
+
+  // Drag reorder state
+  const [dragIdx, setDragIdx] = useState<number | null>(null);
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
+  const [reorderMode, setReorderMode] = useState(false);
+
+  const handleDragStart = useCallback((idx: number) => {
+    setDragIdx(idx);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverIdx(idx);
+  }, []);
+
+  const handleDropReorder = useCallback((targetIdx: number) => {
+    if (dragIdx === null || dragIdx === targetIdx) {
+      setDragIdx(null);
+      setDragOverIdx(null);
+      return;
+    }
+    setPages(prev => {
+      const next = [...prev];
+      const [moved] = next.splice(dragIdx, 1);
+      next.splice(targetIdx, 0, moved);
+      // Update pageNumber to reflect new order
+      return next.map((p, i) => ({ ...p, pageNumber: i + 1 }));
+    });
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, [dragIdx]);
+
+  const handleDragEnd = useCallback(() => {
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }, []);
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
@@ -391,6 +428,19 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
           </>
         )}
 
+        {/* Reorder toggle */}
+        <button
+          onClick={() => { setReorderMode(!reorderMode); if (!reorderMode) { setSelectMode(false); deselectAll(); } }}
+          className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 font-accent text-xs font-semibold transition-all ${
+            reorderMode
+              ? "border-accent bg-accent/10 text-accent"
+              : "border-border bg-card text-foreground hover:bg-secondary"
+          }`}
+        >
+          <ArrowUpDown className="h-3.5 w-3.5" />
+          {reorderMode ? "סיום סידור" : "שנה סדר"}
+        </button>
+
         <div className="flex-1" />
 
         {/* Save to gallery button */}
@@ -507,10 +557,38 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
         />
       )}
 
+      {reorderMode && (
+        <div className="rounded-lg border border-accent/30 bg-accent/5 px-3 py-2 flex items-center gap-2">
+          <ArrowUpDown className="h-3.5 w-3.5 text-accent" />
+          <p className="font-body text-[11px] text-accent">
+            גרור ושחרר עמודים כדי לשנות את הסדר. הסדר ישפיע על ייצוא PDF ושמירה לגלריה.
+          </p>
+        </div>
+      )}
+
       {/* Thumbnails grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[60vh] overflow-y-auto pr-1">
-        {pages.map((page) => (
-          <div key={page.pageNumber} className="relative">
+        {pages.map((page, idx) => (
+          <div
+            key={`page-${idx}`}
+            className={`relative transition-all duration-200 ${
+              reorderMode ? "cursor-grab active:cursor-grabbing" : ""
+            } ${dragIdx === idx ? "opacity-40 scale-95" : ""} ${
+              dragOverIdx === idx && dragIdx !== idx ? "ring-2 ring-accent ring-offset-2 ring-offset-background rounded-lg" : ""
+            }`}
+            draggable={reorderMode}
+            onDragStart={() => handleDragStart(idx)}
+            onDragOver={(e) => handleDragOver(e, idx)}
+            onDrop={() => handleDropReorder(idx)}
+            onDragEnd={handleDragEnd}
+          >
+            {/* Drag handle */}
+            {reorderMode && (
+              <div className="absolute top-2 left-2 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-accent/90 shadow-sm">
+                <GripVertical className="h-3.5 w-3.5 text-accent-foreground" />
+              </div>
+            )}
+
             {/* Selection checkbox */}
             {selectMode && (
               <button
@@ -527,6 +605,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
 
             <button
               onClick={() => {
+                if (reorderMode) return; // don't open in reorder mode
                 if (selectMode) {
                   togglePageSelect(page.pageNumber);
                 } else if (page.processed) {
@@ -544,7 +623,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
               <img
                 src={page.processed || page.dataUrl}
                 alt={`עמוד ${page.pageNumber}`}
-                className="w-full h-auto object-contain"
+                className="w-full h-auto object-contain pointer-events-none"
                 loading="lazy"
               />
               {page.status === "processing" && (
@@ -552,7 +631,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               )}
-              {!selectMode && (
+              {!selectMode && !reorderMode && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/60 opacity-0 group-hover:opacity-100 transition-opacity">
                   <span className="font-accent text-xs font-semibold text-foreground bg-card/80 px-2 py-1 rounded-md">
                     {page.processed ? "לפני / אחרי" : "פתח בעורך"}
