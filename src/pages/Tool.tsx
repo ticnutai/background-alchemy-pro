@@ -1273,10 +1273,13 @@ const ToolInner = () => {
                       <div className="border-t border-border pt-4">
                         <RegionalMaskPanel
                           currentImage={resultImage || originalImage}
-                          onApply={async (region, filterType, intensity) => {
+                          onApply={async (region, filterType, intensity, maskDataUrl) => {
                             setFilterProcessing(true);
                             const currentImg = resultImage || originalImage;
-                            const params = { region, filterType, intensity };
+                            const params: Record<string, any> = { region, filterType, intensity };
+                            if (region === "custom" && maskDataUrl) {
+                              params.maskImage = maskDataUrl;
+                            }
                             const cached = currentImg ? getCachedResult(currentImg, "regional-mask", params) : null;
                             if (cached) {
                               dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
@@ -1293,9 +1296,9 @@ const ToolInner = () => {
                               if (data?.resultImage) {
                                 dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
                                 if (currentImg) setCachedResult(currentImg, "regional-mask", params, data.resultImage);
-                                toast.success("הפילטר האזורי הוחל!");
+                                toast.success(region === "custom" ? "הפילטר הוחל על האזור המסומן!" : "הפילטר האזורי הוחל!");
                               }
-                            } catch (err) {
+                            } catch (err: any) {
                               toast.error(err.message || "שגיאה בעיבוד");
                             } finally {
                               setFilterProcessing(false);
