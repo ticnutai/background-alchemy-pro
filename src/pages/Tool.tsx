@@ -801,7 +801,29 @@ const ToolInner = () => {
                 />
               </div>
             ) : (
-              <ImageUploader onImageSelect={handleImageSelect} />
+              <div className="flex flex-col gap-4">
+                <ImageUploader onImageSelect={handleImageSelect} />
+                <div className="flex items-center justify-center">
+                  <button
+                    onClick={() => setShowPdfProcessor(true)}
+                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 font-accent text-sm font-semibold text-foreground transition-all hover:bg-secondary hover:border-primary"
+                  >
+                    <FileText className="h-4 w-4 text-primary" />
+                    העלאת קובץ PDF
+                  </button>
+                </div>
+                {showPdfProcessor && (
+                  <Suspense fallback={<FallbackSpinner />}>
+                    <PdfProcessor
+                      onSelectPage={(dataUrl) => {
+                        handleImageSelect(dataUrl);
+                        setShowPdfProcessor(false);
+                      }}
+                      onClose={() => setShowPdfProcessor(false)}
+                    />
+                  </Suspense>
+                )}
+              </div>
             )}
 
             {originalImage && (
