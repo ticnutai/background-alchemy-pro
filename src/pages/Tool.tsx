@@ -1048,7 +1048,7 @@ const ToolInner = () => {
                         onApply={async (filters) => {
                           setFilterProcessing(true);
                           const currentImg = resultImage || originalImage;
-                          const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as Record<string, unknown>) : null;
+                          const cached = currentImg ? getCachedResult(currentImg, "live-filter-apply", filters as unknown as Record<string, unknown>) : null;
                           if (cached) {
                             dispatch({ type: "SET_RESULT_IMAGE", payload: cached });
                             setLiveFilterCss("");
