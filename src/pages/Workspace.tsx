@@ -45,7 +45,7 @@ export default function Workspace() {
     setLoadingRecent(true);
     const { data } = await supabase
       .from("processing_history")
-      .select("id, result_image_url, background_name, created_at, is_favorite")
+      .select("id, result_image_url, background_name, created_at, is_favorite, folder_id")
       .order("created_at", { ascending: false })
       .limit(8);
     if (data) setRecentImages(data as RecentImage[]);
