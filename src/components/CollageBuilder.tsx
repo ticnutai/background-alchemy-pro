@@ -73,6 +73,11 @@ const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode;
   { id: "magazine", label: "מגזין", icon: <Newspaper className="h-5 w-5" />, maxImages: 4, category: 'advanced' },
   { id: "filmstrip", label: "פילם סטריפ", icon: <Film className="h-5 w-5" />, maxImages: 6, category: 'advanced' },
   { id: "big-small", label: "גדול + קטנים", icon: <Maximize2 className="h-5 w-5" />, maxImages: 5, category: 'advanced' },
+  { id: "zigzag", label: "זיגזג", icon: <Footprints className="h-5 w-5" />, maxImages: 5, category: 'advanced' },
+  { id: "asymmetric-columns", label: "עמודות אסימטריות", icon: <Columns3 className="h-5 w-5" />, maxImages: 5, category: 'advanced' },
+  { id: "triple-hero", label: "טריפל Hero", icon: <LayoutDashboard className="h-5 w-5" />, maxImages: 3, category: 'advanced' },
+  { id: "quad-focus", label: "פוקוס 4", icon: <Grid2X2 className="h-5 w-5" />, maxImages: 4, category: 'advanced' },
+  { id: "cross", label: "צלב", icon: <Plus className="h-5 w-5" />, maxImages: 5, category: 'advanced' },
   // ─── Special ───
   { id: "panoramic-stack", label: "פנורמי", icon: <RectangleHorizontal className="h-5 w-5" />, maxImages: 3, category: 'special' },
   { id: "focus-center", label: "מוקד מרכזי", icon: <Target className="h-5 w-5" />, maxImages: 5, category: 'special' },
@@ -80,12 +85,25 @@ const LAYOUT_OPTIONS: { id: CollageLayout; label: string; icon: React.ReactNode;
   { id: "staircase", label: "מדרגות", icon: <GalleryVerticalEnd className="h-5 w-5" />, maxImages: 4, category: 'special' },
   { id: "frame-in-frame", label: "מסגרת במסגרת", icon: <Square className="h-5 w-5" />, maxImages: 2, category: 'special' },
   { id: "split-thirds", label: "חלוקת שלישים", icon: <SplitSquareHorizontal className="h-5 w-5" />, maxImages: 4, category: 'special' },
+  { id: "diamond", label: "יהלום", icon: <Sparkle className="h-5 w-5 rotate-45" />, maxImages: 5, category: 'special' },
+  { id: "spiral", label: "ספירלה", icon: <RefreshCw className="h-5 w-5" />, maxImages: 6, category: 'special' },
+  { id: "ring", label: "טבעת", icon: <SplitSquareVertical className="h-5 w-5" />, maxImages: 6, category: 'special' },
+  { id: "center-strip", label: "סטריפ מרכזי", icon: <Rows3 className="h-5 w-5" />, maxImages: 5, category: 'special' },
+  { id: "offset-grid", label: "רשת מוזחת", icon: <LayoutGrid className="h-5 w-5" />, maxImages: 6, category: 'special' },
 ];
 
 const LAYOUT_CATEGORY_LABELS: Record<string, string> = {
   basic: 'בסיסי',
   advanced: 'מתקדם',
   special: 'מיוחד',
+};
+
+type ComparePreviewItem = {
+  layout: CollageLayout;
+  label: string;
+  pageIndex: number;
+  totalPages: number;
+  dataUrl: string;
 };
 
 const SMART_TOOLS = [
@@ -341,9 +359,17 @@ export default function CollageBuilder() {
   const [processing, setProcessing] = useState(false);
   const result = pages[currentPage] || null;
 
-  // Comparison preview
-  const [comparePreviews, setComparePreviews] = useState<{ layout: CollageLayout; label: string; dataUrl: string }[]>([]);
-  const [compareMode, setCompareMode] = useState(false);
+  // Comparison preview dialog
+  const [compareItems, setCompareItems] = useState<ComparePreviewItem[]>([]);
+  const [compareDialogOpen, setCompareDialogOpen] = useState(false);
+  const [compareSelectedLayouts, setCompareSelectedLayouts] = useState<CollageLayout[]>([
+    'grid-2x2',
+    'hero-top',
+    'masonry',
+    'featured-grid',
+  ]);
+  const [activeCompareLayout, setActiveCompareLayout] = useState<CollageLayout | null>(null);
+  const [activeComparePage, setActiveComparePage] = useState(0);
   const [compareProcessing, setCompareProcessing] = useState(false);
 
   // Gallery import
@@ -655,60 +681,101 @@ export default function CollageBuilder() {
     setProcessing(false);
   }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
 
+  const toggleCompareLayout = useCallback((layoutId: CollageLayout) => {
+    setCompareSelectedLayouts((prev) => {
+      if (prev.includes(layoutId)) return prev.filter((id) => id !== layoutId);
+      if (prev.length >= 12) {
+        toast.error('אפשר לבחור עד 12 לייאאוטים להשוואה');
+        return prev;
+      }
+      return [...prev, layoutId];
+    });
+  }, []);
+
+  const compareLayoutsWithResults = useMemo(
+    () => compareSelectedLayouts.filter((layoutId) => compareItems.some((item) => item.layout === layoutId)),
+    [compareSelectedLayouts, compareItems]
+  );
+
+  const activeLayoutItems = useMemo(
+    () => (activeCompareLayout ? compareItems.filter((item) => item.layout === activeCompareLayout) : []),
+    [compareItems, activeCompareLayout]
+  );
+
+  const activeCompareItem = activeLayoutItems[activeComparePage] || null;
+
   // ── Compare Layouts ─────────────────────────────────────────
   const handleCompareLayouts = useCallback(async () => {
     if (images.length < 1) {
       toast.error("העלה לפחות תמונה אחת");
       return;
     }
-    setCompareProcessing(true);
-    setCompareMode(true);
-    try {
-      const allSrcs = images.map(img => img.src);
-      const allCellColors = images.map(img => img.cellBgColor || null);
-      // Pick layouts that fit the number of images
-      const candidateLayouts = LAYOUT_OPTIONS.filter(l => l.maxImages >= Math.min(images.length, l.maxImages));
-      // Generate up to 6 previews with different layouts
-      const layoutsToPreview = candidateLayouts.slice(0, 6);
-      const previews: { layout: CollageLayout; label: string; dataUrl: string }[] = [];
+    if (compareSelectedLayouts.length < 1) {
+      toast.error("בחר לפחות לייאאוט אחד להשוואה");
+      return;
+    }
 
-      for (const lo of layoutsToPreview) {
-        const pageSrcs = allSrcs.slice(0, lo.maxImages);
-        const pageCellColors = allCellColors.slice(0, lo.maxImages);
-        const collageOptions: CollageOptions = {
-          layout: lo.id,
-          width: 600, // smaller for speed
-          height: 600,
-          gap,
-          bgColor,
-          borderRadius,
-          fitMode,
-          frameStyle,
-          textOverlays,
-          bgGradient: bgGradientEnabled ? bgGradient : undefined,
-          cellBgColors: pageCellColors,
-          watermark: watermarkEnabled ? watermark : undefined,
-        };
-        try {
-          const dataUrl = await generateCollage(pageSrcs, collageOptions);
-          previews.push({ layout: lo.id, label: lo.label, dataUrl });
-        } catch {
-          // skip failed layouts
+    setCompareProcessing(true);
+    setCompareDialogOpen(true);
+    try {
+      const allSrcs = images.map((img) => img.src);
+      const allCellColors = images.map((img) => img.cellBgColor || null);
+      const selectedLayoutDefs = LAYOUT_OPTIONS.filter((l) => compareSelectedLayouts.includes(l.id));
+      const previewItems: ComparePreviewItem[] = [];
+      const previewWidth = 900;
+      const previewHeight = Math.max(540, Math.round((canvasHeight / canvasWidth) * previewWidth));
+
+      for (const lo of selectedLayoutDefs) {
+        const pageCount = Math.ceil(allSrcs.length / lo.maxImages);
+        for (let p = 0; p < pageCount; p++) {
+          const pageSrcs = allSrcs.slice(p * lo.maxImages, (p + 1) * lo.maxImages);
+          const pageCellColors = allCellColors.slice(p * lo.maxImages, (p + 1) * lo.maxImages);
+
+          const collageOptions: CollageOptions = {
+            layout: lo.id,
+            width: previewWidth,
+            height: previewHeight,
+            gap,
+            bgColor,
+            borderRadius,
+            fitMode,
+            frameStyle,
+            textOverlays,
+            bgGradient: bgGradientEnabled ? bgGradient : undefined,
+            cellBgColors: pageCellColors,
+            watermark: watermarkEnabled ? watermark : undefined,
+          };
+
+          try {
+            const dataUrl = await generateCollage(pageSrcs, collageOptions);
+            previewItems.push({
+              layout: lo.id,
+              label: lo.label,
+              pageIndex: p,
+              totalPages: pageCount,
+              dataUrl,
+            });
+          } catch {
+            // Skip failed preview per layout page
+          }
         }
       }
 
-      setComparePreviews(previews);
-      if (previews.length === 0) toast.error("לא הצלחנו ליצור תצוגות מקדימות");
+      setCompareItems(previewItems);
+      const firstLayout = selectedLayoutDefs.find((l) => previewItems.some((item) => item.layout === l.id))?.id ?? null;
+      setActiveCompareLayout(firstLayout);
+      setActiveComparePage(0);
+
+      if (previewItems.length === 0) toast.error("לא הצלחנו ליצור תצוגות מקדימות");
     } catch {
       toast.error("שגיאה ביצירת תצוגות מקדימות");
     }
     setCompareProcessing(false);
-  }, [images, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
+  }, [images, compareSelectedLayouts, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark]);
 
   const selectCompareLayout = useCallback((selectedLayout: CollageLayout) => {
     setLayout(selectedLayout);
-    setCompareMode(false);
-    setComparePreviews([]);
+    setCompareDialogOpen(false);
     toast.success("הלייאאוט נבחר! לחץ 'צור קולאז׳' ליצירה באיכות מלאה");
   }, []);
 
@@ -1620,51 +1687,7 @@ export default function CollageBuilder() {
         {/* Main Preview */}
         <Card className="min-h-[500px] flex items-center justify-center">
           <CardContent className="p-4 w-full">
-            {/* Comparison Mode */}
-            {compareMode && comparePreviews.length > 0 ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge variant="secondary">השוואת לייאאוטים</Badge>
-                    <Badge variant="outline" className="text-xs">{comparePreviews.length} אפשרויות</Badge>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={() => { setCompareMode(false); setComparePreviews([]); }}>
-                    <X className="h-4 w-4 ml-1" />סגור
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">לחץ על הקולאז׳ שאתה רוצה — הלייאאוט ייבחר אוטומטית</p>
-                <div className={`grid gap-4 ${
-                  comparePreviews.length <= 2 ? 'grid-cols-2' :
-                  comparePreviews.length <= 4 ? 'grid-cols-2' : 'grid-cols-2 lg:grid-cols-3'
-                }`}>
-                  {comparePreviews.map((preview) => (
-                    <button
-                      key={preview.layout}
-                      onClick={() => selectCompareLayout(preview.layout)}
-                      className={`group relative rounded-xl border-2 overflow-hidden transition-all hover:shadow-xl hover:scale-[1.02] bg-card ${
-                        layout === preview.layout ? 'border-primary ring-2 ring-primary/30 shadow-lg' : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <div className="w-full p-3 bg-muted/20">
-                        <img
-                          src={preview.dataUrl}
-                          alt={preview.label}
-                          className="w-full h-auto max-h-[300px] object-contain mx-auto rounded-md"
-                        />
-                      </div>
-                      <div className="p-2.5 bg-card border-t border-border flex items-center justify-between">
-                        <span className="text-sm font-semibold text-foreground">{preview.label}</span>
-                        {layout === preview.layout && (
-                          <div className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center">
-                            <Check className="h-3 w-3" />
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : compareProcessing ? (
+            {compareProcessing ? (
               <div className="text-center space-y-4 py-20">
                 <RefreshCw className="h-12 w-12 mx-auto text-primary animate-spin" />
                 <p className="text-muted-foreground">מייצר תצוגות מקדימות...</p>
@@ -1750,7 +1773,7 @@ export default function CollageBuilder() {
                   <Badge variant="outline">8 סגנונות גרדיאנט</Badge>
                   <Badge variant="outline">25 גופנים</Badge>
                   <Badge variant="outline">כלים חכמים</Badge>
-                  <Badge variant="outline">26 לייאאוטים</Badge>
+                  <Badge variant="outline">{LAYOUT_OPTIONS.length} לייאאוטים</Badge>
                   <Badge variant="outline">מרובה עמודים</Badge>
                 </div>
               </div>
@@ -1758,6 +1781,149 @@ export default function CollageBuilder() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Compare Dialog */}
+      <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
+        <DialogContent className="max-w-7xl h-[90vh] flex flex-col" dir="rtl">
+          <DialogHeader>
+            <DialogTitle>תצוגה מקדימה חכמה לקולאז׳ים</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
+            <Card className="col-span-12 lg:col-span-4 min-h-0 flex flex-col">
+              <CardContent className="p-3 space-y-3 flex-1 min-h-0">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold">בחר לייאאוטים להשוואה</h4>
+                  <Badge variant="outline" className="text-xs">{compareSelectedLayouts.length} נבחרו</Badge>
+                </div>
+                <ScrollArea className="flex-1 min-h-0 max-h-[58vh] border rounded-md p-2">
+                  <div className="space-y-3">
+                    {(['basic', 'advanced', 'special'] as const).map((cat) => {
+                      const catLayouts = LAYOUT_OPTIONS.filter((l) => l.category === cat);
+                      return (
+                        <div key={cat} className="space-y-1.5">
+                          <h5 className="text-[11px] font-bold text-muted-foreground border-b pb-1">{LAYOUT_CATEGORY_LABELS[cat]}</h5>
+                          {catLayouts.map((opt) => (
+                            <button
+                              key={opt.id}
+                              onClick={() => toggleCompareLayout(opt.id)}
+                              className={`w-full text-right px-2 py-1.5 rounded-md border text-xs flex items-center justify-between gap-2 transition-colors ${compareSelectedLayouts.includes(opt.id) ? 'bg-primary/10 border-primary/50' : 'hover:bg-muted/60 border-border'}`}
+                            >
+                              <span className="flex items-center gap-1.5">
+                                {opt.icon}
+                                {opt.label}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground">עד {opt.maxImages}</span>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </ScrollArea>
+                <Button onClick={handleCompareLayouts} disabled={compareProcessing || compareSelectedLayouts.length === 0}>
+                  {compareProcessing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Eye className="h-4 w-4 ml-2" />}
+                  {compareProcessing ? 'מייצר תצוגות...' : 'צור תצוגה מקדימה'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="col-span-12 lg:col-span-8 min-h-0 flex flex-col">
+              <CardContent className="p-3 space-y-3 flex-1 min-h-0">
+                {compareProcessing ? (
+                  <div className="text-center space-y-3 py-16">
+                    <RefreshCw className="h-10 w-10 mx-auto animate-spin text-primary" />
+                    <p className="text-sm text-muted-foreground">מייצר תצוגות מקדימות לכל הלייאאוטים שבחרת...</p>
+                  </div>
+                ) : compareItems.length === 0 ? (
+                  <div className="text-center py-16 space-y-2">
+                    <p className="font-medium">אין עדיין תצוגות מקדימות</p>
+                    <p className="text-sm text-muted-foreground">בחר כמה לייאאוטים ולחץ "צור תצוגה מקדימה"</p>
+                  </div>
+                ) : (
+                  <>
+                    <ScrollArea className="w-full whitespace-nowrap pb-2">
+                      <div className="flex gap-2">
+                        {compareLayoutsWithResults.map((layoutId) => {
+                          const layoutInfo = LAYOUT_OPTIONS.find((l) => l.id === layoutId);
+                          const pagesCount = compareItems.filter((item) => item.layout === layoutId).length;
+                          return (
+                            <Button
+                              key={layoutId}
+                              size="sm"
+                              variant={activeCompareLayout === layoutId ? 'default' : 'outline'}
+                              onClick={() => {
+                                setActiveCompareLayout(layoutId);
+                                setActiveComparePage(0);
+                              }}
+                            >
+                              {layoutInfo?.label || layoutId} ({pagesCount})
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </ScrollArea>
+
+                    {activeCompareItem ? (
+                      <>
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <Badge variant="secondary">{activeCompareItem.label}</Badge>
+                          <Badge variant="outline">עמוד {activeCompareItem.pageIndex + 1} / {activeCompareItem.totalPages}</Badge>
+                        </div>
+
+                        <div className="flex-1 min-h-0 border rounded-lg bg-muted/20 p-2 flex items-center justify-center overflow-auto">
+                          <img src={activeCompareItem.dataUrl} alt={activeCompareItem.label} className="max-w-full max-h-full object-contain rounded-md" />
+                        </div>
+
+                        {activeLayoutItems.length > 1 && (
+                          <div className="flex items-center justify-center gap-2">
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              disabled={activeComparePage === 0}
+                              onClick={() => setActiveComparePage((p) => p - 1)}
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                            {activeLayoutItems.map((item, idx) => (
+                              <button
+                                key={`${item.layout}_${idx}`}
+                                onClick={() => setActiveComparePage(idx)}
+                                className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors ${activeComparePage === idx ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                              >
+                                {idx + 1}
+                              </button>
+                            ))}
+                            <Button
+                              size="icon"
+                              variant="outline"
+                              className="h-8 w-8"
+                              disabled={activeComparePage === activeLayoutItems.length - 1}
+                              onClick={() => setActiveComparePage((p) => p + 1)}
+                            >
+                              <ChevronLeft className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-8">בחר לייאאוט עם תצוגה מקדימה מהרשימה למעלה</p>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCompareDialogOpen(false)}>סגור</Button>
+            <Button onClick={() => activeCompareLayout && selectCompareLayout(activeCompareLayout)} disabled={!activeCompareLayout}>
+              בחר לייאאוט זה
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Gallery Import Dialog */}
       <Dialog open={galleryOpen} onOpenChange={setGalleryOpen}>

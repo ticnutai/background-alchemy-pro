@@ -511,7 +511,7 @@ export function calcOptimalCanvasHeight(
   return Math.round(rows * cellH + gap * (rows + 1));
 }
 
-export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'grid-2x3' | 'grid-3x2' | 'grid-4x4' | 'hero-side' | 'hero-top' | 'strip' | 'strip-vertical' | 'masonry' | 'pinterest' | 'diagonal' | 'l-shape' | 'featured-grid' | 't-shape' | 'mosaic' | 'golden-ratio' | 'magazine' | 'filmstrip' | 'big-small' | 'panoramic-stack' | 'focus-center' | 'checkerboard' | 'staircase' | 'frame-in-frame' | 'split-thirds';
+export type CollageLayout = 'grid-2x2' | 'grid-3x3' | 'grid-2x3' | 'grid-3x2' | 'grid-4x4' | 'hero-side' | 'hero-top' | 'strip' | 'strip-vertical' | 'masonry' | 'pinterest' | 'diagonal' | 'l-shape' | 'featured-grid' | 't-shape' | 'mosaic' | 'golden-ratio' | 'magazine' | 'filmstrip' | 'big-small' | 'panoramic-stack' | 'focus-center' | 'checkerboard' | 'staircase' | 'frame-in-frame' | 'split-thirds' | 'zigzag' | 'asymmetric-columns' | 'triple-hero' | 'quad-focus' | 'cross' | 'diamond' | 'spiral' | 'ring' | 'center-strip' | 'offset-grid';
 
 export interface CollageTextOverlay {
   id: string;
@@ -937,6 +937,16 @@ function getMaxImages(layout: CollageLayout): number {
     case 'staircase': return 4;
     case 'frame-in-frame': return 2;
     case 'split-thirds': return 4;
+    case 'zigzag': return 5;
+    case 'asymmetric-columns': return 5;
+    case 'triple-hero': return 3;
+    case 'quad-focus': return 4;
+    case 'cross': return 5;
+    case 'diamond': return 5;
+    case 'spiral': return 6;
+    case 'ring': return 6;
+    case 'center-strip': return 5;
+    case 'offset-grid': return 6;
     default: return 9;
   }
 }
@@ -1199,6 +1209,126 @@ function getCells(layout: CollageLayout, W: number, H: number, gap: number, coun
         const rh2 = (H - gap * (rn + 1)) / rn;
         for (let i = 0; i < rn; i++)
           cells.push({ x: leftW2 + gap * 2, y: gap + i * (rh2 + gap), w: rightW2, h: rh2 });
+      }
+      break;
+    }
+    case 'zigzag': {
+      const n = Math.min(count, 5);
+      const cw = (W - gap * (n + 1)) / n;
+      const ch = H * 0.6;
+      const topY = gap;
+      const bottomY = H - ch - gap;
+      for (let i = 0; i < n; i++) {
+        cells.push({ x: gap + i * (cw + gap), y: i % 2 === 0 ? topY : bottomY, w: cw, h: ch });
+      }
+      break;
+    }
+    case 'asymmetric-columns': {
+      const totalW = W - gap * 4;
+      const wA = totalW * 0.5;
+      const wB = totalW * 0.2;
+      const wC = totalW * 0.3;
+      const hTop = (H - gap * 3) * 0.6;
+      const hBottom = (H - gap * 3) * 0.4;
+      cells.push({ x: gap, y: gap, w: wA, h: H - gap * 2 });
+      cells.push({ x: gap + wA + gap, y: gap, w: wB, h: hTop });
+      cells.push({ x: gap + wA + gap, y: gap + hTop + gap, w: wB, h: hBottom });
+      cells.push({ x: gap + wA + wB + gap * 2, y: gap, w: wC, h: hBottom });
+      cells.push({ x: gap + wA + wB + gap * 2, y: gap + hBottom + gap, w: wC, h: hTop });
+      break;
+    }
+    case 'triple-hero': {
+      const topH = (H - gap * 3) * 0.65;
+      const botH = (H - gap * 3) * 0.35;
+      const halfW = (W - gap * 3) / 2;
+      cells.push({ x: gap, y: gap, w: halfW, h: topH });
+      cells.push({ x: gap + halfW + gap, y: gap, w: halfW, h: topH });
+      cells.push({ x: gap, y: gap + topH + gap, w: W - gap * 2, h: botH });
+      break;
+    }
+    case 'quad-focus': {
+      const centerW = (W - gap * 3) * 0.6;
+      const centerH = (H - gap * 3) * 0.6;
+      const sideW = ((W - gap * 3) - centerW) / 2;
+      const sideH = ((H - gap * 3) - centerH) / 2;
+      cells.push({ x: gap + sideW, y: gap + sideH, w: centerW, h: centerH });
+      cells.push({ x: gap, y: gap, w: sideW, h: sideH });
+      cells.push({ x: gap + sideW + centerW + gap, y: gap, w: sideW, h: sideH });
+      cells.push({ x: gap + sideW + centerW + gap, y: gap + sideH + centerH + gap, w: sideW, h: sideH });
+      break;
+    }
+    case 'cross': {
+      const cw = (W - gap * 4) / 3;
+      const ch = (H - gap * 4) / 3;
+      cells.push({ x: gap + cw + gap, y: gap + ch + gap, w: cw, h: ch });
+      cells.push({ x: gap + cw + gap, y: gap, w: cw, h: ch });
+      cells.push({ x: gap + cw + gap, y: gap + (ch + gap) * 2, w: cw, h: ch });
+      cells.push({ x: gap, y: gap + ch + gap, w: cw, h: ch });
+      cells.push({ x: gap + (cw + gap) * 2, y: gap + ch + gap, w: cw, h: ch });
+      break;
+    }
+    case 'diamond': {
+      const cW = W * 0.44;
+      const cH = H * 0.44;
+      const cX = (W - cW) / 2;
+      const cY = (H - cH) / 2;
+      const sW = W * 0.24;
+      const sH = H * 0.24;
+      cells.push({ x: cX, y: cY, w: cW, h: cH });
+      cells.push({ x: (W - sW) / 2, y: gap, w: sW, h: sH });
+      cells.push({ x: W - sW - gap, y: (H - sH) / 2, w: sW, h: sH });
+      cells.push({ x: (W - sW) / 2, y: H - sH - gap, w: sW, h: sH });
+      cells.push({ x: gap, y: (H - sH) / 2, w: sW, h: sH });
+      break;
+    }
+    case 'spiral': {
+      const n = Math.min(count, 6);
+      const rects: Cell[] = [
+        { x: gap, y: gap, w: (W - gap * 3) * 0.62, h: (H - gap * 3) * 0.62 },
+        { x: (W - gap * 3) * 0.62 + gap * 2, y: gap, w: (W - gap * 3) * 0.38, h: (H - gap * 3) * 0.38 },
+        { x: (W - gap * 3) * 0.62 + gap * 2, y: (H - gap * 3) * 0.38 + gap * 2, w: (W - gap * 3) * 0.26, h: (H - gap * 3) * 0.24 },
+        { x: (W - gap * 3) * 0.62 + gap * 2, y: (H - gap * 3) * 0.62 + gap * 2, w: (W - gap * 3) * 0.38, h: (H - gap * 3) * 0.38 },
+        { x: (W - gap * 3) * 0.36 + gap, y: (H - gap * 3) * 0.62 + gap * 2, w: (W - gap * 3) * 0.26, h: (H - gap * 3) * 0.38 },
+        { x: gap, y: (H - gap * 3) * 0.62 + gap * 2, w: (W - gap * 3) * 0.36, h: (H - gap * 3) * 0.24 },
+      ];
+      for (let i = 0; i < n; i++) cells.push(rects[i]);
+      break;
+    }
+    case 'ring': {
+      const n = Math.min(count, 6);
+      const rW = (W - gap * 5) / 3;
+      const rH = (H - gap * 5) / 3;
+      const positions = [[1,0],[2,1],[1,2],[0,2],[0,1],[0,0]];
+      for (let i = 0; i < n; i++) {
+        const [cx, cy] = positions[i];
+        cells.push({ x: gap + cx * (rW + gap), y: gap + cy * (rH + gap), w: rW, h: rH });
+      }
+      break;
+    }
+    case 'center-strip': {
+      const stripH = (H - gap * 4) * 0.45;
+      const topBottomH = ((H - gap * 4) - stripH) / 2;
+      const halfW = (W - gap * 3) / 2;
+      cells.push({ x: gap, y: gap + topBottomH + gap, w: W - gap * 2, h: stripH });
+      cells.push({ x: gap, y: gap, w: halfW, h: topBottomH });
+      cells.push({ x: gap + halfW + gap, y: gap, w: halfW, h: topBottomH });
+      cells.push({ x: gap, y: gap + topBottomH + stripH + gap * 2, w: halfW, h: topBottomH });
+      cells.push({ x: gap + halfW + gap, y: gap + topBottomH + stripH + gap * 2, w: halfW, h: topBottomH });
+      break;
+    }
+    case 'offset-grid': {
+      const cols = 3;
+      const rows = 2;
+      const cw = (W - gap * (cols + 1)) / cols;
+      const ch = (H - gap * (rows + 1)) / rows;
+      let idx = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          if (idx >= Math.min(count, 6)) break;
+          const yOffset = c % 2 === 0 ? 0 : ch * 0.12;
+          cells.push({ x: gap + c * (cw + gap), y: gap + r * (ch + gap) + yOffset, w: cw, h: ch - yOffset });
+          idx++;
+        }
       }
       break;
     }
