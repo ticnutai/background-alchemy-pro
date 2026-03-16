@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -104,6 +104,18 @@ type ComparePreviewItem = {
   pageIndex: number;
   totalPages: number;
   dataUrl: string;
+  beforeDataUrl: string;
+};
+
+type CompareDialogSnapshot = {
+  id: string;
+  name: string;
+  selectedLayouts: CollageLayout[];
+  activeLayout: CollageLayout | null;
+  activePage: number;
+  zoom: number;
+  split: number;
+  beforeAfterEnabled: boolean;
 };
 
 const SMART_TOOLS = [
@@ -494,17 +506,52 @@ export default function CollageBuilder() {
       const optimalHeight = calcOptimalCanvasHeight(dimensions, canvasWidth, cols, gap);
       const clampedHeight = Math.max(600, Math.min(5000, Math.round(optimalHeight / 10) * 10));
 
+      const avgAspect = dimensions.reduce((sum, d) => sum + (d.width / Math.max(d.height, 1)), 0) / dimensions.length;
+      const nextCanvasAspect = canvasWidth / Math.max(clampedHeight, 1);
+      const aspectDelta = Math.abs(avgAspect - nextCanvasAspect) / Math.max(nextCanvasAspect, 0.01);
+      const denseLayout = currentLayoutMaxImages >= 9 || images.length > 8;
+      const heroLayout = ['hero-side', 'hero-top', 'triple-hero', 'focus-center', 'featured-grid'].includes(layout);
+
+      const recommendedFit: 'contain' | 'cover' | 'smart-pad' = heroLayout
+        ? 'cover'
+        : aspectDelta > 0.28
+          ? 'smart-pad'
+          : denseLayout
+            ? 'contain'
+            : 'smart-pad';
+
+      const recommendedScale = clampValue(
+        heroLayout ? 1.12 : denseLayout ? 0.94 : aspectDelta > 0.4 ? 0.9 : 1,
+        0.7,
+        1.6,
+      );
+      const recommendedInset = clampValue(
+        denseLayout ? Math.round(Math.max(4, gap * 0.6)) : Math.round(Math.max(2, gap * 0.35)),
+        0,
+        40,
+      );
+      const recommendedPadding = clampValue(
+        Math.round(denseLayout ? clampedHeight * 0.02 : clampedHeight * 0.012),
+        0,
+        120,
+      );
+
       setSelectedPageSize('custom');
       setCanvasHeight(clampedHeight);
       setCustomAspectRatio(canvasWidth / Math.max(clampedHeight, 1));
-      setFitMode('smart-pad');
+      setFitMode(recommendedFit);
+      setImageScale(recommendedScale);
+      setFrameInset(recommendedInset);
+      setPagePadding(recommendedPadding);
 
-      toast.success(`הותאם אוטומטית: ${canvasWidth}×${clampedHeight} + מצב התאמה חכם`);
+      toast.success(
+        `Auto-Fit Pro: ${canvasWidth}×${clampedHeight}, מצב ${recommendedFit === 'cover' ? 'מילוי' : recommendedFit === 'contain' ? 'ללא חיתוך' : 'חכם'}, זום ${Math.round(recommendedScale * 100)}%`
+      );
     } catch {
       toast.error('לא הצלחנו לנתח את התמונות להתאמה אוטומטית');
     }
     setAutoFitProcessing(false);
-  }, [images, layout, canvasWidth, gap, estimateColsForLayout]);
+  }, [images, layout, canvasWidth, gap, estimateColsForLayout, currentLayoutMaxImages, clampValue]);
 
   // Comparison preview dialog
   const [compareItems, setCompareItems] = useState<ComparePreviewItem[]>([]);
@@ -518,6 +565,16 @@ export default function CollageBuilder() {
   const [activeCompareLayout, setActiveCompareLayout] = useState<CollageLayout | null>(null);
   const [activeComparePage, setActiveComparePage] = useState(0);
   const [compareProcessing, setCompareProcessing] = useState(false);
+  const [compareZoom, setCompareZoom] = useState(1);
+  const [comparePan, setComparePan] = useState({ x: 0, y: 0 });
+  const [comparePanning, setComparePanning] = useState(false);
+  const [compareBeforeAfterEnabled, setCompareBeforeAfterEnabled] = useState(false);
+  const [compareSplit, setCompareSplit] = useState(50);
+  const [compareUndoStack, setCompareUndoStack] = useState<CompareDialogSnapshot[]>([]);
+  const [compareRedoStack, setCompareRedoStack] = useState<CompareDialogSnapshot[]>([]);
+  const [compareSavedSnapshots, setCompareSavedSnapshots] = useState<CompareDialogSnapshot[]>([]);
+  const comparePanStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [imageDimensions, setImageDimensions] = useState<Record<string, { width: number; height: number }>>({});
 
   // Gallery import
   const [galleryOpen, setGalleryOpen] = useState(false);
@@ -548,6 +605,212 @@ export default function CollageBuilder() {
   const splitFileRef = useRef<HTMLInputElement>(null);
 
   const editingText = useMemo(() => textOverlays.find(t => t.id === editingTextId) || null, [textOverlays, editingTextId]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const unresolved = images.filter((img) => !imageDimensions[img.id]);
+    if (unresolved.length === 0) return;
+
+    (async () => {
+      const loaded = await Promise.all(unresolved.map((img) => (
+        new Promise<{ id: string; width: number; height: number } | null>((resolve) => {
+          const imageEl = new Image();
+          imageEl.onload = () => resolve({
+            id: img.id,
+            width: imageEl.naturalWidth || imageEl.width,
+            height: imageEl.naturalHeight || imageEl.height,
+          });
+          imageEl.onerror = () => resolve(null);
+          imageEl.src = img.src;
+        })
+      )));
+
+      if (cancelled) return;
+      const next: Record<string, { width: number; height: number }> = {};
+      loaded.forEach((entry) => {
+        if (entry) next[entry.id] = { width: entry.width, height: entry.height };
+      });
+
+      if (Object.keys(next).length > 0) {
+        setImageDimensions((prev) => ({ ...prev, ...next }));
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [images, imageDimensions]);
+
+  const realTimeWarnings = useMemo(() => {
+    const warnings: string[] = [];
+    if (images.length === 0) return warnings;
+
+    if (fitMode === 'cover' && imageScale > 1.08) {
+      warnings.push('יתכן חיתוך אגרסיבי: מצב "מילוי" יחד עם זום גבוה.');
+    }
+    if (pagePadding >= 80) {
+      warnings.push('ריפוד דף גבוה מאוד. חלק גדול מהקנבס יישאר כרקע.');
+    }
+    if (frameInset >= 28 && gap >= 18) {
+      warnings.push('Inset + רווח גדולים יחד עלולים לצופף את התמונה בתוך התאים.');
+    }
+
+    const measured = images
+      .map((img) => imageDimensions[img.id])
+      .filter((d): d is { width: number; height: number } => !!d);
+    if (measured.length > 0) {
+      const minPixels = Math.min(...measured.map((d) => d.width * d.height));
+      const canvasPixels = canvasWidth * canvasHeight;
+      if (canvasPixels > minPixels * 1.35) {
+        warnings.push('איכות: לפחות תמונה אחת קטנה יחסית לגודל הקנבס, יתכן ריכוך ביצוא.');
+      }
+    }
+
+    if (compareSelectedLayouts.length >= 9) {
+      warnings.push('נבחרו הרבה לייאאוטים להשוואה. יצירת התצוגה עשויה לקחת יותר זמן.');
+    }
+
+    return warnings;
+  }, [images, fitMode, imageScale, pagePadding, frameInset, gap, imageDimensions, canvasWidth, canvasHeight, compareSelectedLayouts.length]);
+
+  const resetCompareView = useCallback(() => {
+    setCompareZoom(1);
+    setComparePan({ x: 0, y: 0 });
+    setComparePanning(false);
+    comparePanStartRef.current = null;
+  }, []);
+
+  const handleCompareWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const delta = e.deltaY < 0 ? 0.08 : -0.08;
+    setCompareZoom((prev) => Math.max(0.6, Math.min(3, +(prev + delta).toFixed(2))));
+  }, []);
+
+  const handleCompareMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (compareZoom <= 1) return;
+    setComparePanning(true);
+    comparePanStartRef.current = {
+      x: e.clientX - comparePan.x,
+      y: e.clientY - comparePan.y,
+    };
+  }, [compareZoom, comparePan.x, comparePan.y]);
+
+  const handleCompareMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!comparePanning || !comparePanStartRef.current) return;
+    setComparePan({
+      x: e.clientX - comparePanStartRef.current.x,
+      y: e.clientY - comparePanStartRef.current.y,
+    });
+  }, [comparePanning]);
+
+  const stopComparePanning = useCallback(() => {
+    setComparePanning(false);
+    comparePanStartRef.current = null;
+  }, []);
+
+  const captureCompareSnapshot = useCallback((name = 'מצב השוואה'): CompareDialogSnapshot => ({
+    id: `cmp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    name,
+    selectedLayouts: [...compareSelectedLayouts],
+    activeLayout: activeCompareLayout,
+    activePage: activeComparePage,
+    zoom: compareZoom,
+    split: compareSplit,
+    beforeAfterEnabled: compareBeforeAfterEnabled,
+  }), [compareSelectedLayouts, activeCompareLayout, activeComparePage, compareZoom, compareSplit, compareBeforeAfterEnabled]);
+
+  const applyCompareSnapshot = useCallback((snapshot: CompareDialogSnapshot) => {
+    setCompareSelectedLayouts(snapshot.selectedLayouts);
+    setActiveCompareLayout(snapshot.activeLayout);
+    setActiveComparePage(snapshot.activePage);
+    setCompareZoom(snapshot.zoom);
+    setCompareSplit(snapshot.split);
+    setCompareBeforeAfterEnabled(snapshot.beforeAfterEnabled);
+    setComparePan({ x: 0, y: 0 });
+  }, []);
+
+  const recordCompareSnapshot = useCallback(() => {
+    const snapshot = captureCompareSnapshot('היסטוריה');
+    setCompareUndoStack((prev) => {
+      const next = [...prev, snapshot];
+      return next.length > 40 ? next.slice(next.length - 40) : next;
+    });
+    setCompareRedoStack([]);
+  }, [captureCompareSnapshot]);
+
+  const saveNamedCompareSnapshot = useCallback(() => {
+    const layoutLabel = activeCompareLayout
+      ? (LAYOUT_OPTIONS.find((l) => l.id === activeCompareLayout)?.label || activeCompareLayout)
+      : 'כללי';
+    const snapshot = captureCompareSnapshot(`${layoutLabel} · עמוד ${activeComparePage + 1}`);
+    setCompareSavedSnapshots((prev) => {
+      const next = [snapshot, ...prev];
+      return next.length > 8 ? next.slice(0, 8) : next;
+    });
+    toast.success('Snapshot נשמר לדיאלוג ההשוואה');
+  }, [captureCompareSnapshot, activeCompareLayout, activeComparePage]);
+
+  const loadSavedCompareSnapshot = useCallback((snapshotId: string) => {
+    const target = compareSavedSnapshots.find((s) => s.id === snapshotId);
+    if (!target) return;
+    recordCompareSnapshot();
+    applyCompareSnapshot(target);
+    toast.success(`נטען: ${target.name}`);
+  }, [compareSavedSnapshots, recordCompareSnapshot, applyCompareSnapshot]);
+
+  const deleteSavedCompareSnapshot = useCallback((snapshotId: string) => {
+    setCompareSavedSnapshots((prev) => prev.filter((s) => s.id !== snapshotId));
+  }, []);
+
+  const handleCompareUndo = useCallback(() => {
+    setCompareUndoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const previous = prev[prev.length - 1];
+      setCompareRedoStack((redo) => {
+        const current = captureCompareSnapshot();
+        const nextRedo = [...redo, current];
+        return nextRedo.length > 40 ? nextRedo.slice(nextRedo.length - 40) : nextRedo;
+      });
+      applyCompareSnapshot(previous);
+      return prev.slice(0, -1);
+    });
+  }, [captureCompareSnapshot, applyCompareSnapshot]);
+
+  const handleCompareRedo = useCallback(() => {
+    setCompareRedoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const next = prev[prev.length - 1];
+      setCompareUndoStack((undo) => {
+        const current = captureCompareSnapshot();
+        const nextUndo = [...undo, current];
+        return nextUndo.length > 40 ? nextUndo.slice(nextUndo.length - 40) : nextUndo;
+      });
+      applyCompareSnapshot(next);
+      return prev.slice(0, -1);
+    });
+  }, [captureCompareSnapshot, applyCompareSnapshot]);
+
+  useEffect(() => {
+    if (!compareDialogOpen) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const isCtrl = e.ctrlKey || e.metaKey;
+      if (!isCtrl) return;
+      const key = e.key.toLowerCase();
+      if (key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleCompareUndo();
+      } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        handleCompareRedo();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [compareDialogOpen, handleCompareUndo, handleCompareRedo]);
+
+  useEffect(() => {
+    resetCompareView();
+  }, [activeCompareLayout, activeComparePage, compareItems, resetCompareView]);
 
   // ── Template Save/Load ──────────────────────────────────────
   const saveTemplate = useCallback(() => {
@@ -842,6 +1105,7 @@ export default function CollageBuilder() {
   }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark, textureStyle, imageScale, frameInset, pagePadding]);
 
   const toggleCompareLayout = useCallback((layoutId: CollageLayout) => {
+    recordCompareSnapshot();
     setCompareSelectedLayouts((prev) => {
       if (prev.includes(layoutId)) return prev.filter((id) => id !== layoutId);
       if (prev.length >= 12) {
@@ -850,7 +1114,7 @@ export default function CollageBuilder() {
       }
       return [...prev, layoutId];
     });
-  }, []);
+  }, [recordCompareSnapshot]);
 
   const compareLayoutsWithResults = useMemo(
     () => compareSelectedLayouts.filter((layoutId) => compareItems.some((item) => item.layout === layoutId)),
@@ -920,14 +1184,35 @@ export default function CollageBuilder() {
             pagePadding,
           };
 
+          const beforeOptions: CollageOptions = {
+            layout: lo.id,
+            width: previewWidth,
+            height: previewHeight,
+            gap,
+            bgColor,
+            borderRadius,
+            fitMode: 'contain',
+            frameStyle: 'none',
+            textOverlays: [],
+            cellBgColors: pageCellColors,
+            textureStyle: 'none',
+            imageScale: 1,
+            frameInset: 0,
+            pagePadding: 0,
+          };
+
           try {
-            const dataUrl = await generateCollage(pageSrcs, collageOptions);
+            const [dataUrl, beforeDataUrl] = await Promise.all([
+              generateCollage(pageSrcs, collageOptions),
+              generateCollage(pageSrcs, beforeOptions),
+            ]);
             previewItems.push({
               layout: lo.id,
               label: lo.label,
               pageIndex: p,
               totalPages: pageCount,
               dataUrl,
+              beforeDataUrl,
             });
           } catch {
             // Skip failed preview per layout page
@@ -939,6 +1224,9 @@ export default function CollageBuilder() {
       const firstLayout = selectedLayoutDefs.find((l) => previewItems.some((item) => item.layout === l.id))?.id ?? null;
       setActiveCompareLayout(firstLayout);
       setActiveComparePage(0);
+      setCompareUndoStack([]);
+      setCompareRedoStack([]);
+      setCompareSavedSnapshots([]);
 
       if (previewItems.length === 0) toast.error("לא הצלחנו ליצור תצוגות מקדימות");
     } catch {
@@ -1361,12 +1649,12 @@ export default function CollageBuilder() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="text-[10px] h-7"
+                          className="text-[10px] h-7 border-gold/35 hover:border-gold/55"
                           onClick={applyAutoFitToPage}
                           disabled={autoFitProcessing || images.length === 0}
                         >
                           {autoFitProcessing ? <RefreshCw className="h-3 w-3 ml-1 animate-spin" /> : <Sparkles className="h-3 w-3 ml-1" />}
-                          התאמה אוטומטית
+                          Auto-Fit Pro
                         </Button>
                       </div>
                       <div className="grid grid-cols-3 gap-1">
@@ -1377,6 +1665,16 @@ export default function CollageBuilder() {
                       <p className="text-[10px] text-muted-foreground">
                         מצב נוכחי: {fitMode === 'contain' ? 'ללא חיתוך - יתכנו שוליים' : fitMode === 'cover' ? 'מילוי מלא - יתכן חיתוך' : 'חכם - שומר תוכן ומאזן שוליים'}
                       </p>
+                      {realTimeWarnings.length > 0 && (
+                        <div className="rounded-md border border-amber-500/25 bg-amber-500/5 p-2 space-y-1">
+                          <p className="text-[10px] font-semibold text-amber-700 dark:text-amber-300">התראות חכמות</p>
+                          <ul className="space-y-1">
+                            {realTimeWarnings.map((warning) => (
+                              <li key={warning} className="text-[10px] text-amber-700/90 dark:text-amber-200/90">• {warning}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       <div className="space-y-1">
                         <Label className="text-[10px]">ידית תמונה: {Math.round(imageScale * 100)}%</Label>
                         <Slider value={[imageScale]} onValueChange={([v]) => setImageScale(v)} min={0.7} max={1.6} step={0.05} />
@@ -2110,31 +2408,36 @@ export default function CollageBuilder() {
       </div>
 
       {/* Compare Dialog */}
-      <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen}>
-        <DialogContent className="max-w-7xl h-[90vh] flex flex-col" dir="rtl">
-          <DialogHeader>
-            <DialogTitle>תצוגה מקדימה חכמה לקולאז׳ים</DialogTitle>
+      <Dialog open={compareDialogOpen} onOpenChange={setCompareDialogOpen} modal={false}>
+        <DialogContent
+          className="max-w-[96vw] xl:max-w-7xl h-auto max-h-[92vh] flex flex-col overflow-hidden p-0 border-gold/30 bg-gradient-to-b from-background via-background to-secondary/20 shadow-2xl"
+          dir="rtl"
+          onEscapeKeyDown={() => setCompareDialogOpen(false)}
+        >
+          <DialogHeader className="px-6 pt-6 pb-4 border-b border-gold/20 bg-gradient-to-l from-gold/10 via-background to-background">
+            <DialogTitle className="font-display text-xl font-bold tracking-tight text-foreground">תצוגה מקדימה חכמה לקולאז׳ים</DialogTitle>
           </DialogHeader>
 
-          <div className="grid grid-cols-12 gap-4 flex-1 min-h-0">
-            <Card className="col-span-12 lg:col-span-4 min-h-0 flex flex-col">
-              <CardContent className="p-3 space-y-3 flex-1 min-h-0">
+          <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-6 py-4 sm:py-5">
+            <div className="grid grid-cols-12 gap-4 lg:gap-5 min-h-0">
+              <Card className="col-span-12 lg:col-span-4 min-h-0 flex flex-col border-gold/20 bg-card/90 shadow-sm">
+                <CardContent className="p-4 space-y-3 flex-1 min-h-0">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-semibold">בחר לייאאוטים להשוואה</h4>
-                  <Badge variant="outline" className="text-xs">{compareSelectedLayouts.length} נבחרו</Badge>
+                  <h4 className="text-sm font-semibold tracking-wide">בחר לייאאוטים להשוואה</h4>
+                  <Badge variant="outline" className="text-xs border-gold/35 bg-gold/10 text-gold">{compareSelectedLayouts.length} נבחרו</Badge>
                 </div>
-                <ScrollArea className="flex-1 min-h-0 max-h-[58vh] border rounded-md p-2">
+                <ScrollArea className="flex-1 min-h-0 max-h-[55vh] border border-gold/15 rounded-md p-2 bg-background/70">
                   <div className="space-y-3">
                     {(['basic', 'advanced', 'special'] as const).map((cat) => {
                       const catLayouts = LAYOUT_OPTIONS.filter((l) => l.category === cat);
                       return (
                         <div key={cat} className="space-y-1.5">
-                          <h5 className="text-[11px] font-bold text-muted-foreground border-b pb-1">{LAYOUT_CATEGORY_LABELS[cat]}</h5>
+                          <h5 className="text-[11px] font-bold text-muted-foreground border-b border-gold/20 pb-1">{LAYOUT_CATEGORY_LABELS[cat]}</h5>
                           {catLayouts.map((opt) => (
                             <button
                               key={opt.id}
                               onClick={() => toggleCompareLayout(opt.id)}
-                              className={`w-full text-right px-2 py-1.5 rounded-md border text-xs flex items-center justify-between gap-2 transition-colors ${compareSelectedLayouts.includes(opt.id) ? 'bg-primary/10 border-primary/50' : 'hover:bg-muted/60 border-border'}`}
+                              className={`w-full text-right px-2 py-1.5 rounded-md border text-xs flex items-center justify-between gap-2 transition-colors ${compareSelectedLayouts.includes(opt.id) ? 'bg-primary/15 border-primary/60 text-foreground shadow-[0_0_0_1px_rgba(201,168,76,0.15)]' : 'hover:bg-muted/60 border-border/70'}`}
                             >
                               <span className="flex items-center gap-1.5">
                                 {opt.icon}
@@ -2152,11 +2455,69 @@ export default function CollageBuilder() {
                   {compareProcessing ? <RefreshCw className="h-4 w-4 ml-2 animate-spin" /> : <Eye className="h-4 w-4 ml-2" />}
                   {compareProcessing ? 'מייצר תצוגות...' : 'צור תצוגה מקדימה'}
                 </Button>
-              </CardContent>
-            </Card>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px]"
+                    disabled={compareUndoStack.length === 0}
+                    onClick={handleCompareUndo}
+                  >
+                    בטל
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px]"
+                    disabled={compareRedoStack.length === 0}
+                    onClick={handleCompareRedo}
+                  >
+                    בצע שוב
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-[10px] border-gold/35 hover:border-gold/55"
+                    disabled={compareItems.length === 0}
+                    onClick={saveNamedCompareSnapshot}
+                  >
+                    שמור Snapshot
+                  </Button>
+                </div>
+                {compareSavedSnapshots.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-medium text-muted-foreground">מצבים שמורים</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {compareSavedSnapshots.map((snapshot) => (
+                        <div key={snapshot.id} className="inline-flex items-center rounded-full border border-gold/25 bg-gold/5">
+                          <button
+                            type="button"
+                            onClick={() => loadSavedCompareSnapshot(snapshot.id)}
+                            className="px-2 py-1 text-[10px] text-foreground hover:text-primary transition-colors"
+                          >
+                            {snapshot.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteSavedCompareSnapshot(snapshot.id)}
+                            className="px-1.5 py-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+                            aria-label={`מחק ${snapshot.name}`}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                </CardContent>
+              </Card>
 
-            <Card className="col-span-12 lg:col-span-8 min-h-0 flex flex-col">
-              <CardContent className="p-3 space-y-3 flex-1 min-h-0">
+              <Card className="col-span-12 lg:col-span-8 min-h-0 flex flex-col border-gold/20 bg-card/90 shadow-sm">
+                <CardContent className="p-4 space-y-3 flex-1 min-h-0">
                 {compareProcessing ? (
                   <div className="text-center space-y-3 py-16">
                     <RefreshCw className="h-10 w-10 mx-auto animate-spin text-primary" />
@@ -2179,7 +2540,9 @@ export default function CollageBuilder() {
                               key={layoutId}
                               size="sm"
                               variant={activeCompareLayout === layoutId ? 'default' : 'outline'}
+                              className={activeCompareLayout === layoutId ? 'shadow-sm' : 'border-gold/25 hover:border-gold/40'}
                               onClick={() => {
+                                recordCompareSnapshot();
                                 setActiveCompareLayout(layoutId);
                                 setActiveComparePage(0);
                               }}
@@ -2194,15 +2557,143 @@ export default function CollageBuilder() {
                     {activeCompareItem ? (
                       <>
                         <div className="flex items-center justify-between flex-wrap gap-2">
-                          <Badge variant="secondary">{activeCompareItem.label}</Badge>
-                          <Badge variant="outline">עמוד {activeCompareItem.pageIndex + 1} / {activeCompareItem.totalPages}</Badge>
+                          <Badge variant="secondary" className="bg-primary/15 text-primary border border-primary/20">{activeCompareItem.label}</Badge>
+                          <Badge variant="outline" className="border-gold/35 bg-gold/5">עמוד {activeCompareItem.pageIndex + 1} / {activeCompareItem.totalPages}</Badge>
                           {images.length > 0 && (
-                            <Badge variant="outline" className="text-xs">תמונות {comparePageStart + 1}-{comparePageEnd} מתוך {images.length}</Badge>
+                            <Badge variant="outline" className="text-xs border-border/80">תמונות {comparePageStart + 1}-{comparePageEnd} מתוך {images.length}</Badge>
                           )}
                         </div>
 
-                        <div className="flex-1 min-h-0 border rounded-lg bg-muted/20 p-2 flex items-center justify-center overflow-auto">
-                          <img src={activeCompareItem.dataUrl} alt={activeCompareItem.label} className="max-w-full max-h-full object-contain rounded-md" />
+                        <div className="flex items-center justify-between flex-wrap gap-2 rounded-md border border-border/70 bg-background/70 px-2 py-1.5">
+                          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span>זום: {Math.round(compareZoom * 100)}%</span>
+                            <span>•</span>
+                            <span>גלגלת = זום</span>
+                            <span>•</span>
+                            <span>גרירה = פאן</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="flex items-center gap-1 px-2">
+                              <Checkbox
+                                checked={compareBeforeAfterEnabled}
+                                onCheckedChange={(checked) => {
+                                  recordCompareSnapshot();
+                                  setCompareBeforeAfterEnabled(!!checked);
+                                }}
+                              />
+                              <Label className="text-[11px]">לפני/אחרי</Label>
+                            </div>
+                            {compareBeforeAfterEnabled && (
+                              <div className="w-40" onMouseDown={recordCompareSnapshot}>
+                                <Slider
+                                  value={[compareSplit]}
+                                  onValueChange={([v]) => setCompareSplit(v)}
+                                  min={5}
+                                  max={95}
+                                  step={1}
+                                />
+                              </div>
+                            )}
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                recordCompareSnapshot();
+                                setCompareZoom((z) => Math.max(0.6, +(z - 0.1).toFixed(2)));
+                              }}
+                            >
+                              -
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => {
+                                recordCompareSnapshot();
+                                setCompareZoom((z) => Math.min(3, +(z + 0.1).toFixed(2)));
+                              }}
+                            >
+                              +
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs"
+                              onClick={() => {
+                                recordCompareSnapshot();
+                                resetCompareView();
+                              }}
+                            >
+                              איפוס תצוגה
+                            </Button>
+                          </div>
+                        </div>
+
+                        {realTimeWarnings.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {realTimeWarnings.map((warning) => (
+                              <Badge key={`compare_${warning}`} variant="outline" className="text-[10px] border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300">{warning}</Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        <div
+                          className={`flex-1 min-h-0 h-[52vh] max-h-[52vh] border border-gold/20 rounded-lg bg-gradient-to-b from-muted/20 to-muted/10 p-2 flex items-center justify-center overflow-hidden ${compareZoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`}
+                          onWheel={handleCompareWheel}
+                          onMouseDown={handleCompareMouseDown}
+                          onMouseMove={handleCompareMouseMove}
+                          onMouseUp={stopComparePanning}
+                          onMouseLeave={stopComparePanning}
+                          onDoubleClick={resetCompareView}
+                        >
+                          <div className="relative w-full h-full">
+                            {compareBeforeAfterEnabled ? (
+                              <>
+                                <img
+                                  src={activeCompareItem.beforeDataUrl}
+                                  alt={`${activeCompareItem.label} before`}
+                                  className="absolute inset-0 m-auto max-w-full max-h-full object-contain rounded-md select-none"
+                                  draggable={false}
+                                  style={{
+                                    transform: `translate(${comparePan.x}px, ${comparePan.y}px) scale(${compareZoom})`,
+                                    transformOrigin: 'center center',
+                                    transition: comparePanning ? 'none' : 'transform 120ms ease-out',
+                                  }}
+                                />
+                                <img
+                                  src={activeCompareItem.dataUrl}
+                                  alt={activeCompareItem.label}
+                                  className="absolute inset-0 m-auto max-w-full max-h-full object-contain rounded-md select-none"
+                                  draggable={false}
+                                  style={{
+                                    clipPath: `inset(0 ${100 - compareSplit}% 0 0)`,
+                                    transform: `translate(${comparePan.x}px, ${comparePan.y}px) scale(${compareZoom})`,
+                                    transformOrigin: 'center center',
+                                    transition: comparePanning ? 'none' : 'transform 120ms ease-out',
+                                  }}
+                                />
+                                <div className="pointer-events-none absolute inset-y-0" style={{ left: `${compareSplit}%`, transform: 'translateX(-50%)' }}>
+                                  <div className="h-full w-[2px] bg-primary/70 shadow-[0_0_0_1px_rgba(255,255,255,0.35)]" />
+                                </div>
+                              </>
+                            ) : (
+                              <img
+                                src={activeCompareItem.dataUrl}
+                                alt={activeCompareItem.label}
+                                className="absolute inset-0 m-auto max-w-full max-h-full object-contain rounded-md select-none"
+                                draggable={false}
+                                style={{
+                                  transform: `translate(${comparePan.x}px, ${comparePan.y}px) scale(${compareZoom})`,
+                                  transformOrigin: 'center center',
+                                  transition: comparePanning ? 'none' : 'transform 120ms ease-out',
+                                }}
+                              />
+                            )}
+                          </div>
                         </div>
 
                         {comparePageImages.length > 0 && (
@@ -2226,15 +2717,21 @@ export default function CollageBuilder() {
                               variant="outline"
                               className="h-8 w-8"
                               disabled={activeComparePage === 0}
-                              onClick={() => setActiveComparePage((p) => p - 1)}
+                              onClick={() => {
+                                recordCompareSnapshot();
+                                setActiveComparePage((p) => p - 1);
+                              }}
                             >
                               <ChevronRight className="h-4 w-4" />
                             </Button>
                             {activeLayoutItems.map((item, idx) => (
                               <button
                                 key={`${item.layout}_${idx}`}
-                                onClick={() => setActiveComparePage(idx)}
-                                className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors ${activeComparePage === idx ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                                onClick={() => {
+                                  recordCompareSnapshot();
+                                  setActiveComparePage(idx);
+                                }}
+                                className={`w-8 h-8 rounded-md text-xs font-semibold transition-colors ${activeComparePage === idx ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
                               >
                                 {idx + 1}
                               </button>
@@ -2244,7 +2741,10 @@ export default function CollageBuilder() {
                               variant="outline"
                               className="h-8 w-8"
                               disabled={activeComparePage === activeLayoutItems.length - 1}
-                              onClick={() => setActiveComparePage((p) => p + 1)}
+                              onClick={() => {
+                                recordCompareSnapshot();
+                                setActiveComparePage((p) => p + 1);
+                              }}
                             >
                               <ChevronLeft className="h-4 w-4" />
                             </Button>
@@ -2256,12 +2756,13 @@ export default function CollageBuilder() {
                     )}
                   </>
                 )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCompareDialogOpen(false)}>סגור</Button>
+          <DialogFooter className="px-6 py-4 border-t border-gold/20 bg-gradient-to-t from-background to-background/95">
+            <Button variant="outline" className="border-gold/35 hover:border-gold/55" onClick={() => setCompareDialogOpen(false)}>סגור</Button>
             <Button onClick={() => activeCompareLayout && selectCompareLayout(activeCompareLayout)} disabled={!activeCompareLayout}>
               בחר לייאאוט זה
             </Button>

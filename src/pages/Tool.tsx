@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import EditableLabel from "@/components/EditableLabel";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
 import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -96,6 +96,7 @@ const LazyFallback = () => (
 
 const ToolInner = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const state = useToolState();
   const dispatch = useToolDispatch();
@@ -117,6 +118,11 @@ const ToolInner = () => {
     multiSelectMode, selectedPresetIds, batchResults, batchProcessing, batchProgress,
     undoStack, redoStack, showComparison, comparisonImages, compareMode,
   } = state;
+
+  const studioTopTabs = [
+    { label: "קולאז", path: "/collage" },
+    { label: "קטלוג", path: "/catalog" },
+  ];
 
   // ─── Keyboard Shortcuts ─────────────────────────────────────
   const shortcuts = useMemo(() => [
