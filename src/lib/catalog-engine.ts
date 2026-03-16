@@ -209,6 +209,53 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+function getLogoPlacement(
+  position: NonNullable<CatalogSettings["logoPosition"]>,
+  pageW: number,
+  pageH: number,
+  logoW: number,
+  logoH: number,
+  margin: number,
+) {
+  switch (position) {
+    case "top-left":
+      return { x: margin, y: margin };
+    case "top-center":
+      return { x: (pageW - logoW) / 2, y: margin };
+    case "top-right":
+      return { x: pageW - logoW - margin, y: margin };
+    case "bottom-left":
+      return { x: margin, y: pageH - logoH - margin };
+    case "bottom-center":
+      return { x: (pageW - logoW) / 2, y: pageH - logoH - margin };
+    case "bottom-right":
+    default:
+      return { x: pageW - logoW - margin, y: pageH - logoH - margin };
+  }
+}
+
+async function drawPlacedLogo(
+  ctx: CanvasRenderingContext2D,
+  settings: CatalogSettings,
+  pageW: number,
+  pageH: number,
+  fallbackScale: number,
+) {
+  if (!settings.logo) return;
+  try {
+    const logoImg = await loadImage(settings.logo);
+    const scale = settings.logoScale || fallbackScale;
+    const logoH = pageH * scale;
+    const logoW = (logoImg.naturalWidth / logoImg.naturalHeight) * logoH;
+    const position = settings.logoPosition || "top-center";
+    const margin = pageW * 0.04;
+    const { x, y } = getLogoPlacement(position, pageW, pageH, logoW, logoH, margin);
+    ctx.drawImage(logoImg, x, y, logoW, logoH);
+  } catch {
+    /* skip */
+  }
+}
+
 function drawRoundedRect(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number, r: number,
