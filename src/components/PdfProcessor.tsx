@@ -26,6 +26,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [fileName, setFileName] = useState("");
+  const [previewPage, setPreviewPage] = useState<ProcessedPage | null>(null);
 
   const handleFile = useCallback(async (file: File) => {
     if (file.type !== "application/pdf") {
