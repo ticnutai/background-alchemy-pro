@@ -129,6 +129,12 @@ const ToolInner = () => {
   const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
   const [customWidthCm, setCustomWidthCm] = useState("21");
   const [customHeightCm, setCustomHeightCm] = useState("29.7");
+  const [sizeUnit, setSizeUnit] = useState<"cm" | "mm" | "in" | "px">("cm");
+  const [sizeDpi, setSizeDpi] = useState(300);
+  const [customProfileName, setCustomProfileName] = useState("");
+  const [savedSizeProfiles, setSavedSizeProfiles] = useState<Array<{ id: string; name: string; widthCm: number; heightCm: number }>>([]);
+  const [snapToGrid, setSnapToGrid] = useState(true);
+  const [gridSizePx, setGridSizePx] = useState(20);
   const dragStateRef = useRef<{ dragging: boolean; startX: number; startY: number; startLeft: number; startTop: number }>({
     dragging: false,
     startX: 0,
@@ -136,7 +142,29 @@ const ToolInner = () => {
     startLeft: 120,
     startTop: 90,
   });
+  const previousUnitRef = useRef<"cm" | "mm" | "in" | "px">("cm");
   const { aiEnabled, setAiMode } = useAiMode(true);
+
+  const layoutProfilesStorageKey = "tool-layout-size-profiles-v1";
+
+  const convertToCm = (value: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
+    if (unit === "cm") return value;
+    if (unit === "mm") return value / 10;
+    if (unit === "in") return value * 2.54;
+    return (value / Math.max(1, dpi)) * 2.54;
+  };
+
+  const convertFromCm = (cmValue: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
+    if (unit === "cm") return cmValue;
+    if (unit === "mm") return cmValue * 10;
+    if (unit === "in") return cmValue / 2.54;
+    return (cmValue / 2.54) * Math.max(1, dpi);
+  };
+
+  const formatUnitValue = (value: number) => {
+    const fixed = value.toFixed(2);
+    return fixed.replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
+  };
 
   const pagePresets = [
     { id: "1/1", label: "ריבוע" },
@@ -165,33 +193,114 @@ const ToolInner = () => {
   };
 
   const applyCustomCmSize = () => {
-    const w = Number(customWidthCm);
-    const h = Number(customHeightCm);
-    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
-      toast.error("יש להזין מידות ס״מ תקינות");
+    const widthRaw = Number(customWidthCm);
+    const heightRaw = Number(customHeightCm);
+    const widthCm = convertToCm(widthRaw, sizeUnit, sizeDpi);
+    const heightCm = convertToCm(heightRaw, sizeUnit, sizeDpi);
+    if (!Number.isFinite(widthCm) || !Number.isFinite(heightCm) || widthCm <= 0 || heightCm <= 0) {
+      toast.error("יש להזין מידות תקינות");
       return;
     }
-    setPageAspectRatio(`${w}/${h}`);
-    toast.success(`יחס דף הוגדר לפי ${w}x${h} ס"מ`);
+    setPageAspectRatio(`${widthCm}/${heightCm}`);
+    toast.success(`יחס דף הוגדר לפי ${formatUnitValue(widthRaw)} x ${formatUnitValue(heightRaw)} ${sizeUnit.toUpperCase()}`);
   };
+
+  const applySavedProfile = (profile: { id: string; name: string; widthCm: number; heightCm: number }) => {
+    setPageAspectRatio(`${profile.widthCm}/${profile.heightCm}`);
+    setCustomWidthCm(formatUnitValue(convertFromCm(profile.widthCm, sizeUnit, sizeDpi)));
+    setCustomHeightCm(formatUnitValue(convertFromCm(profile.heightCm, sizeUnit, sizeDpi)));
+    toast.success(`הפרופיל ${profile.name} הוחל`);
+  };
+
+  const saveCurrentAsProfile = () => {
+    const widthRaw = Number(customWidthCm);
+    const heightRaw = Number(customHeightCm);
+    const widthCm = convertToCm(widthRaw, sizeUnit, sizeDpi);
+    const heightCm = convertToCm(heightRaw, sizeUnit, sizeDpi);
+    const name = customProfileName.trim();
+
+    if (!name) {
+      toast.error("יש להזין שם לפרופיל");
+      return;
+    }
+    if (!Number.isFinite(widthCm) || !Number.isFinite(heightCm) || widthCm <= 0 || heightCm <= 0) {
+      toast.error("לא ניתן לשמור מידות לא תקינות");
+      return;
+    }
+
+    setSavedSizeProfiles((prev) => {
+      const next = [
+        ...prev.filter((p) => p.name !== name),
+        { id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, name, widthCm, heightCm },
+      ];
+      return next.slice(-12);
+    });
+    setCustomProfileName("");
+    toast.success("הפרופיל נשמר");
+  };
+
+  const removeSavedProfile = (profileId: string) => {
+    setSavedSizeProfiles((prev) => prev.filter((profile) => profile.id !== profileId));
+  };
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(layoutProfilesStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as Array<{ id: string; name: string; widthCm: number; heightCm: number }>;
+      if (Array.isArray(parsed)) {
+        setSavedSizeProfiles(parsed.filter((item) => Number.isFinite(item.widthCm) && Number.isFinite(item.heightCm) && !!item.name));
+      }
+    } catch (error) {
+      console.error("Failed to load layout profiles", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(layoutProfilesStorageKey, JSON.stringify(savedSizeProfiles));
+  }, [savedSizeProfiles]);
+
+  useEffect(() => {
+    const previousUnit = previousUnitRef.current;
+    if (previousUnit === sizeUnit) return;
+
+    const widthRaw = Number(customWidthCm);
+    const heightRaw = Number(customHeightCm);
+    if (Number.isFinite(widthRaw) && widthRaw > 0 && Number.isFinite(heightRaw) && heightRaw > 0) {
+      const widthCm = convertToCm(widthRaw, previousUnit, sizeDpi);
+      const heightCm = convertToCm(heightRaw, previousUnit, sizeDpi);
+      setCustomWidthCm(formatUnitValue(convertFromCm(widthCm, sizeUnit, sizeDpi)));
+      setCustomHeightCm(formatUnitValue(convertFromCm(heightCm, sizeUnit, sizeDpi)));
+    }
+
+    previousUnitRef.current = sizeUnit;
+  }, [sizeUnit, sizeDpi, customWidthCm, customHeightCm]);
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
       if (!dragStateRef.current.dragging) return;
       const dx = e.clientX - dragStateRef.current.startX;
       const dy = e.clientY - dragStateRef.current.startY;
+      const rawX = Math.max(8, dragStateRef.current.startLeft + dx);
+      const rawY = Math.max(8, dragStateRef.current.startTop + dy);
+      const nextX = snapToGrid ? Math.round(rawX / Math.max(4, gridSizePx)) * Math.max(4, gridSizePx) : rawX;
+      const nextY = snapToGrid ? Math.round(rawY / Math.max(4, gridSizePx)) * Math.max(4, gridSizePx) : rawY;
       setLayoutDialogPos({
-        x: Math.max(8, dragStateRef.current.startLeft + dx),
-        y: Math.max(8, dragStateRef.current.startTop + dy),
+        x: nextX,
+        y: nextY,
       });
     };
     const onTouchMove = (e: TouchEvent) => {
       if (!dragStateRef.current.dragging || e.touches.length === 0) return;
       const dx = e.touches[0].clientX - dragStateRef.current.startX;
       const dy = e.touches[0].clientY - dragStateRef.current.startY;
+      const rawX = Math.max(8, dragStateRef.current.startLeft + dx);
+      const rawY = Math.max(8, dragStateRef.current.startTop + dy);
+      const nextX = snapToGrid ? Math.round(rawX / Math.max(4, gridSizePx)) * Math.max(4, gridSizePx) : rawX;
+      const nextY = snapToGrid ? Math.round(rawY / Math.max(4, gridSizePx)) * Math.max(4, gridSizePx) : rawY;
       setLayoutDialogPos({
-        x: Math.max(8, dragStateRef.current.startLeft + dx),
-        y: Math.max(8, dragStateRef.current.startTop + dy),
+        x: nextX,
+        y: nextY,
       });
     };
     const onUp = () => {
@@ -208,7 +317,7 @@ const ToolInner = () => {
       window.removeEventListener("touchmove", onTouchMove);
       window.removeEventListener("touchend", onUp);
     };
-  }, [layoutDialogPos.x, layoutDialogPos.y]);
+  }, [layoutDialogPos.x, layoutDialogPos.y, snapToGrid, gridSizePx]);
 
   const {
     originalImage, resultImage, adjustments, referenceImages,
@@ -1494,8 +1603,8 @@ const ToolInner = () => {
                       key={preset.id}
                       onClick={() => {
                         setPageAspectRatio(`${preset.w}/${preset.h}`);
-                        setCustomWidthCm(String(preset.w));
-                        setCustomHeightCm(String(preset.h));
+                        setCustomWidthCm(formatUnitValue(convertFromCm(preset.w, sizeUnit, sizeDpi)));
+                        setCustomHeightCm(formatUnitValue(convertFromCm(preset.h, sizeUnit, sizeDpi)));
                       }}
                       className="rounded-lg border border-border px-2 py-2 font-accent text-xs text-foreground hover:border-primary/50"
                     >
@@ -1506,7 +1615,38 @@ const ToolInner = () => {
               </div>
 
               <div className="space-y-2">
-                <p className="font-body text-xs text-muted-foreground">הזנת ס"מ ידנית</p>
+                <div className="flex items-center justify-between">
+                  <p className="font-body text-xs text-muted-foreground">יחידות עבודה</p>
+                  <div className="flex items-center gap-1 rounded-md border border-border p-1 text-xs">
+                    {(["cm", "mm", "in", "px"] as const).map((unit) => (
+                      <button
+                        key={unit}
+                        onClick={() => setSizeUnit(unit)}
+                        className={`rounded px-2 py-1 ${sizeUnit === unit ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                      >
+                        {unit.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {sizeUnit === "px" && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">DPI</span>
+                    <input
+                      type="number"
+                      min={72}
+                      max={600}
+                      step={1}
+                      value={sizeDpi}
+                      onChange={(e) => setSizeDpi(Math.min(600, Math.max(72, Number(e.target.value) || 300)))}
+                      className="w-24 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-body text-xs text-muted-foreground">הזנת מידות ידנית ({sizeUnit.toUpperCase()})</p>
                 <div className="flex items-center gap-2">
                   <input
                     type="number"
@@ -1515,7 +1655,7 @@ const ToolInner = () => {
                     value={customWidthCm}
                     onChange={(e) => setCustomWidthCm(e.target.value)}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    placeholder="רוחב ס״מ"
+                    placeholder={`רוחב ${sizeUnit.toUpperCase()}`}
                   />
                   <span className="text-xs text-muted-foreground">X</span>
                   <input
@@ -1525,7 +1665,7 @@ const ToolInner = () => {
                     value={customHeightCm}
                     onChange={(e) => setCustomHeightCm(e.target.value)}
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                    placeholder="גובה ס״מ"
+                    placeholder={`גובה ${sizeUnit.toUpperCase()}`}
                   />
                   <button
                     onClick={applyCustomCmSize}
@@ -1533,6 +1673,68 @@ const ToolInner = () => {
                   >
                     החל
                   </button>
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-border/70 bg-card/40 p-3">
+                <p className="font-body text-xs text-muted-foreground">פרופילים מותאמים</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    value={customProfileName}
+                    onChange={(e) => setCustomProfileName(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="שם לפרופיל"
+                  />
+                  <button
+                    onClick={saveCurrentAsProfile}
+                    className="shrink-0 rounded-lg border border-primary/40 px-3 py-2 text-xs font-semibold text-primary hover:bg-primary/10"
+                  >
+                    שמירה
+                  </button>
+                </div>
+                {savedSizeProfiles.length > 0 && (
+                  <div className="max-h-32 space-y-1 overflow-y-auto">
+                    {savedSizeProfiles.map((profile) => (
+                      <div key={profile.id} className="flex items-center gap-2 rounded-md border border-border/70 px-2 py-1">
+                        <button
+                          onClick={() => applySavedProfile(profile)}
+                          className="flex-1 truncate text-right text-xs text-foreground hover:text-primary"
+                          title={`${profile.name}: ${formatUnitValue(convertFromCm(profile.widthCm, sizeUnit, sizeDpi))} x ${formatUnitValue(convertFromCm(profile.heightCm, sizeUnit, sizeDpi))} ${sizeUnit.toUpperCase()}`}
+                        >
+                          {profile.name}
+                        </button>
+                        <button
+                          onClick={() => removeSavedProfile(profile.id)}
+                          className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+                          title="מחיקה"
+                        >
+                          מחק
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-border/70 bg-card/40 p-3">
+                <div className="flex items-center justify-between">
+                  <p className="font-body text-xs text-muted-foreground">גרירה חכמה</p>
+                  <div className="flex items-center gap-2">
+                    <Switch checked={snapToGrid} onCheckedChange={setSnapToGrid} />
+                    <span className="text-xs text-muted-foreground">Snap לגריד</span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">גודל גריד (px)</span>
+                  <input
+                    type="number"
+                    min={4}
+                    max={80}
+                    step={2}
+                    value={gridSizePx}
+                    onChange={(e) => setGridSizePx(Math.min(80, Math.max(4, Number(e.target.value) || 20)))}
+                    className="w-24 rounded-lg border border-border bg-background px-2 py-1 text-sm"
+                  />
                 </div>
               </div>
 
