@@ -20,6 +20,9 @@ interface ImageCanvasProps {
   lockPageAspect?: boolean;
   lockImageAspect?: boolean;
   panMode?: boolean;
+  frameEnabled?: boolean;
+  frameWidthPx?: number;
+  frameColor?: string;
   onPageWidthChange?: (next: number) => void;
   onPageHeightChange?: (next: number) => void;
   onImageScaleXChange?: (next: number) => void;
@@ -57,6 +60,9 @@ const ImageCanvas = memo(({
   lockPageAspect = false,
   lockImageAspect = false,
   panMode = false,
+  frameEnabled = false,
+  frameWidthPx = 22,
+  frameColor = "#ffffff",
   onPageWidthChange,
   onPageHeightChange,
   onImageScaleXChange,
@@ -450,6 +456,15 @@ const ImageCanvas = memo(({
       )}
           </div>
         </div>
+
+        {frameEnabled && (
+          <div
+            className="pointer-events-none absolute inset-0 z-[15]"
+            style={{
+              boxShadow: `inset 0 0 0 ${Math.max(6, Math.min(frameWidthPx, 80))}px ${frameColor}`,
+            }}
+          />
+        )}
 
         {onPageWidthChange && (
           <>

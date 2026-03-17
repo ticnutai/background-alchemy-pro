@@ -3,7 +3,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2, Move, X, Lock, Unlock, Hand, FolderOpen, FolderPlus } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2, Move, X, Lock, Unlock, Hand, FolderOpen, FolderPlus, LayoutGrid } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -130,6 +130,9 @@ const ToolInner = () => {
   const [lockPageAspect, setLockPageAspect] = useState(false);
   const [lockImageAspect, setLockImageAspect] = useState(false);
   const [panMode, setPanMode] = useState(false);
+  const [frameEnabled, setFrameEnabled] = useState(false);
+  const [frameWidthPx] = useState(22);
+  const [frameColor] = useState("#ffffff");
   const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
   const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
   const [customWidthCm, setCustomWidthCm] = useState("21");
@@ -863,6 +866,15 @@ const ToolInner = () => {
           ctx.putImageData(grainData, 0, 0);
         }
 
+        if (frameEnabled) {
+          const frame = Math.max(6, Math.min(frameWidthPx, Math.round(Math.min(finalW, finalH) * 0.08)));
+          ctx.save();
+          ctx.strokeStyle = frameColor;
+          ctx.lineWidth = frame;
+          ctx.strokeRect(frame / 2, frame / 2, finalW - frame, finalH - frame);
+          ctx.restore();
+        }
+
         // Apply split toning on canvas
         if (adjustments.splitHighlightStrength > 0) {
           ctx.globalCompositeOperation = "screen";
@@ -928,7 +940,7 @@ const ToolInner = () => {
         dispatch({ type: "SET_EXPORTING", payload: false });
       }
     },
-    [resultImage, originalImage, adjustments, dispatch]
+    [resultImage, originalImage, adjustments, dispatch, frameEnabled, frameWidthPx, frameColor]
   );
 
   const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
@@ -1582,7 +1594,7 @@ const ToolInner = () => {
             {originalImage ? (
               <>
                 <div className="relative">
-                  <div className="absolute left-3 top-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 overflow-x-auto rounded-lg bg-background/60 p-1 backdrop-blur-sm">
+                  <div className="absolute -left-14 top-1/2 z-30 hidden -translate-y-1/2 flex-col gap-2 rounded-xl border border-border/70 bg-background/85 p-2 shadow-lg backdrop-blur-sm md:flex">
                     <button
                       onClick={() => setShowLayoutDialog(true)}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
@@ -1618,9 +1630,23 @@ const ToolInner = () => {
                     <button
                       onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: "crop" })}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
-                      title="הוספת מסגרת"
+                      title="מצב חיתוך"
+                    >
+                      <Crop className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => setFrameEnabled((v) => !v)}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background/90 shadow ${frameEnabled ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                      title={frameEnabled ? "הסר מסגרת" : "הוסף מסגרת"}
                     >
                       <Frame className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => openWorkspaceWithSelectedImage("/collage")}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
+                      title="קולאז'ים מוכנים"
+                    >
+                      <LayoutGrid className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: "backgrounds" })}
@@ -1645,6 +1671,9 @@ const ToolInner = () => {
                     lockPageAspect={lockPageAspect}
                     lockImageAspect={lockImageAspect}
                     panMode={panMode}
+                    frameEnabled={frameEnabled}
+                    frameWidthPx={frameWidthPx}
+                    frameColor={frameColor}
                     onPageWidthChange={setPageWidthPercent}
                     onPageHeightChange={setPageHeightPercent}
                     onImageScaleXChange={setImageScaleXPercent}
