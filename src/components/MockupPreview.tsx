@@ -400,13 +400,13 @@ const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
   }, [buildMockupDataUrl, platformPresetId]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-sm" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/50 backdrop-blur-sm p-4" onClick={onClose}>
       <div
-        className="relative w-full max-w-4xl mx-6 rounded-2xl bg-card shadow-2xl border border-border overflow-hidden"
+        className="relative w-full max-w-4xl rounded-2xl bg-card shadow-2xl border border-border flex flex-col max-h-[92vh] overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+        {/* Header — fixed */}
+        <div className="flex-shrink-0 flex items-center justify-between border-b border-border px-6 py-4">
           <h2 className="font-display text-lg font-bold text-foreground">תצוגה מקדימה — מוקאפ</h2>
           <div className="flex items-center gap-2">
             <button
@@ -436,7 +436,8 @@ const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
           </div>
         </div>
 
-        <div className="px-6 py-3 border-b border-border flex flex-wrap items-center gap-2">
+        {/* Toolbar — fixed */}
+        <div className="flex-shrink-0 px-6 py-3 border-b border-border flex flex-wrap items-center gap-2">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -503,8 +504,8 @@ const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
           </div>
         </div>
 
-        {/* Mockup selector */}
-        <div className="flex gap-2 px-6 py-3 border-b border-border overflow-x-auto">
+        {/* Mockup selector — fixed */}
+        <div className="flex-shrink-0 flex gap-2 px-6 py-3 border-b border-border overflow-x-auto">
           {filteredMockups.map((m) => (
             <button
               key={m.id}
@@ -524,14 +525,14 @@ const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
           )}
         </div>
 
-        {/* Mockup display */}
-        <div className="flex items-center justify-center p-8 bg-secondary/30 min-h-[500px]">
-          <div className="w-full max-w-[860px]" style={{ aspectRatio: previewAspectRatio }}>
-            <div className="w-full h-full flex items-center justify-center rounded-xl overflow-hidden border border-border/50 bg-background/20">
+        {/* Mockup display — scrollable */}
+        <div className="flex-1 overflow-y-auto flex items-start justify-center p-6 bg-secondary/30 min-h-0">
+          <div className="w-full max-w-[760px] mx-auto">
+            <div className="w-full flex items-center justify-center rounded-xl overflow-hidden border border-border/50 bg-background/20 py-4" style={{ minHeight: 360 }}>
           {activeMockup === "frame" && (
             <div className="relative p-6 bg-gradient-to-br from-[#8b7355] to-[#6b5540] rounded-lg shadow-2xl">
               <div className="p-1 bg-gradient-to-br from-[#d4b896] to-[#a08060] rounded">
-                <img src={imageUrl} alt="Mockup" className="max-h-[400px] w-auto rounded shadow-inner" />
+                <img src={imageUrl} alt="Mockup" className="max-h-[340px] w-auto rounded shadow-inner" />
               </div>
             </div>
           )}
@@ -603,15 +604,15 @@ const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
 
           {activeMockup === "magazine" && (
             <div className="grid grid-cols-2 gap-4 rounded-xl bg-[#e6dfd3] p-6 shadow-inner">
-              <div className="bg-white p-3 shadow-lg"><img src={imageUrl} alt="Magazine Left" className="w-[220px] h-[320px] object-cover" /></div>
-              <div className="bg-white p-3 shadow-lg"><img src={imageUrl} alt="Magazine Right" className="w-[220px] h-[320px] object-cover" /></div>
+              <div className="bg-white p-3 shadow-lg"><img src={imageUrl} alt="Magazine Left" className="w-full max-h-[260px] object-cover" /></div>
+              <div className="bg-white p-3 shadow-lg"><img src={imageUrl} alt="Magazine Right" className="w-full max-h-[260px] object-cover" /></div>
             </div>
           )}
 
           {activeMockup === "laptop" && (
             <div className="flex flex-col items-center">
               <div className="rounded-lg bg-[#1f242c] p-4 shadow-2xl">
-                <img src={imageUrl} alt="Laptop Mockup" className="max-h-[320px] w-auto rounded" />
+                <img src={imageUrl} alt="Laptop Mockup" className="max-h-[280px] w-auto rounded" />
               </div>
               <div className="mt-2 h-4 w-48 rounded-b-xl bg-[#8f98a3]" />
             </div>
@@ -624,18 +625,18 @@ const MockupPreview = ({ imageUrl, onClose }: MockupPreviewProps) => {
           )}
 
           {activeMockup === "billboard" && (
-            <div className="relative h-[420px] w-[760px] rounded-xl bg-gradient-to-b from-blue-200 to-blue-50 p-6 shadow-inner">
-              <div className="absolute bottom-0 left-1/2 h-28 w-8 -translate-x-1/2 bg-[#333]" />
-              <div className="mx-auto mt-6 rounded-lg border-8 border-[#1d1d1d] bg-black p-3 shadow-xl">
-                <img src={imageUrl} alt="Billboard Mockup" className="h-[220px] w-[560px] object-cover" />
+            <div className="relative w-full rounded-xl bg-gradient-to-b from-blue-200 to-blue-50 p-6 shadow-inner" style={{ minHeight: 320 }}>
+              <div className="absolute bottom-0 left-1/2 h-20 w-8 -translate-x-1/2 bg-[#333]" />
+              <div className="mx-auto mt-4 rounded-lg border-8 border-[#1d1d1d] bg-black p-3 shadow-xl">
+                <img src={imageUrl} alt="Billboard Mockup" className="w-full max-h-[200px] object-cover" />
               </div>
             </div>
           )}
 
           {activeMockup === "packaging" && (
-            <div className="grid grid-cols-2 gap-6">
-              <div className="rounded-lg bg-[#ccb894] p-4 shadow-xl"><img src={imageUrl} alt="Package Front" className="h-[220px] w-[220px] object-cover" /></div>
-              <div className="rounded-lg bg-[#b8a078] p-4 shadow-xl"><img src={imageUrl} alt="Package Side" className="h-[220px] w-[220px] object-cover" /></div>
+            <div className="grid grid-cols-2 gap-6 w-full">
+              <div className="rounded-lg bg-[#ccb894] p-4 shadow-xl"><img src={imageUrl} alt="Package Front" className="w-full max-h-[220px] object-cover" /></div>
+              <div className="rounded-lg bg-[#b8a078] p-4 shadow-xl"><img src={imageUrl} alt="Package Side" className="w-full max-h-[220px] object-cover" /></div>
             </div>
           )}
             </div>
