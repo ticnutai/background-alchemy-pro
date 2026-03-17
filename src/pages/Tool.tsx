@@ -101,6 +101,7 @@ const LazyFallback = () => (
 );
 
 const ToolInner = () => {
+  const navigate = useNavigate();
   // Force light mode on tool pages
   useEffect(() => {
     const wasDark = document.documentElement.classList.contains("dark");
