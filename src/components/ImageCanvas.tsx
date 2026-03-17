@@ -65,6 +65,7 @@ const ImageCanvas = memo(({
   const [sliderPos, setSliderPos] = useState(50);
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const [localMode, setLocalMode] = useState<CompareMode>(compareMode);
+  const [activeGuide, setActiveGuide] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
@@ -78,6 +79,21 @@ const ImageCanvas = memo(({
   const startPageHeightRef = useRef(pageHeightPercent);
   const startImageScaleXRef = useRef(imageScaleXPercent);
   const startImageScaleYRef = useRef(imageScaleYPercent);
+
+  const snapValue = (value: number, points: number[], threshold: number) => {
+    let best = value;
+    let bestPoint: number | null = null;
+    let bestDistance = Number.POSITIVE_INFINITY;
+    for (const point of points) {
+      const distance = Math.abs(value - point);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = distance <= threshold ? point : value;
+        bestPoint = distance <= threshold ? point : null;
+      }
+    }
+    return { value: best, snappedTo: bestPoint };
+  };
 
   const handleMove = useCallback((clientX: number) => {
     if (!containerRef.current || !isDragging.current) return;
@@ -104,7 +120,17 @@ const ImageCanvas = memo(({
       if (isPanningRef.current) {
         const dx = e.clientX - panStartRef.current.x;
         const dy = e.clientY - panStartRef.current.y;
-        setPanOffset({ x: panStartRef.current.offsetX + dx, y: panStartRef.current.offsetY + dy });
+        const stageW = stageRef.current?.clientWidth || 1;
+        const stageH = stageRef.current?.clientHeight || 1;
+        const rawX = clamp(panStartRef.current.offsetX + dx, -stageW * 0.6, stageW * 0.6);
+        const rawY = clamp(panStartRef.current.offsetY + dy, -stageH * 0.6, stageH * 0.6);
+        const xSnap = snapValue(rawX, [0, -stageW / 6, stageW / 6], 14);
+        const ySnap = snapValue(rawY, [0, -stageH / 6, stageH / 6], 14);
+        setPanOffset({ x: xSnap.value, y: ySnap.value });
+        setActiveGuide({
+          x: xSnap.snappedTo === null ? null : xSnap.snappedTo === 0 ? 50 : xSnap.snappedTo < 0 ? 33.33 : 66.67,
+          y: ySnap.snappedTo === null ? null : ySnap.snappedTo === 0 ? 50 : ySnap.snappedTo < 0 ? 33.33 : 66.67,
+        });
         return;
       }
       if (!dragModeRef.current || !stageRef.current) return;
@@ -153,7 +179,17 @@ const ImageCanvas = memo(({
       if (isPanningRef.current && e.touches.length > 0) {
         const dx = e.touches[0].clientX - panStartRef.current.x;
         const dy = e.touches[0].clientY - panStartRef.current.y;
-        setPanOffset({ x: panStartRef.current.offsetX + dx, y: panStartRef.current.offsetY + dy });
+        const stageW = stageRef.current?.clientWidth || 1;
+        const stageH = stageRef.current?.clientHeight || 1;
+        const rawX = clamp(panStartRef.current.offsetX + dx, -stageW * 0.6, stageW * 0.6);
+        const rawY = clamp(panStartRef.current.offsetY + dy, -stageH * 0.6, stageH * 0.6);
+        const xSnap = snapValue(rawX, [0, -stageW / 6, stageW / 6], 14);
+        const ySnap = snapValue(rawY, [0, -stageH / 6, stageH / 6], 14);
+        setPanOffset({ x: xSnap.value, y: ySnap.value });
+        setActiveGuide({
+          x: xSnap.snappedTo === null ? null : xSnap.snappedTo === 0 ? 50 : xSnap.snappedTo < 0 ? 33.33 : 66.67,
+          y: ySnap.snappedTo === null ? null : ySnap.snappedTo === 0 ? 50 : ySnap.snappedTo < 0 ? 33.33 : 66.67,
+        });
         return;
       }
       if (!dragModeRef.current || !stageRef.current || e.touches.length === 0) return;
@@ -201,6 +237,7 @@ const ImageCanvas = memo(({
     const stopDrag = () => {
       dragModeRef.current = null;
       isPanningRef.current = false;
+      setActiveGuide({ x: null, y: null });
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -294,6 +331,16 @@ const ImageCanvas = memo(({
         style={{ width: `${pageWidthPercent}%`, aspectRatio: `${ratio}` }}
       >
         <div className="absolute inset-0 overflow-hidden">
+          {panMode && (
+            <div className="pointer-events-none absolute inset-0 z-10">
+              <div className="absolute left-1/3 top-0 h-full border-l border-dashed border-primary/20" />
+              <div className="absolute left-2/3 top-0 h-full border-l border-dashed border-primary/20" />
+              <div className="absolute top-1/3 left-0 w-full border-t border-dashed border-primary/20" />
+              <div className="absolute top-2/3 left-0 w-full border-t border-dashed border-primary/20" />
+              {activeGuide.x !== null && <div className="absolute top-0 h-full border-l border-primary/60" style={{ left: `${activeGuide.x}%` }} />}
+              {activeGuide.y !== null && <div className="absolute left-0 w-full border-t border-primary/60" style={{ top: `${activeGuide.y}%` }} />}
+            </div>
+          )}
           <div
             className={`h-full w-full origin-center transition-transform duration-150 ${panMode ? "cursor-grab active:cursor-grabbing" : ""}`}
             style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px) scaleX(${imageScaleXPercent / 100}) scaleY(${imageScaleYPercent / 100})` }}

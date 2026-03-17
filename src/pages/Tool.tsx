@@ -152,6 +152,7 @@ const ToolInner = () => {
   const { aiEnabled, setAiMode } = useAiMode(true);
 
   const layoutProfilesStorageKey = "tool-layout-size-profiles-v1";
+  const layoutSessionStorageKey = "tool-layout-session-v2";
 
   const convertToCm = (value: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
     if (unit === "cm") return value;
@@ -315,6 +316,71 @@ const ToolInner = () => {
   useEffect(() => {
     localStorage.setItem(layoutProfilesStorageKey, JSON.stringify(savedSizeProfiles));
   }, [savedSizeProfiles]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(layoutSessionStorageKey);
+      if (!raw) return;
+      const session = JSON.parse(raw) as Partial<{
+        pageWidthPercent: number;
+        pageHeightPercent: number;
+        pageAspectRatio: string;
+        imageScaleXPercent: number;
+        imageScaleYPercent: number;
+        lockPageAspect: boolean;
+        lockImageAspect: boolean;
+        panMode: boolean;
+        imageFitMode: "contain" | "cover";
+        sizeUnit: "cm" | "mm" | "in" | "px";
+        sizeDpi: number;
+      }>;
+
+      if (typeof session.pageWidthPercent === "number") setPageWidthPercent(session.pageWidthPercent);
+      if (typeof session.pageHeightPercent === "number") setPageHeightPercent(session.pageHeightPercent);
+      if (typeof session.pageAspectRatio === "string") setPageAspectRatio(session.pageAspectRatio);
+      if (typeof session.imageScaleXPercent === "number") setImageScaleXPercent(session.imageScaleXPercent);
+      if (typeof session.imageScaleYPercent === "number") setImageScaleYPercent(session.imageScaleYPercent);
+      if (typeof session.lockPageAspect === "boolean") setLockPageAspect(session.lockPageAspect);
+      if (typeof session.lockImageAspect === "boolean") setLockImageAspect(session.lockImageAspect);
+      if (typeof session.panMode === "boolean") setPanMode(session.panMode);
+      if (session.imageFitMode === "contain" || session.imageFitMode === "cover") setImageFitMode(session.imageFitMode);
+      if (session.sizeUnit === "cm" || session.sizeUnit === "mm" || session.sizeUnit === "in" || session.sizeUnit === "px") setSizeUnit(session.sizeUnit);
+      if (typeof session.sizeDpi === "number") setSizeDpi(session.sizeDpi);
+    } catch (error) {
+      console.error("Failed to restore layout session", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(
+      layoutSessionStorageKey,
+      JSON.stringify({
+        pageWidthPercent,
+        pageHeightPercent,
+        pageAspectRatio,
+        imageScaleXPercent,
+        imageScaleYPercent,
+        lockPageAspect,
+        lockImageAspect,
+        panMode,
+        imageFitMode,
+        sizeUnit,
+        sizeDpi,
+      }),
+    );
+  }, [
+    pageWidthPercent,
+    pageHeightPercent,
+    pageAspectRatio,
+    imageScaleXPercent,
+    imageScaleYPercent,
+    lockPageAspect,
+    lockImageAspect,
+    panMode,
+    imageFitMode,
+    sizeUnit,
+    sizeDpi,
+  ]);
 
   useEffect(() => {
     const previousUnit = previousUnitRef.current;

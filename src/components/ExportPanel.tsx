@@ -34,6 +34,12 @@ const qualityOptions = [
   { value: 80, label: "טובה" },
 ];
 
+const quickExportPresets = [
+  { id: "web-fast", label: "Web מהיר", format: "webp", quality: 82, resizeWidth: 1600, resizeHeight: undefined as number | undefined, maintainAspect: true },
+  { id: "marketplace", label: "Marketplace חד", format: "jpg", quality: 95, resizeWidth: 2000, resizeHeight: undefined as number | undefined, maintainAspect: true },
+  { id: "print-300", label: "Print 300DPI", format: "tiff", quality: 100, resizeWidth: undefined as number | undefined, resizeHeight: undefined as number | undefined, maintainAspect: true },
+];
+
 const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: ExportPanelProps) => {
   const [selectedFormat, setSelectedFormat] = useState("png");
   const [quality, setQuality] = useState(100);
@@ -218,6 +224,32 @@ const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: Expo
       </div>
 
       {/* Export button */}
+      <div className="space-y-2 border-t border-border pt-3">
+        <span className="font-display text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+          <Sparkles className="h-3 w-3" /> פריסטי ייצוא מהירים
+        </span>
+        <div className="grid grid-cols-1 gap-2">
+          {quickExportPresets.map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => onExport(preset.format, preset.quality, {
+                watermark: watermark || undefined,
+                watermarkPosition,
+                watermarkOpacity,
+                resizeWidth: preset.resizeWidth,
+                resizeHeight: preset.resizeHeight,
+                maintainAspect: preset.maintainAspect,
+              })}
+              disabled={!resultImage || isExporting}
+              className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 font-body text-xs text-foreground hover:border-primary/40 disabled:opacity-50"
+            >
+              <span>{preset.label}</span>
+              <span className="text-muted-foreground">{preset.format.toUpperCase()} · {preset.quality}%</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       <button
         onClick={() => onExport(selectedFormat, quality, {
           watermark: watermark || undefined,
