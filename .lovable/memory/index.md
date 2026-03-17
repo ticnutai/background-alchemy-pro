@@ -1,13 +1,13 @@
-Design system: white bg, gold borders, navy icons — applied across all pages except Index.tsx (homepage).
+Design system and UI constraints for all pages (except Index/homepage which stays dark).
 
-- **RTL FIRST**: The entire site is in Hebrew. Global dir="rtl" is set on <html> and body.
-- Email/URL/number inputs should use dir="ltr" for proper data entry.
-- **Design tokens**: `--primary: 220 70% 25%` (navy), `--border: 38 50% 80%` (gold), `--background: 0 0% 100%` (white).
-- **No emojis in tabs** — use Lucide icons only, colored with `text-primary`.
-- **All Dialogs** must use shadcn `<Dialog>` (supports Escape natively). No manual div overlays.
-- Shared export functions live in `src/lib/export-utils.ts` (generateSimplePDF, generateTIFF, triggerDownload, downloadBlob, canvasToBlob).
-- AI chat must hide raw control tags (`[QUICK_REPLIES]`, `[YES_NO]`, etc.) and always render clean numbered options.
-- AI chat should include a persistent "החל רקע" action accessible at every conversation stage.
-- Keep all user-facing chat UX in Hebrew.
-- When discussing colors → AI outputs `[COLOR_PALETTE]` with hex swatches the user clicks to confirm.
-- When discussing textures/materials → AI outputs `[VISUAL_OPTIONS]` with prompts, auto-generates preview thumbnails.
+- Theme: White background, gold borders (#C8A960), navy blue icons/primary (#1a3366)
+- CSS tokens: --background: white, --border: gold (38 50% 80%), --primary: navy (220 70% 25%)
+- All pages except Index force light mode via useEffect
+- Index.tsx (homepage) stays dark mode — DO NOT TOUCH
+- Sidebar tabs: 3-column grid layout with Lucide icons (h-5 w-5), no emojis
+- Action toolbar: compact single-row bar under image with icon-only secondary buttons
+- All Dialogs must use shadcn <Dialog> for Escape key support
+- AI chat must hide raw control tags and render clean numbered options in Hebrew
+- AI chat should include persistent "החל רקע" action
+- When discussing colors → AI outputs [COLOR_PALETTE] with hex swatches
+- When discussing textures → AI outputs [VISUAL_OPTIONS] with prompts and preview thumbnails
