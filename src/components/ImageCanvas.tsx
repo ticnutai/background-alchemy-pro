@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback, useMemo, useEffect, memo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect, memo, type CSSProperties } from "react";
 import DOMPurify from "dompurify";
 import { getFilterString, getOverlayStyles, getSvgFilterId, getSvgFilterMarkup, type ImageAdjustments, defaultAdjustments } from "./ImageAdjustmentsPanel";
+import type { FrameShape, FrameStyle } from "./FrameStylePanel";
 
 type CompareMode = "slider" | "side-by-side" | "fade" | "split";
 
@@ -23,6 +24,9 @@ interface ImageCanvasProps {
   frameEnabled?: boolean;
   frameWidthPx?: number;
   frameColor?: string;
+  frameStyle?: FrameStyle;
+  frameShape?: FrameShape;
+  frameRadius?: number;
   onPageWidthChange?: (next: number) => void;
   onPageHeightChange?: (next: number) => void;
   onImageScaleXChange?: (next: number) => void;
@@ -44,6 +48,43 @@ const parseRatio = (ratio: string): number => {
   return w / h;
 };
 
+const shapeClipPath: Record<FrameShape, string | undefined> = {
+  rect: undefined,
+  rounded: undefined,
+  pill: undefined,
+  circle: "circle(50% at 50% 50%)",
+  diamond: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+  hexagon: "polygon(25% 6%, 75% 6%, 100% 50%, 75% 94%, 25% 94%, 0% 50%)",
+  octagon: "polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%)",
+};
+
+function getFrameVisualStyle(frameStyle: FrameStyle, frameWidthPx: number, frameColor: string): CSSProperties {
+  const width = Math.max(4, Math.min(frameWidthPx, 80));
+  switch (frameStyle) {
+    case "double":
+      return { boxShadow: `inset 0 0 0 ${width}px ${frameColor}, inset 0 0 0 ${Math.round(width * 1.9)}px color-mix(in srgb, ${frameColor} 55%, #ffffff 45%)` };
+    case "shadow":
+      return { boxShadow: `inset 0 0 0 ${width}px ${frameColor}, 0 12px 24px rgba(0,0,0,0.25)` };
+    case "neon":
+      return { boxShadow: `inset 0 0 0 ${width}px ${frameColor}, 0 0 24px color-mix(in srgb, ${frameColor} 70%, #00e5ff 30%)` };
+    case "dashed":
+      return { border: `${Math.max(3, Math.round(width * 0.75))}px dashed ${frameColor}` };
+    case "vintage":
+      return { boxShadow: `inset 0 0 0 ${width}px ${frameColor}, inset 0 0 18px rgba(0,0,0,0.22)` };
+    case "inner":
+      return { boxShadow: `inset 0 0 0 ${Math.max(2, Math.round(width * 0.45))}px ${frameColor}, inset 0 0 0 ${width}px color-mix(in srgb, ${frameColor} 35%, #222 65%)` };
+    case "soft":
+      return { boxShadow: `inset 0 0 0 ${width}px color-mix(in srgb, ${frameColor} 70%, #fff 30%), 0 6px 18px rgba(0,0,0,0.14)` };
+    case "film":
+      return { boxShadow: `inset 0 0 0 ${width}px #f5f3ef, inset 0 0 0 ${Math.round(width * 0.4)}px #111` };
+    case "bold":
+      return { boxShadow: `inset 0 0 0 ${Math.round(width * 1.25)}px ${frameColor}` };
+    case "clean":
+    default:
+      return { boxShadow: `inset 0 0 0 ${width}px ${frameColor}` };
+  }
+}
+
 const ImageCanvas = memo(({
   originalImage,
   resultImage,
@@ -63,6 +104,9 @@ const ImageCanvas = memo(({
   frameEnabled = false,
   frameWidthPx = 22,
   frameColor = "#ffffff",
+  frameStyle = "clean",
+  frameShape = "rect",
+  frameRadius = 6,
   onPageWidthChange,
   onPageHeightChange,
   onImageScaleXChange,
@@ -120,6 +164,9 @@ const ImageCanvas = memo(({
   const baseRatio = parseRatio(pageAspectRatio);
   const ratio = clamp(baseRatio * (pageWidthPercent / Math.max(1, pageHeightPercent)), 0.2, 8);
   const mediaClass = imageFitMode === "cover" ? "block h-full w-full object-cover" : "block h-full w-full object-contain";
+  const frameRadiusCss = frameShape === "pill" ? "9999px" : frameShape === "circle" ? "50%" : `${frameRadius}%`;
+  const clipPath = shapeClipPath[frameShape];
+  const frameVisualStyle = getFrameVisualStyle(frameStyle, frameWidthPx, frameColor);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -336,7 +383,13 @@ const ImageCanvas = memo(({
         className="relative mx-auto overflow-hidden rounded-lg border border-border/70 bg-muted/20"
         style={{ width: `${pageWidthPercent}%`, aspectRatio: `${ratio}` }}
       >
-        <div className="absolute inset-0 overflow-hidden">
+        <div
+          className="absolute inset-0 overflow-hidden"
+          style={{
+            borderRadius: frameRadiusCss,
+            clipPath,
+          }}
+        >
           {panMode && (
             <div className="pointer-events-none absolute inset-0 z-10">
               <div className="absolute left-1/3 top-0 h-full border-l border-dashed border-primary/20" />
@@ -460,9 +513,7 @@ const ImageCanvas = memo(({
         {frameEnabled && (
           <div
             className="pointer-events-none absolute inset-0 z-[15]"
-            style={{
-              boxShadow: `inset 0 0 0 ${Math.max(6, Math.min(frameWidthPx, 80))}px ${frameColor}`,
-            }}
+            style={{ borderRadius: frameRadiusCss, clipPath, ...frameVisualStyle }}
           />
         )}
 

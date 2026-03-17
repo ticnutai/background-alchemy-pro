@@ -35,6 +35,7 @@ import LiveHistogram from "@/components/LiveHistogram";
 import CropTransformPanel from "@/components/CropTransformPanel";
 import FloatingSaveAction from "@/components/FloatingSaveAction";
 import AdvancedFiltersPanel from "@/components/AdvancedFiltersPanel";
+import FrameStylePanel, { type FrameShape, type FrameStyle } from "@/components/FrameStylePanel";
 import NonAiLabPanel from "@/components/NonAiLabPanel";
 import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
@@ -100,6 +101,163 @@ const LazyFallback = () => (
   </div>
 );
 
+const buildFramePath = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  inset: number,
+  shape: FrameShape,
+  radiusPercent: number,
+) => {
+  const w = Math.max(1, width - inset * 2);
+  const h = Math.max(1, height - inset * 2);
+  const cx = width / 2;
+  const cy = height / 2;
+  const r = Math.min(w, h) * (Math.max(0, Math.min(50, radiusPercent)) / 100);
+  const left = inset;
+  const top = inset;
+  const right = inset + w;
+  const bottom = inset + h;
+
+  ctx.beginPath();
+  if (shape === "circle") {
+    const rad = Math.max(1, Math.min(w, h) / 2);
+    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+    return;
+  }
+  if (shape === "diamond") {
+    ctx.moveTo(cx, top);
+    ctx.lineTo(right, cy);
+    ctx.lineTo(cx, bottom);
+    ctx.lineTo(left, cy);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "hexagon") {
+    const dx = w * 0.25;
+    ctx.moveTo(left + dx, top);
+    ctx.lineTo(right - dx, top);
+    ctx.lineTo(right, cy);
+    ctx.lineTo(right - dx, bottom);
+    ctx.lineTo(left + dx, bottom);
+    ctx.lineTo(left, cy);
+    ctx.closePath();
+    return;
+  }
+  if (shape === "octagon") {
+    const dx = w * 0.22;
+    const dy = h * 0.22;
+    ctx.moveTo(left + dx, top);
+    ctx.lineTo(right - dx, top);
+    ctx.lineTo(right, top + dy);
+    ctx.lineTo(right, bottom - dy);
+    ctx.lineTo(right - dx, bottom);
+    ctx.lineTo(left + dx, bottom);
+    ctx.lineTo(left, bottom - dy);
+    ctx.lineTo(left, top + dy);
+    ctx.closePath();
+    return;
+  }
+
+  const rr = shape === "pill" ? Math.min(w, h) / 2 : Math.min(r, w / 2, h / 2);
+  if (shape === "rounded" || shape === "pill") {
+    ctx.moveTo(left + rr, top);
+    ctx.lineTo(right - rr, top);
+    ctx.quadraticCurveTo(right, top, right, top + rr);
+    ctx.lineTo(right, bottom - rr);
+    ctx.quadraticCurveTo(right, bottom, right - rr, bottom);
+    ctx.lineTo(left + rr, bottom);
+    ctx.quadraticCurveTo(left, bottom, left, bottom - rr);
+    ctx.lineTo(left, top + rr);
+    ctx.quadraticCurveTo(left, top, left + rr, top);
+    ctx.closePath();
+    return;
+  }
+
+  ctx.rect(left, top, w, h);
+};
+
+const drawFrameOnCanvas = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  frameWidthPx: number,
+  frameColor: string,
+  frameStyle: FrameStyle,
+  frameShape: FrameShape,
+  frameRadius: number,
+) => {
+  const frame = Math.max(6, Math.min(frameWidthPx, Math.round(Math.min(width, height) * 0.08)));
+  const drawStroke = (inset: number, lineWidth: number, color: string, dashed = false) => {
+    ctx.save();
+    buildFramePath(ctx, width, height, inset, frameShape, frameRadius);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = lineWidth;
+    if (dashed) ctx.setLineDash([Math.max(6, lineWidth * 1.5), Math.max(4, lineWidth * 0.9)]);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  switch (frameStyle) {
+    case "double": {
+      drawStroke(frame / 2, frame, frameColor);
+      drawStroke(frame * 1.6, Math.max(2, Math.round(frame * 0.45)), "rgba(255,255,255,0.85)");
+      break;
+    }
+    case "shadow": {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.35)";
+      ctx.shadowBlur = Math.max(10, frame * 1.1);
+      drawStroke(frame / 2, frame, frameColor);
+      ctx.restore();
+      break;
+    }
+    case "neon": {
+      ctx.save();
+      ctx.shadowColor = frameColor;
+      ctx.shadowBlur = Math.max(12, frame * 1.6);
+      drawStroke(frame / 2, frame, frameColor);
+      ctx.restore();
+      break;
+    }
+    case "dashed": {
+      drawStroke(frame / 2, Math.max(3, Math.round(frame * 0.75)), frameColor, true);
+      break;
+    }
+    case "vintage": {
+      drawStroke(frame / 2, frame, frameColor);
+      drawStroke(frame * 1.15, Math.max(2, Math.round(frame * 0.22)), "rgba(70,45,20,0.35)");
+      break;
+    }
+    case "inner": {
+      drawStroke(frame * 1.35, Math.max(3, Math.round(frame * 0.5)), frameColor);
+      break;
+    }
+    case "soft": {
+      ctx.save();
+      ctx.shadowColor = "rgba(0,0,0,0.18)";
+      ctx.shadowBlur = Math.max(8, frame);
+      drawStroke(frame / 2, frame, frameColor);
+      ctx.restore();
+      break;
+    }
+    case "film": {
+      drawStroke(frame / 2, frame, "#f5f3ef");
+      drawStroke(frame * 0.75, Math.max(2, Math.round(frame * 0.35)), "#111111");
+      break;
+    }
+    case "bold": {
+      drawStroke(frame * 0.45, Math.round(frame * 1.3), frameColor);
+      break;
+    }
+    case "clean":
+    default: {
+      drawStroke(frame / 2, frame, frameColor);
+      break;
+    }
+  }
+};
+
 const ToolInner = () => {
   const navigate = useNavigate();
   // Force light mode on tool pages
@@ -133,8 +291,11 @@ const ToolInner = () => {
   const [lockImageAspect, setLockImageAspect] = useState(false);
   const [panMode, setPanMode] = useState(false);
   const [frameEnabled, setFrameEnabled] = useState(false);
-  const [frameWidthPx] = useState(22);
-  const [frameColor] = useState("#ffffff");
+  const [frameWidthPx, setFrameWidthPx] = useState(22);
+  const [frameColor, setFrameColor] = useState("#ffffff");
+  const [frameStyle, setFrameStyle] = useState<FrameStyle>("clean");
+  const [frameShape, setFrameShape] = useState<FrameShape>("rect");
+  const [frameRadius, setFrameRadius] = useState(6);
   const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
   const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
   const [customWidthCm, setCustomWidthCm] = useState("21");
@@ -841,6 +1002,11 @@ const ToolInner = () => {
         canvas.width = finalW;
         canvas.height = finalH;
         const ctx = canvas.getContext("2d")!;
+        ctx.save();
+        if (frameEnabled && frameShape !== "rect") {
+          buildFramePath(ctx, finalW, finalH, 0, frameShape, frameRadius);
+          ctx.clip();
+        }
         ctx.filter = filterStr;
         ctx.drawImage(image, 0, 0, finalW, finalH);
         ctx.filter = "none";
@@ -878,13 +1044,10 @@ const ToolInner = () => {
           ctx.putImageData(grainData, 0, 0);
         }
 
+        ctx.restore();
+
         if (frameEnabled) {
-          const frame = Math.max(6, Math.min(frameWidthPx, Math.round(Math.min(finalW, finalH) * 0.08)));
-          ctx.save();
-          ctx.strokeStyle = frameColor;
-          ctx.lineWidth = frame;
-          ctx.strokeRect(frame / 2, frame / 2, finalW - frame, finalH - frame);
-          ctx.restore();
+          drawFrameOnCanvas(ctx, finalW, finalH, frameWidthPx, frameColor, frameStyle, frameShape, frameRadius);
         }
 
         // Apply split toning on canvas
@@ -952,7 +1115,7 @@ const ToolInner = () => {
         dispatch({ type: "SET_EXPORTING", payload: false });
       }
     },
-    [resultImage, originalImage, adjustments, dispatch, frameEnabled, frameWidthPx, frameColor]
+    [resultImage, originalImage, adjustments, dispatch, frameEnabled, frameWidthPx, frameColor, frameStyle, frameShape, frameRadius]
   );
 
   const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
@@ -1083,6 +1246,12 @@ const ToolInner = () => {
         lockImageAspect,
         panMode,
         imageFitMode,
+        frameEnabled,
+        frameWidthPx,
+        frameColor,
+        frameStyle,
+        frameShape,
+        frameRadius,
         sizeUnit,
         sizeDpi,
       },
@@ -1105,6 +1274,12 @@ const ToolInner = () => {
     compareMode,
     comparisonImages,
     customPrompt,
+    frameColor,
+    frameEnabled,
+    frameRadius,
+    frameShape,
+    frameStyle,
+    frameWidthPx,
     imageFitMode,
     imageScaleXPercent,
     imageScaleYPercent,
@@ -1160,6 +1335,12 @@ const ToolInner = () => {
       if (typeof snapshot.layout.lockImageAspect === "boolean") setLockImageAspect(snapshot.layout.lockImageAspect);
       if (typeof snapshot.layout.panMode === "boolean") setPanMode(snapshot.layout.panMode);
       if (snapshot.layout.imageFitMode === "contain" || snapshot.layout.imageFitMode === "cover") setImageFitMode(snapshot.layout.imageFitMode);
+      if (typeof snapshot.layout.frameEnabled === "boolean") setFrameEnabled(snapshot.layout.frameEnabled);
+      if (typeof snapshot.layout.frameWidthPx === "number") setFrameWidthPx(snapshot.layout.frameWidthPx);
+      if (typeof snapshot.layout.frameColor === "string") setFrameColor(snapshot.layout.frameColor);
+      if (snapshot.layout.frameStyle) setFrameStyle(snapshot.layout.frameStyle as FrameStyle);
+      if (snapshot.layout.frameShape) setFrameShape(snapshot.layout.frameShape as FrameShape);
+      if (typeof snapshot.layout.frameRadius === "number") setFrameRadius(snapshot.layout.frameRadius);
       if (snapshot.layout.sizeUnit === "cm" || snapshot.layout.sizeUnit === "mm" || snapshot.layout.sizeUnit === "in" || snapshot.layout.sizeUnit === "px") setSizeUnit(snapshot.layout.sizeUnit);
       if (typeof snapshot.layout.sizeDpi === "number") setSizeDpi(snapshot.layout.sizeDpi);
     }
@@ -1618,13 +1799,29 @@ const ToolInner = () => {
                     />
                   )}
                   {activeTab === "adjust" && (
-                    <ImageAdjustmentsPanel
-                      adjustments={adjustments}
-                      onChange={(a) => dispatch({ type: "SET_ADJUSTMENTS", payload: a })}
-                      onReset={() => dispatch({ type: "RESET_ADJUSTMENTS" })}
-                      onApplyLocal={handleApplyLocal}
-                      isApplying={localApplying}
-                    />
+                    <div className="space-y-4">
+                      <ImageAdjustmentsPanel
+                        adjustments={adjustments}
+                        onChange={(a) => dispatch({ type: "SET_ADJUSTMENTS", payload: a })}
+                        onReset={() => dispatch({ type: "RESET_ADJUSTMENTS" })}
+                        onApplyLocal={handleApplyLocal}
+                        isApplying={localApplying}
+                      />
+                      <FrameStylePanel
+                        frameEnabled={frameEnabled}
+                        onToggleEnabled={setFrameEnabled}
+                        frameStyle={frameStyle}
+                        onFrameStyleChange={setFrameStyle}
+                        frameShape={frameShape}
+                        onFrameShapeChange={setFrameShape}
+                        frameWidthPx={frameWidthPx}
+                        onFrameWidthChange={setFrameWidthPx}
+                        frameRadius={frameRadius}
+                        onFrameRadiusChange={setFrameRadius}
+                        frameColor={frameColor}
+                        onFrameColorChange={setFrameColor}
+                      />
+                    </div>
                   )}
                   {activeTab === "export" && (
                     <ExportPanel
@@ -1685,9 +1882,12 @@ const ToolInner = () => {
                       <Crop className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => setFrameEnabled((v) => !v)}
+                      onClick={() => {
+                        setFrameEnabled(true);
+                        dispatch({ type: "SET_ACTIVE_TAB", payload: "adjust" });
+                      }}
                       className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background/90 shadow ${frameEnabled ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                      title={frameEnabled ? "הסר מסגרת" : "הוסף מסגרת"}
+                      title={frameEnabled ? "עריכת מסגרת" : "הוספת מסגרת"}
                     >
                       <Frame className="h-4 w-4" />
                     </button>
@@ -1724,6 +1924,9 @@ const ToolInner = () => {
                     frameEnabled={frameEnabled}
                     frameWidthPx={frameWidthPx}
                     frameColor={frameColor}
+                    frameStyle={frameStyle}
+                    frameShape={frameShape}
+                    frameRadius={frameRadius}
                     onPageWidthChange={setPageWidthPercent}
                     onPageHeightChange={setPageHeightPercent}
                     onImageScaleXChange={setImageScaleXPercent}
