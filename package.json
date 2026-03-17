@@ -55,7 +55,7 @@
     "jspdf": "2.5.2",
     "lucide-react": "^0.462.0",
     "next-themes": "^0.3.0",
-    "onnxruntime-web": "1.21.0",
+    "onnxruntime-web": "1.17.3",
     "pdfjs-dist": "4.4.168",
     "qrcode-react": "^0.1.16",
     "react": "^18.3.1",

@@ -4,8 +4,6 @@
  * Supports categories, TOC, back-cover, price-list, section dividers.
  */
 
-import { loadImage } from "./smart-image-tools";
-
 // ─── Types ───────────────────────────────────────────────────
 export interface CatalogProduct {
   id: string;
@@ -201,6 +199,16 @@ export async function loadGoogleFont(family: string): Promise<void> {
 }
 
 // ─── Helpers ─────────────────────────────────────────────────
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
 function getLogoPlacement(
   position: NonNullable<CatalogSettings["logoPosition"]>,
   pageW: number,
