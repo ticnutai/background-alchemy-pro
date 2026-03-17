@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Scissors, Sparkles, Eye, Layers, RotateCcw, CheckCircle2, Cpu, Cloud, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { removeBgPrecise, segmentProduct } from "@/lib/ai-tools";
@@ -8,6 +8,7 @@ import { Progress } from "@/components/ui/progress";
 interface SmartRemoveBgPanelProps {
   currentImage: string;
   onResult: (img: string) => void;
+  aiEnabled?: boolean;
 }
 
 type Method = "local" | "bria" | "segment";
@@ -42,13 +43,19 @@ const methods = [
   },
 ];
 
-export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemoveBgPanelProps) {
+export default function SmartRemoveBgPanel({ currentImage, onResult, aiEnabled = true }: SmartRemoveBgPanelProps) {
   const [selectedMethod, setSelectedMethod] = useState<Method>("local");
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
   const [segmentResults, setSegmentResults] = useState<any>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!aiEnabled && selectedMethod !== "local") {
+      setSelectedMethod("local");
+    }
+  }, [aiEnabled, selectedMethod]);
 
   const handleLocalRemoveBg = useCallback(async (imageBase64: string) => {
     setProgressLabel("טוען מודל ONNX לדפדפן...");
@@ -102,6 +109,10 @@ export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemo
       toast.error("אין תמונה לעיבוד");
       return;
     }
+    if (!aiEnabled && selectedMethod !== "local") {
+      toast.error("מצב AI כבוי — ניתן להשתמש רק בהסרה מקומית");
+      return;
+    }
     setProcessing(true);
     setPreviewUrl(null);
     setSegmentResults(null);
@@ -149,7 +160,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemo
     } finally {
       setProcessing(false);
     }
-  }, [currentImage, selectedMethod, onResult, handleLocalRemoveBg]);
+  }, [currentImage, selectedMethod, onResult, handleLocalRemoveBg, aiEnabled]);
 
   return (
     <div className="space-y-4 rounded-xl border-2 border-dashed border-primary/30 bg-primary/5 p-4">
@@ -178,7 +189,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemo
           <button
             key={m.id}
             onClick={() => setSelectedMethod(m.id)}
-            disabled={processing}
+            disabled={processing || (!aiEnabled && m.id !== "local")}
             className={`w-full rounded-lg border-2 p-3 text-right transition-all ${
               selectedMethod === m.id
                 ? "border-primary bg-primary/10"
@@ -216,6 +227,14 @@ export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemo
           </button>
         ))}
       </div>
+
+      {!aiEnabled && (
+        <div className="rounded-lg border border-accent/30 bg-accent/10 p-2.5">
+          <p className="font-body text-[10px] text-accent text-center leading-relaxed">
+            מצב ללא AI פעיל: שיטות ענן נעולות. ניתן לבצע רק הסרת רקע מקומית בדפדפן.
+          </p>
+        </div>
+      )}
 
       {/* Progress */}
       {processing && (

@@ -833,6 +833,7 @@ const ToolInner = () => {
                       <SmartRemoveBgPanel
                         currentImage={resultImage || originalImage}
                         onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                        aiEnabled={aiEnabled}
                       />
                       <BackgroundPresets
                         selectedId={selectedPreset}
