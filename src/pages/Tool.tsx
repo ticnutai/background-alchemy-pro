@@ -290,6 +290,8 @@ const ToolInner = () => {
   const [lockPageAspect, setLockPageAspect] = useState(false);
   const [lockImageAspect, setLockImageAspect] = useState(false);
   const [panMode, setPanMode] = useState(false);
+  const [showBeforeAfter, setShowBeforeAfter] = useState(false);
+  const [beforeAfterPos, setBeforeAfterPos] = useState(50);
   const [frameEnabled, setFrameEnabled] = useState(false);
   const [frameWidthPx, setFrameWidthPx] = useState(22);
   const [frameColor, setFrameColor] = useState("#ffffff");
@@ -1689,8 +1691,9 @@ const ToolInner = () => {
                     תצוגה מהירה
                   </button>
                 </div>
-                {/* Tab grid — 3 columns, big & clear */}
-                <div className="grid grid-cols-3 gap-px bg-border/50 border-b border-border">
+                {/* Tab grid — scrollable on mobile, fixed 3-col on desktop */}
+                <div className="overflow-x-auto scrollbar-none border-b border-border">
+                  <div className="grid grid-cols-9 min-w-[540px] gap-px bg-border/50">
                   {[
                     { key: "backgrounds" as const, label: "רקע", icon: <ImageIcon className="h-5 w-5" /> },
                     { key: "smart" as const, label: "AI", icon: <Brain className="h-5 w-5" /> },
@@ -1715,6 +1718,7 @@ const ToolInner = () => {
                       <span>{tab.label}</span>
                     </button>
                   ))}
+                  </div>
                 </div>
 
                 <div className="p-3 sm:p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
@@ -1727,7 +1731,10 @@ const ToolInner = () => {
                     <div className="space-y-6">
                       <SmartRemoveBgPanel
                         currentImage={resultImage || originalImage}
-                        onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                        onResult={(img) => {
+                          if (originalImage) dispatch({ type: "ADD_COMPARISON_IMAGE", payload: { image: originalImage, label: "לפני הסרת רקע" } });
+                          dispatch({ type: "SET_RESULT_IMAGE", payload: img });
+                        }}
                       />
                       <BackgroundPresets
                         selectedId={selectedPreset}
@@ -2090,6 +2097,82 @@ const ToolInner = () => {
                       <Sparkles className="h-4 w-4" />
                     </button>
                   </div>
+                  {/* Mobile quick-access toolbar — visible only on small screens */}
+                  <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-1 md:hidden">
+                    {[
+                      { icon: <Eye className="h-4 w-4" />, title: "תצוגה", onClick: () => setShowLayoutDialog(true) },
+                      { icon: <UploadIcon className="h-4 w-4" />, title: "תמונה חדשה", onClick: () => dispatch({ type: "RESET_IMAGE" }) },
+                      { icon: <Crop className="h-4 w-4" />, title: "חיתוך", onClick: () => dispatch({ type: "SET_ACTIVE_TAB", payload: "crop" }) },
+                      { icon: <Frame className="h-4 w-4" />, title: "מסגרת", onClick: () => { setFrameEnabled(true); dispatch({ type: "SET_ACTIVE_TAB", payload: "adjust" }); } },
+                      { icon: <LayoutGrid className="h-4 w-4" />, title: "קולאז׳", onClick: () => openWorkspaceWithSelectedImage("/collage") },
+                      { icon: <Sparkles className="h-4 w-4" />, title: "רקע", onClick: () => dispatch({ type: "SET_ACTIVE_TAB", payload: "backgrounds" }) },
+                    ].map((btn, i) => (
+                      <button
+                        key={i}
+                        onClick={btn.onClick}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-muted-foreground shadow hover:text-foreground"
+                        title={btn.title}
+                      >
+                        {btn.icon}
+                      </button>
+                    ))}
+                  </div>
+                  {showBeforeAfter && originalImage && resultImage ? (
+                    <div
+                      className="relative w-full overflow-hidden rounded-xl border border-border bg-muted select-none"
+                      style={{ aspectRatio: "4/3" }}
+                    >
+                      {/* After (full) */}
+                      <img src={resultImage} alt="אחרי" className="absolute inset-0 h-full w-full object-contain" />
+                      {/* Before (clipped to left portion) */}
+                      <div
+                        className="absolute inset-0 overflow-hidden"
+                        style={{ clipPath: `inset(0 ${100 - beforeAfterPos}% 0 0)` }}
+                      >
+                        <img src={originalImage} alt="לפני" className="h-full w-full object-contain" />
+                      </div>
+                      {/* Divider */}
+                      <div
+                        className="absolute top-0 bottom-0 z-20 w-1 cursor-ew-resize bg-white/90 shadow-lg"
+                        style={{ left: `${beforeAfterPos}%`, transform: "translateX(-50%)" }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          const el = e.currentTarget.parentElement!;
+                          const onMove = (mv: MouseEvent) => {
+                            const rect = el.getBoundingClientRect();
+                            setBeforeAfterPos(Math.min(98, Math.max(2, ((mv.clientX - rect.left) / rect.width) * 100)));
+                          };
+                          const onUp = () => {
+                            window.removeEventListener("mousemove", onMove);
+                            window.removeEventListener("mouseup", onUp);
+                          };
+                          window.addEventListener("mousemove", onMove);
+                          window.addEventListener("mouseup", onUp);
+                        }}
+                        onTouchStart={(e) => {
+                          e.preventDefault();
+                          const el = e.currentTarget.parentElement!;
+                          const onMove = (tv: TouchEvent) => {
+                            const rect = el.getBoundingClientRect();
+                            setBeforeAfterPos(Math.min(98, Math.max(2, ((tv.touches[0].clientX - rect.left) / rect.width) * 100)));
+                          };
+                          const onEnd = () => {
+                            window.removeEventListener("touchmove", onMove);
+                            window.removeEventListener("touchend", onEnd);
+                          };
+                          window.addEventListener("touchmove", onMove, { passive: false });
+                          window.addEventListener("touchend", onEnd);
+                        }}
+                      >
+                        <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-lg">
+                          <span className="text-[10px] font-bold text-muted-foreground select-none">↔</span>
+                        </div>
+                      </div>
+                      {/* Labels */}
+                      <span className="absolute bottom-2 left-3 rounded bg-black/50 px-1.5 py-0.5 text-[11px] font-bold text-white">לפני</span>
+                      <span className="absolute bottom-2 right-3 rounded bg-black/50 px-1.5 py-0.5 text-[11px] font-bold text-white">אחרי</span>
+                    </div>
+                  ) : (
                   <ImageCanvas
                     originalImage={originalImage}
                     resultImage={resultImage}
@@ -2116,6 +2199,7 @@ const ToolInner = () => {
                     onImageScaleXChange={setImageScaleXPercent}
                     onImageScaleYChange={setImageScaleYPercent}
                   />
+                  )}
                   <FloatingSaveAction
                     visible={!!originalImage && hasUnsavedChanges && !!user}
                     onSaveNew={handleFloatingSaveNew}
@@ -2221,6 +2305,17 @@ const ToolInner = () => {
                   >
                     <FlaskConical className="h-4 w-4" />
                   </button>
+
+                  {resultImage && originalImage && (
+                    <button
+                      onClick={() => { setShowBeforeAfter((v) => !v); setBeforeAfterPos(50); }}
+                      className={`flex h-9 items-center gap-1 rounded-lg border px-2 text-xs font-bold transition-all ${showBeforeAfter ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                      title="לפני / אחרי"
+                    >
+                      <GitCompare className="h-3.5 w-3.5" />
+                      לפני/אחרי
+                    </button>
+                  )}
 
                   {resultImage && (
                     <>

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Slider } from "@/components/ui/slider";
-import { Frame, Palette, Radius, Shapes, BookmarkPlus, Trash2, Upload, Download, RotateCcw } from "lucide-react";
+import { Frame, Palette, Radius, Shapes, BookmarkPlus, Trash2, Upload, Download, RotateCcw, Search, ArrowUpDown } from "lucide-react";
 
 export type FrameStyle =
   | "clean"
@@ -99,6 +99,9 @@ export default function FrameStylePanel({
 }: FrameStylePanelProps) {
   const [presetName, setPresetName] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<"all" | FramePresetCategory>("all");
+  const [proSearch, setProSearch] = useState("");
+  const [savedSearch, setSavedSearch] = useState("");
+  const [savedSortBy, setSavedSortBy] = useState<"default" | "name">("default");
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const categoryLabels: Record<FramePresetCategory | "all", string> = {
@@ -118,13 +121,16 @@ export default function FrameStylePanel({
     return Array.from(set);
   }, [professionalPresets]);
 
-  const visibleProfessionalPresets = useMemo(
-    () =>
-      selectedCategory === "all"
-        ? professionalPresets
-        : professionalPresets.filter((preset) => (preset.category ?? "catalog") === selectedCategory),
-    [professionalPresets, selectedCategory],
-  );
+  const visibleProfessionalPresets = useMemo(() => {
+    let list = selectedCategory === "all"
+      ? professionalPresets
+      : professionalPresets.filter((p) => (p.category ?? "catalog") === selectedCategory);
+    if (proSearch.trim()) {
+      const q = proSearch.trim().toLowerCase();
+      list = list.filter((p) => p.name.toLowerCase().includes(q));
+    }
+    return list;
+  }, [professionalPresets, selectedCategory, proSearch]);
 
   const frameRadiusCss = frameShape === "pill" ? "9999px" : frameShape === "circle" ? "50%" : `${frameRadius}%`;
   const shapePreviewClip = useMemo(() => {
@@ -201,6 +207,15 @@ export default function FrameStylePanel({
               </button>
             ))}
           </div>
+        </div>
+        <div className="relative">
+          <Search className="absolute right-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            value={proSearch}
+            onChange={(e) => setProSearch(e.target.value)}
+            placeholder="חיפוש פריסט..."
+            className="h-8 w-full rounded-md border border-border bg-background pr-8 pl-2 text-xs"
+          />
         </div>
         <div className="grid grid-cols-2 gap-2">
           {visibleProfessionalPresets.map((preset) => (
@@ -373,8 +388,30 @@ export default function FrameStylePanel({
               e.currentTarget.value = "";
             }}
           />
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute right-2 top-2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                value={savedSearch}
+                onChange={(e) => setSavedSearch(e.target.value)}
+                placeholder="חיפוש..."
+                className="h-7 w-full rounded border border-border bg-background pr-7 pl-2 text-[11px]"
+              />
+            </div>
+            <button
+              onClick={() => setSavedSortBy((v) => v === "default" ? "name" : "default")}
+              className={`inline-flex h-7 items-center gap-1 rounded border px-2 text-[11px] font-semibold ${savedSortBy === "name" ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+              title={savedSortBy === "name" ? "מיון: שם" : "מיון: ברירת מחדל"}
+            >
+              <ArrowUpDown className="h-3 w-3" />
+              {savedSortBy === "name" ? "שם" : "מיון"}
+            </button>
+          </div>
           <div className="space-y-1.5">
-            {savedPresets.map((preset) => (
+            {(savedSortBy === "name"
+              ? [...savedPresets].sort((a, b) => a.name.localeCompare(b.name, "he"))
+              : savedPresets
+            ).filter((p) => !savedSearch.trim() || p.name.toLowerCase().includes(savedSearch.trim().toLowerCase())).map((preset) => (
               <div key={preset.id} className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
                 <button
                   onClick={() => {
