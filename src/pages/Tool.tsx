@@ -1406,55 +1406,55 @@ const ToolInner = () => {
         <DevSettingsDialog open={showDevSettings} onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "devSettings", value: false } })} />
 
         {/* Save to Gallery Dialog */}
-        {showSaveDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm" dir="rtl">
-            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+        <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+          <DialogContent className="max-w-md border-border" dir="rtl">
+            <DialogHeader>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                   <Save className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-display text-sm font-bold text-foreground">שמירה לגלריה</h3>
+                  <DialogTitle className="font-display text-sm font-bold text-foreground">שמירה לגלריה</DialogTitle>
                   <p className="font-body text-xs text-muted-foreground">בחר שם לתמונה ואופן שמירה</p>
                 </div>
               </div>
+            </DialogHeader>
 
-              <input
-                value={saveNewName}
-                onChange={e => setSaveNewName(e.target.value)}
-                placeholder="שם התמונה..."
-                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                dir="rtl"
-                autoFocus
-              />
+            <input
+              value={saveNewName}
+              onChange={e => setSaveNewName(e.target.value)}
+              placeholder="שם התמונה..."
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              dir="rtl"
+              autoFocus
+            />
 
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowSaveDialog(false)}
+                className="rounded-lg border border-border px-4 py-2.5 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+              >
+                ביטול
+              </button>
+              {searchParams.get("editImage") && (
                 <button
-                  onClick={() => setShowSaveDialog(false)}
-                  className="rounded-lg border border-border px-4 py-2.5 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-                >
-                  ביטול
-                </button>
-                {searchParams.get("editImage") && (
-                  <button
-                    onClick={() => handleSaveToGallery("replace")}
-                    disabled={isSaving}
-                    className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
-                  >
-                    {isSaving ? "שומר..." : "🔄 החלף ושמור"}
-                  </button>
-                )}
-                <button
-                  onClick={() => handleSaveToGallery("new")}
+                  onClick={() => handleSaveToGallery("replace")}
                   disabled={isSaving}
-                  className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+                  className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
                 >
-                  {isSaving ? "שומר..." : "🧬 שכפל ושמור"}
+                  {isSaving ? "שומר..." : "החלף ושמור"}
                 </button>
-              </div>
+              )}
+              <button
+                onClick={() => handleSaveToGallery("new")}
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {isSaving ? "שומר..." : "שכפל ושמור"}
+              </button>
             </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Comparison Gallery */}
         {showComparison && (
