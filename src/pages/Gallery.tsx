@@ -6,7 +6,7 @@ import {
   Sparkles, FolderPlus, Folder, Heart, Trash2, Download, ZoomIn, X, ArrowRight,
   ChevronLeft, ChevronRight, Maximize2, Minimize2, LogIn, Search, SlidersHorizontal,
   Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil, ChevronDown, Copy,
-  FolderInput, LayoutGrid, BookOpen, Info,
+  FolderInput, LayoutGrid, BookOpen, Info, Clock, LogOut, ImageIcon,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageHoverMenu from "@/components/ImageHoverMenu";
@@ -69,7 +69,6 @@ async function downloadImage(url: string, filename: string, format: string = "pn
       const pdfBlob = await generateSimplePDF(dataUrl, canvas.width, canvas.height);
       triggerDownload(pdfBlob, `${baseName}.pdf`);
     } else if (format === "tiff") {
-      // Generate uncompressed TIFF from canvas pixel data
       const tiffBlob = generateTIFF(canvas);
       triggerDownload(tiffBlob, `${baseName}.tiff`);
     } else {
@@ -91,7 +90,6 @@ async function downloadImage(url: string, filename: string, format: string = "pn
   }
 }
 
-
 type ViewMode = "grid" | "single" | "sideBySide";
 
 interface ImageMeta { width: number; height: number; sizeKB: number | null }
@@ -108,7 +106,6 @@ const ImageInfoBadge = ({ url }: { url: string }) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
-      // Try to get file size
       fetch(url, { method: "HEAD" }).then(r => {
         const cl = r.headers.get("content-length");
         setMeta({ width: img.naturalWidth, height: img.naturalHeight, sizeKB: cl ? Math.round(parseInt(cl) / 1024) : null });
@@ -132,22 +129,22 @@ const ImageInfoBadge = ({ url }: { url: string }) => {
         onMouseEnter={loadMeta}
         onMouseLeave={() => setShow(false)}
         onClick={e => { e.stopPropagation(); loadMeta(); }}
-        className="rounded-full p-0.5 text-muted-foreground/60 hover:text-muted-foreground transition-colors"
+        className="rounded-full p-0.5 text-muted-foreground/60 hover:text-primary transition-colors"
       >
         <Info className="h-3 w-3" />
       </button>
       {show && meta && (
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 whitespace-nowrap rounded-lg bg-foreground text-card px-2.5 py-1.5 text-[10px] font-accent shadow-lg animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-30 whitespace-nowrap rounded-lg bg-primary text-primary-foreground px-2.5 py-1.5 text-[10px] font-accent shadow-lg animate-in fade-in zoom-in-95 duration-150">
           <div className="flex items-center gap-2">
             <span>{meta.width}×{meta.height}</span>
-            <span className="w-px h-3 bg-card/30" />
+            <span className="w-px h-3 bg-primary-foreground/30" />
             <span>איכות: {quality}</span>
             {meta.sizeKB && <>
-              <span className="w-px h-3 bg-card/30" />
+              <span className="w-px h-3 bg-primary-foreground/30" />
               <span>{meta.sizeKB > 1024 ? `${(meta.sizeKB / 1024).toFixed(1)} MB` : `${meta.sizeKB} KB`}</span>
             </>}
           </div>
-          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-foreground rotate-45 -mt-1" />
+          <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-primary rotate-45 -mt-1" />
         </div>
       )}
     </div>
@@ -183,7 +180,6 @@ const Gallery = () => {
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [showOriginal, setShowOriginal] = useState(false);
 
-  // New: view mode, adjustments, side-by-side
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [adjustments, setAdjustments] = useState<ImageAdjustments>(defaultAdjustments);
   const [showAdjustments, setShowAdjustments] = useState(false);
@@ -251,9 +247,7 @@ const Gallery = () => {
     if (zoomedItem?.id === item.id) setZoomedItem({ ...item, is_favorite: newVal });
   };
 
-  const confirmDeleteItem = (id: string) => {
-    setDeleteConfirmId(id);
-  };
+  const confirmDeleteItem = (id: string) => setDeleteConfirmId(id);
 
   const deleteItem = async (id: string) => {
     await supabase.from("processing_history").delete().eq("id", id);
@@ -283,10 +277,10 @@ const Gallery = () => {
     } else if (data) {
       setItems(prev => [data as HistoryItem, ...prev]);
       if (openInEditor) {
-        toast.success("העותק נוצר! פותח בעורך... ✨");
+        toast.success("העותק נוצר! פותח בעורך...");
         navigate(`/tool?editImage=${encodeURIComponent(item.result_image_url)}`);
       } else {
-        toast.success("התמונה שוכפלה! ערוך את העותק בלי לפגוע במקור ✨");
+        toast.success("התמונה שוכפלה!");
       }
     }
   };
@@ -316,6 +310,16 @@ const Gallery = () => {
     setPanPos({ x: e.clientX - panStart.x, y: e.clientY - panStart.y });
   };
 
+  const closeZoom = useCallback(() => {
+    setZoomedItem(null);
+    setZoomLevel(1);
+    setPanPos({ x: 0, y: 0 });
+    setShowOriginal(false);
+    setAdjustments(defaultAdjustments);
+    setShowAdjustments(false);
+    setShowDownloadMenu(null);
+  }, []);
+
   // Keyboard navigation in zoom modal
   useEffect(() => {
     if (!zoomedItem) return;
@@ -327,10 +331,6 @@ const Gallery = () => {
       } else if (e.key === "ArrowRight" && idx > 0) {
         setZoomedItem(filtered[idx - 1]);
         setAdjustments(defaultAdjustments);
-      } else if (e.key === "Escape") {
-        setZoomedItem(null);
-        setZoomLevel(1);
-        setPanPos({ x: 0, y: 0 });
       }
     };
     window.addEventListener("keydown", handler);
@@ -362,10 +362,13 @@ const Gallery = () => {
   if (!user) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center" dir="rtl">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-4 p-8">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 border border-border">
+            <ImageIcon className="h-8 w-8 text-primary" />
+          </div>
           <h2 className="font-display text-2xl font-bold text-foreground">גלריית תמונות</h2>
           <p className="font-body text-muted-foreground">התחבר כדי לראות את התמונות שלך</p>
-          <Link to="/auth" className="inline-flex items-center gap-2 rounded-lg bg-gold px-6 py-3 font-display text-sm font-semibold text-gold-foreground">
+          <Link to="/auth" className="inline-flex items-center gap-2 rounded-xl bg-primary px-6 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110">
             <LogIn className="h-4 w-4" /> התחבר
           </Link>
         </div>
@@ -378,60 +381,83 @@ const Gallery = () => {
 
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
-      {/* Header */}
-      <header className="border-b border-border bg-card">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
+      {/* ─── Header ─── */}
+      <header className="border-b border-border bg-card sticky top-0 z-30">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3">
+          {/* Left: Logo + Title */}
           <div className="flex items-center gap-3">
             <Link to="/" className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
               <Sparkles className="h-5 w-5 text-primary-foreground" />
             </Link>
-            <h1 className="font-display text-xl font-bold text-foreground">גלריית תמונות</h1>
-            <span className="rounded-full bg-gold/10 px-2.5 py-0.5 font-accent text-xs text-gold">{items.length} תמונות</span>
+            <div className="flex items-center gap-2">
+              <h1 className="font-display text-lg font-bold text-foreground">הגלריה שלי</h1>
+              <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-accent text-xs font-semibold text-primary">{items.length}</span>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
+
+          {/* Center: Nav tabs */}
+          <div className="hidden sm:flex items-center gap-1 rounded-full border border-border bg-secondary/50 p-1">
+            <Link to="/tool" className="flex items-center gap-1.5 rounded-full px-4 py-1.5 font-body text-xs font-semibold text-muted-foreground hover:bg-background hover:text-foreground transition-all">
+              <Wand2 className="h-3.5 w-3.5" /> עריכה
+            </Link>
+            <Link to="/collage" className="flex items-center gap-1.5 rounded-full px-4 py-1.5 font-body text-xs font-semibold text-muted-foreground hover:bg-background hover:text-foreground transition-all">
+              <LayoutGrid className="h-3.5 w-3.5" /> קולאז׳
+            </Link>
+            <Link to="/catalog" className="flex items-center gap-1.5 rounded-full px-4 py-1.5 font-body text-xs font-semibold text-muted-foreground hover:bg-background hover:text-foreground transition-all">
+              <BookOpen className="h-3.5 w-3.5" /> קטלוג
+            </Link>
+            <div className="rounded-full bg-primary px-4 py-1.5 font-body text-xs font-semibold text-primary-foreground">
+              <span className="flex items-center gap-1.5"><ImageIcon className="h-3.5 w-3.5" /> גלריה</span>
+            </div>
+          </div>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2">
             {/* View mode toggle */}
             <div className="flex rounded-lg border border-border overflow-hidden">
               <button
                 onClick={() => setViewMode("grid")}
-                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-gold text-gold-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                className={`p-2 transition-colors ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
                 title="תצוגת רשת"
               >
                 <Grid className="h-4 w-4" />
               </button>
               <button
                 onClick={() => setViewMode("sideBySide")}
-                className={`p-2 transition-colors ${viewMode === "sideBySide" ? "bg-gold text-gold-foreground" : "text-muted-foreground hover:text-foreground"}`}
-                title="תצוגה זו ליד זו"
+                className={`p-2 transition-colors ${viewMode === "sideBySide" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+                title="השוואה"
               >
                 <Columns2 className="h-4 w-4" />
               </button>
             </div>
-            <Link to="/" className="flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 font-accent text-xs font-semibold text-foreground transition-colors hover:border-gold/40">
-              <Home className="h-3.5 w-3.5" /> <span className="hidden sm:inline">דף הבית</span>
+            <Link to="/" className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors" title="דף הבית">
+              <Home className="h-4 w-4" />
             </Link>
-            <Link to="/tool" className="flex items-center gap-2 rounded-full bg-accent px-4 py-2 font-accent text-xs font-semibold text-accent-foreground transition-all hover:brightness-110">
-              <Sparkles className="h-3.5 w-3.5" /> <span className="hidden sm:inline">לכלי העריכה</span>
-            </Link>
-            <button
-              onClick={() => navigate(-1)}
-              className="flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition-colors hover:text-foreground hover:border-gold/40"
-              title="חזור"
-            >
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            {user && (
+              <button
+                onClick={async () => { await supabase.auth.signOut(); toast.success("התנתקת"); }}
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-primary hover:border-primary/30 transition-colors"
+                title="התנתק"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
       <main className="mx-auto max-w-7xl px-4 sm:px-6 py-6">
         <div className="flex flex-col md:flex-row gap-4 md:gap-6">
-          {/* Sidebar - Folders */}
+          {/* ─── Sidebar ─── */}
           <div className="w-full md:w-56 shrink-0 space-y-3">
+            {/* Folders */}
             <div className="rounded-xl border border-border bg-card p-4 space-y-3">
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-sm font-bold text-foreground">תיקיות</h3>
-                <button onClick={() => setShowNewFolder(!showNewFolder)} className="rounded-md p-1 hover:bg-secondary transition-colors">
-                  <FolderPlus className="h-4 w-4 text-muted-foreground" />
+                <h3 className="font-display text-sm font-bold text-foreground flex items-center gap-1.5">
+                  <Folder className="h-4 w-4 text-primary" /> תיקיות
+                </h3>
+                <button onClick={() => setShowNewFolder(!showNewFolder)} className="rounded-lg p-1.5 hover:bg-secondary transition-colors text-primary">
+                  <FolderPlus className="h-4 w-4" />
                 </button>
               </div>
 
@@ -442,9 +468,9 @@ const Gallery = () => {
                     onChange={e => setNewFolderName(e.target.value)}
                     onKeyDown={e => e.key === "Enter" && createFolder()}
                     placeholder="שם התיקייה..."
-                    className="flex-1 rounded-md border border-border bg-background px-2 py-1.5 font-body text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold"
+                    className="flex-1 rounded-lg border border-border bg-background px-3 py-2 font-body text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
                   />
-                  <button onClick={createFolder} className="rounded-md bg-gold px-2 py-1.5 font-accent text-xs text-gold-foreground">צור</button>
+                  <button onClick={createFolder} className="rounded-lg bg-primary px-3 py-2 font-accent text-xs font-semibold text-primary-foreground">צור</button>
                 </div>
               )}
 
@@ -453,12 +479,13 @@ const Gallery = () => {
                 onDragOver={e => { e.preventDefault(); setDragOverFolderId("__all__"); }}
                 onDragLeave={() => setDragOverFolderId(null)}
                 onDrop={e => { e.preventDefault(); setDragOverFolderId(null); if (draggedItemId) { moveToFolder(draggedItemId, null); setDraggedItemId(null); } }}
-                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 font-accent text-xs transition-colors ${
-                  dragOverFolderId === "__all__" ? "bg-gold/20 border-2 border-dashed border-gold" :
-                  !activeFolder ? "bg-gold/10 text-gold font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                className={`flex w-full items-center gap-2 rounded-lg px-3 py-2.5 font-accent text-xs transition-all ${
+                  dragOverFolderId === "__all__" ? "bg-primary/10 border-2 border-dashed border-primary" :
+                  !activeFolder ? "bg-primary/10 text-primary font-bold border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                 }`}
               >
-                <Folder className="h-3.5 w-3.5" /> הכל ({items.length})
+                <Folder className="h-4 w-4" /> הכל
+                <span className="mr-auto rounded-full bg-secondary px-2 py-0.5 text-[10px] font-semibold">{items.length}</span>
               </button>
 
               {folders.map(folder => {
@@ -470,20 +497,20 @@ const Gallery = () => {
                       onDragOver={e => { e.preventDefault(); setDragOverFolderId(folder.id); }}
                       onDragLeave={() => setDragOverFolderId(null)}
                       onDrop={e => { e.preventDefault(); setDragOverFolderId(null); if (draggedItemId) { moveToFolder(draggedItemId, folder.id); setDraggedItemId(null); } }}
-                      className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2 font-accent text-xs transition-colors ${
-                        dragOverFolderId === folder.id ? "bg-gold/20 border-2 border-dashed border-gold" :
-                        activeFolder === folder.id ? "bg-gold/10 text-gold font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                      className={`flex flex-1 items-center gap-2 rounded-lg px-3 py-2.5 font-accent text-xs transition-all ${
+                        dragOverFolderId === folder.id ? "bg-primary/10 border-2 border-dashed border-primary" :
+                        activeFolder === folder.id ? "bg-primary/10 text-primary font-bold border border-primary/20" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                       }`}
                     >
-                      <Folder className="h-3.5 w-3.5" style={{ color: folder.color }} />
+                      <Folder className="h-4 w-4" style={{ color: folder.color || 'hsl(var(--primary))' }} />
                       <span className="truncate">{folder.name}</span>
-                      <span className="mr-auto text-muted-foreground">({count})</span>
+                      <span className="mr-auto rounded-full bg-secondary px-2 py-0.5 text-[10px]">{count}</span>
                     </button>
                     <button
                       onClick={() => deleteFolder(folder.id)}
-                      className="rounded p-1 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 transition-all"
+                      className="rounded-lg p-1.5 opacity-0 group-hover:opacity-100 hover:bg-destructive/10 transition-all"
                     >
-                      <Trash2 className="h-3 w-3 text-destructive" />
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
                     </button>
                   </div>
                 );
@@ -491,57 +518,63 @@ const Gallery = () => {
             </div>
 
             {/* Filters */}
-            <div className="rounded-xl border border-border bg-card p-4 space-y-2">
-              <h3 className="font-display text-sm font-bold text-foreground">סינון</h3>
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <h3 className="font-display text-sm font-bold text-foreground flex items-center gap-1.5">
+                <SlidersHorizontal className="h-4 w-4 text-primary" /> סינון
+              </h3>
               <div className="flex rounded-lg border border-border overflow-hidden">
                 <button
                   onClick={() => setFilter("all")}
-                  className={`flex-1 px-3 py-1.5 font-accent text-xs transition-colors ${
-                    filter === "all" ? "bg-gold text-gold-foreground" : "text-muted-foreground hover:text-foreground"
+                  className={`flex-1 px-3 py-2 font-accent text-xs font-semibold transition-colors ${
+                    filter === "all" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   }`}
                 >הכל</button>
                 <button
                   onClick={() => setFilter("favorites")}
-                  className={`flex-1 px-3 py-1.5 font-accent text-xs transition-colors ${
-                    filter === "favorites" ? "bg-gold text-gold-foreground" : "text-muted-foreground hover:text-foreground"
+                  className={`flex-1 px-3 py-2 font-accent text-xs font-semibold transition-colors flex items-center justify-center gap-1 ${
+                    filter === "favorites" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"
                   }`}
-                >⭐ מועדפים</button>
+                >
+                  <Heart className="h-3 w-3" /> מועדפים
+                </button>
               </div>
 
               <div className="relative">
-                <Search className="absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <input
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="חפש לפי שם..."
-                  className="w-full rounded-md border border-border bg-background py-1.5 pr-8 pl-2 font-body text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-gold"
+                  className="w-full rounded-lg border border-border bg-background py-2.5 pr-9 pl-3 font-body text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
                 />
               </div>
 
               <button
                 onClick={() => { setCompareMode(!compareMode); setCompareItems([]); }}
-                className={`w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2 font-accent text-xs transition-colors ${
-                  compareMode ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"
+                className={`w-full flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 font-accent text-xs font-semibold transition-all ${
+                  compareMode ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-primary hover:border-primary/30"
                 }`}
               >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
+                <Eye className="h-4 w-4" />
                 {compareMode ? "ביטול השוואה" : "מצב השוואה"}
               </button>
             </div>
           </div>
 
-          {/* Main content area */}
+          {/* ─── Main Content ─── */}
           <div className="flex-1">
             {/* Compare strip */}
             {compareMode && compareItems.length > 0 && (
               <div className="mb-4 rounded-xl border border-primary/30 bg-primary/5 p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="font-display text-sm font-bold text-foreground">השוואה ({compareItems.length}/4)</span>
+                  <span className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+                    <Eye className="h-4 w-4 text-primary" /> השוואה ({compareItems.length}/4)
+                  </span>
                   <div className="flex items-center gap-2">
                     {compareItems.length >= 2 && (
                       <button
                         onClick={() => setShowCompareView(true)}
-                        className="rounded-lg bg-gold px-4 py-1.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110"
+                        className="rounded-lg bg-primary px-4 py-2 font-display text-xs font-semibold text-primary-foreground transition-all hover:brightness-110"
                       >
                         צור השוואה
                       </button>
@@ -555,11 +588,11 @@ const Gallery = () => {
                       <img src={item.result_image_url} alt="" className="h-full w-full object-cover" />
                       <button
                         onClick={() => toggleCompareItem(item)}
-                        className="absolute top-1 right-1 rounded-full bg-foreground/60 p-1 text-card opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
+                        className="absolute top-1.5 right-1.5 rounded-full bg-card/80 p-1 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
                       >
                         <X className="h-3 w-3" />
                       </button>
-                      <p className="absolute bottom-1 left-1 right-1 rounded bg-foreground/70 px-1.5 py-0.5 font-accent text-[10px] text-card truncate text-center">
+                      <p className="absolute bottom-0 inset-x-0 bg-card/90 px-2 py-1 font-accent text-[10px] text-foreground truncate text-center border-t border-border">
                         {item.background_name || "רקע מותאם"}
                       </p>
                     </div>
@@ -570,20 +603,20 @@ const Gallery = () => {
 
             {/* Side-by-side instructions */}
             {viewMode === "sideBySide" && !pinnedItem && (
-              <div className="mb-4 rounded-xl border border-gold/30 bg-gold/5 p-4 text-center">
-                <Pin className="h-5 w-5 text-gold mx-auto mb-2" />
+              <div className="mb-4 rounded-xl border border-border bg-card p-6 text-center">
+                <Pin className="h-6 w-6 text-primary mx-auto mb-2" />
                 <p className="font-display text-sm font-bold text-foreground">בחר תמונה לנעוץ</p>
-                <p className="font-body text-xs text-muted-foreground">לחץ על 📌 כדי לנעוץ תמונה בצד שמאל, ואז השתמש בחיצים כדי להחליף רקעים בצד ימין</p>
+                <p className="font-body text-xs text-muted-foreground mt-1">לחץ על סמל הנעיצה כדי לנעוץ תמונה בצד, ואז השתמש בחיצים כדי להחליף</p>
               </div>
             )}
 
             {/* Side-by-side view */}
             {viewMode === "sideBySide" && pinnedItem && (
               <div className="mb-6 rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
                   <div className="flex items-center gap-2">
-                    <Pin className="h-4 w-4 text-gold" />
-                    <span className="font-display text-sm font-bold text-foreground">השוואה זו ליד זו</span>
+                    <Pin className="h-4 w-4 text-primary" />
+                    <span className="font-display text-sm font-bold text-foreground">השוואה צד-ליד-צד</span>
                     <span className="font-accent text-xs text-muted-foreground">
                       (חיצים ← → להחלפה)
                     </span>
@@ -592,7 +625,7 @@ const Gallery = () => {
                     <span className="font-accent text-xs text-muted-foreground">
                       {sideBySideOthers.length > 0 ? `${sideBySideIndex + 1}/${sideBySideOthers.length}` : ""}
                     </span>
-                    <button onClick={() => { setPinnedItem(null); setSideBySideIndex(0); }} className="rounded-md p-1 hover:bg-secondary transition-colors">
+                    <button onClick={() => { setPinnedItem(null); setSideBySideIndex(0); }} className="rounded-lg p-1.5 hover:bg-secondary transition-colors">
                       <X className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </div>
@@ -600,53 +633,52 @@ const Gallery = () => {
                 <div className="flex">
                   {/* Pinned (left) */}
                   <div className="flex-1 border-l border-border p-3">
-                    <div className="aspect-square rounded-lg overflow-hidden bg-secondary mb-2">
+                    <div className="aspect-square rounded-lg overflow-hidden bg-secondary/30 mb-2">
                       <img src={pinnedItem.result_image_url} alt="" className="h-full w-full object-cover" />
                     </div>
                     <div className="flex items-center gap-2">
-                      <Pin className="h-3 w-3 text-gold shrink-0" />
+                      <Pin className="h-3.5 w-3.5 text-primary shrink-0" />
                       <p className="font-display text-xs font-semibold text-foreground truncate">{pinnedItem.background_name || "נעוץ"}</p>
                     </div>
                   </div>
 
-                  {/* Comparison (right) with arrows */}
+                  {/* Comparison (right) */}
                   <div className="flex-1 p-3 relative">
                     {sideBySideCurrent ? (
                       <>
-                        <div className="aspect-square rounded-lg overflow-hidden bg-secondary mb-2 relative">
+                        <div className="aspect-square rounded-lg overflow-hidden bg-secondary/30 mb-2 relative">
                           <img src={sideBySideCurrent.result_image_url} alt="" className="h-full w-full object-cover" />
-                          {/* Navigation arrows */}
                           {sideBySideIndex > 0 && (
                             <button
                               onClick={() => setSideBySideIndex(prev => prev - 1)}
-                              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 shadow-md hover:bg-primary transition-colors"
+                              className="absolute right-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 border border-border shadow-md hover:bg-primary hover:text-primary-foreground transition-colors"
                             >
-                              <ChevronRight className="h-4 w-4 text-foreground" />
+                              <ChevronRight className="h-4 w-4" />
                             </button>
                           )}
                           {sideBySideIndex < sideBySideOthers.length - 1 && (
                             <button
                               onClick={() => setSideBySideIndex(prev => prev + 1)}
-                              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 shadow-md hover:bg-primary transition-colors"
+                              className="absolute left-2 top-1/2 -translate-y-1/2 flex h-8 w-8 items-center justify-center rounded-full bg-card/90 border border-border shadow-md hover:bg-primary hover:text-primary-foreground transition-colors"
                             >
-                              <ChevronLeft className="h-4 w-4 text-foreground" />
+                              <ChevronLeft className="h-4 w-4" />
                             </button>
                           )}
                         </div>
                         <div className="flex items-center justify-between">
                           <p className="font-display text-xs font-semibold text-foreground truncate">{sideBySideCurrent.background_name || "רקע מותאם"}</p>
                           <div className="flex gap-1">
-                            <button onClick={() => toggleFavorite(sideBySideCurrent)} className="rounded p-1 hover:bg-secondary transition-colors">
-                              <Heart className={`h-3.5 w-3.5 ${sideBySideCurrent.is_favorite ? "fill-gold text-gold" : "text-muted-foreground"}`} />
+                            <button onClick={() => toggleFavorite(sideBySideCurrent)} className="rounded-lg p-1.5 hover:bg-secondary transition-colors">
+                              <Heart className={`h-3.5 w-3.5 ${sideBySideCurrent.is_favorite ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                             </button>
-                            <button onClick={() => { setPinnedItem(sideBySideCurrent); setSideBySideIndex(0); }} className="rounded p-1 hover:bg-secondary transition-colors" title="נעץ תמונה זו">
+                            <button onClick={() => { setPinnedItem(sideBySideCurrent); setSideBySideIndex(0); }} className="rounded-lg p-1.5 hover:bg-secondary transition-colors" title="נעץ תמונה זו">
                               <Pin className="h-3.5 w-3.5 text-muted-foreground" />
                             </button>
                           </div>
                         </div>
                       </>
                     ) : (
-                      <div className="aspect-square rounded-lg bg-secondary flex items-center justify-center">
+                      <div className="aspect-square rounded-lg bg-secondary/30 flex items-center justify-center">
                         <p className="font-body text-xs text-muted-foreground">אין עוד תמונות להשוואה</p>
                       </div>
                     )}
@@ -655,13 +687,13 @@ const Gallery = () => {
 
                 {/* Thumbnails strip */}
                 {sideBySideOthers.length > 0 && (
-                  <div className="flex gap-1.5 px-3 pb-3 overflow-x-auto">
+                  <div className="flex gap-1.5 px-3 pb-3 overflow-x-auto border-t border-border pt-3">
                     {sideBySideOthers.map((item, idx) => (
                       <button
                         key={item.id}
                         onClick={() => setSideBySideIndex(idx)}
-                        className={`shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-all ${
-                          idx === sideBySideIndex ? "border-gold" : "border-transparent hover:border-border"
+                        className={`shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 transition-all ${
+                          idx === sideBySideIndex ? "border-primary ring-1 ring-primary/30" : "border-transparent hover:border-border"
                         }`}
                       >
                         <img src={item.result_image_url} alt="" className="h-full w-full object-cover" />
@@ -674,13 +706,17 @@ const Gallery = () => {
 
             {loading ? (
               <div className="flex items-center justify-center py-20">
-                <div className="h-8 w-8 animate-spin rounded-full border-2 border-gold border-t-transparent" />
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
             ) : filtered.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="font-body text-sm text-muted-foreground">
-                  {activeFolder ? "אין תמונות בתיקייה הזו" : "אין תמונות עדיין — לך לכלי העריכה!"}
+              <div className="text-center py-20 space-y-3">
+                <ImageIcon className="h-12 w-12 text-muted-foreground/30 mx-auto" />
+                <p className="font-display text-sm font-bold text-foreground">
+                  {activeFolder ? "אין תמונות בתיקייה הזו" : "אין תמונות עדיין"}
                 </p>
+                <Link to="/tool" className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 font-accent text-xs font-semibold text-primary-foreground">
+                  <Wand2 className="h-3.5 w-3.5" /> לכלי העריכה
+                </Link>
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -698,8 +734,8 @@ const Gallery = () => {
                       compareMode && compareItems.find(c => c.id === item.id)
                         ? "border-primary ring-2 ring-primary/30"
                         : pinnedItem?.id === item.id
-                        ? "border-gold ring-2 ring-gold/30"
-                        : "border-border hover:border-gold/40"
+                        ? "border-primary ring-2 ring-primary/20"
+                        : "border-border hover:border-primary/30"
                     }`}
                     actions={{
                       onFavorite: () => toggleFavorite(item),
@@ -726,11 +762,14 @@ const Gallery = () => {
                       <div className="aspect-square overflow-hidden rounded-t-xl">
                         <img src={item.result_image_url} alt={item.background_name || ""} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" draggable={false} />
                       </div>
-                      <div className="p-2.5">
-                        <p className="font-display text-xs font-semibold text-foreground truncate">{item.background_name || "רקע מותאם"}</p>
-                        <div className="flex items-center justify-between">
+                      <div className="p-3 border-t border-border/50">
+                        <p className="font-display text-xs font-bold text-foreground truncate">{item.background_name || "רקע מותאם"}</p>
+                        <div className="flex items-center justify-between mt-1">
                           <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
-                          <ImageInfoBadge url={item.result_image_url} />
+                          <div className="flex items-center gap-1">
+                            {item.is_favorite && <Heart className="h-3 w-3 fill-primary text-primary" />}
+                            <ImageInfoBadge url={item.result_image_url} />
+                          </div>
                         </div>
                       </div>
 
@@ -739,13 +778,9 @@ const Gallery = () => {
                         <GripVertical className="h-4 w-4 text-muted-foreground" />
                       </div>
 
-                      {item.is_favorite && (
-                        <div className="absolute top-2 left-2"><span className="text-xs">⭐</span></div>
-                      )}
-
                       {compareMode && compareItems.find(c => c.id === item.id) && (
-                        <div className="absolute inset-0 bg-primary/10 flex items-center justify-center pointer-events-none">
-                          <div className="rounded-full bg-primary text-primary-foreground w-6 h-6 flex items-center justify-center font-accent text-xs font-bold">
+                        <div className="absolute inset-0 bg-primary/10 flex items-center justify-center pointer-events-none rounded-xl">
+                          <div className="rounded-full bg-primary text-primary-foreground w-7 h-7 flex items-center justify-center font-accent text-xs font-bold">
                             {compareItems.findIndex(c => c.id === item.id) + 1}
                           </div>
                         </div>
@@ -759,37 +794,33 @@ const Gallery = () => {
         </div>
       </main>
 
-      {/* Full Compare View Modal */}
-      {showCompareView && compareItems.length >= 2 && (
-        <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex flex-col" onClick={() => setShowCompareView(false)}>
-          <div className="flex items-center justify-between bg-card px-6 py-4 border-b border-border" dir="rtl" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center gap-3">
-              <SlidersHorizontal className="h-5 w-5 text-gold" />
-              <h2 className="font-display text-lg font-bold text-foreground">השוואת תמונות</h2>
-              <span className="font-accent text-xs text-muted-foreground">{compareItems.length} תמונות</span>
-            </div>
-            <div className="flex items-center gap-3">
+      {/* ─── Compare View Dialog ─── */}
+      <Dialog open={showCompareView && compareItems.length >= 2} onOpenChange={(open) => { if (!open) { setShowCompareView(false); } }}>
+        <DialogContent className="max-w-6xl max-h-[90vh] border-border p-0 overflow-hidden" dir="rtl">
+          <DialogHeader className="px-6 py-4 border-b border-border bg-secondary/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Eye className="h-5 w-5 text-primary" />
+                <DialogTitle className="font-display text-lg font-bold text-foreground">השוואת תמונות</DialogTitle>
+                <span className="rounded-full bg-primary/10 px-2.5 py-0.5 font-accent text-xs font-semibold text-primary">{compareItems.length} תמונות</span>
+              </div>
               <button
                 onClick={() => { setShowCompareView(false); setCompareMode(false); setCompareItems([]); }}
-                className="rounded-lg border border-border px-4 py-2 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors"
+                className="rounded-lg border border-border px-4 py-2 font-accent text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
               >
                 סיום השוואה
               </button>
-              <button onClick={() => setShowCompareView(false)} className="rounded-lg p-2 hover:bg-secondary transition-colors">
-                <X className="h-5 w-5 text-muted-foreground" />
-              </button>
             </div>
-          </div>
+          </DialogHeader>
           <div
-            className={`flex-1 p-6 overflow-auto grid gap-4 ${
+            className={`p-6 overflow-auto grid gap-4 ${
               compareItems.length === 2 ? "grid-cols-2" : compareItems.length === 3 ? "grid-cols-3" : "grid-cols-2 lg:grid-cols-4"
             }`}
-            onClick={e => e.stopPropagation()}
           >
             {compareItems.map((item, idx) => (
               <div key={item.id} className="flex flex-col rounded-xl border border-border bg-card overflow-hidden">
-                <div className="flex-1 flex items-center justify-center bg-foreground/5 p-2">
-                  <img src={item.result_image_url} alt="" className="max-h-[65vh] w-full object-contain" />
+                <div className="flex-1 flex items-center justify-center bg-secondary/20 p-2">
+                  <img src={item.result_image_url} alt="" className="max-h-[55vh] w-full object-contain" />
                 </div>
                 <div className="flex items-center justify-between p-3 border-t border-border">
                   <div>
@@ -797,19 +828,19 @@ const Gallery = () => {
                     <p className="font-body text-[10px] text-muted-foreground">{new Date(item.created_at).toLocaleDateString("he-IL")}</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-accent text-xs text-gold font-bold">{idx + 1}</span>
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 font-accent text-xs font-bold text-primary">{idx + 1}</span>
                     <button
                       onClick={() => toggleFavorite(item)}
-                      className={`rounded-full p-1.5 transition-colors ${item.is_favorite ? "text-gold" : "text-muted-foreground hover:text-gold"}`}
+                      className={`rounded-lg p-1.5 transition-colors ${item.is_favorite ? "text-primary" : "text-muted-foreground hover:text-primary"}`}
                     >
                       <Heart className={`h-4 w-4 ${item.is_favorite ? "fill-current" : ""}`} />
                     </button>
                     <div className="relative">
-                      <button onClick={() => setShowDownloadMenu(showDownloadMenu === item.id ? null : item.id)} className="rounded-full p-1.5 text-muted-foreground hover:text-foreground transition-colors">
+                      <button onClick={() => setShowDownloadMenu(showDownloadMenu === item.id ? null : item.id)} className="rounded-lg p-1.5 text-muted-foreground hover:text-primary transition-colors">
                         <Download className="h-4 w-4" />
                       </button>
                       {showDownloadMenu === item.id && (
-                        <div className="absolute bottom-full left-0 mb-1 w-40 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden">
+                        <div className="absolute bottom-full left-0 mb-1 w-44 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden">
                           {EXPORT_FORMATS.map(fmt => (
                             <button
                               key={fmt.id}
@@ -818,7 +849,7 @@ const Gallery = () => {
                                 setShowDownloadMenu(null);
                                 downloadImage(item.result_image_url, item.background_name || "image", fmt.id);
                               }}
-                              className="flex w-full items-center justify-between px-3 py-2 font-accent text-xs hover:bg-secondary transition-colors"
+                              className="flex w-full items-center justify-between px-3 py-2.5 font-accent text-xs hover:bg-secondary transition-colors"
                             >
                               <span className="font-semibold text-foreground">{fmt.label}</span>
                               <span className="text-muted-foreground">{fmt.desc}</span>
@@ -832,227 +863,199 @@ const Gallery = () => {
               </div>
             ))}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
 
-      {/* Zoom Modal with editing tools */}
-      {zoomedItem && (
-        <div className="fixed inset-0 z-50 bg-foreground/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}>
-          {/* Navigation arrows */}
-          {filtered.findIndex(i => i.id === zoomedItem.id) < filtered.length - 1 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const idx = filtered.findIndex(i => i.id === zoomedItem.id);
-                setZoomedItem(filtered[idx + 1]);
-                setAdjustments(defaultAdjustments);
-              }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-card/90 shadow-lg hover:bg-primary transition-colors"
-            >
-              <ChevronLeft className="h-6 w-6 text-foreground" />
-            </button>
-          )}
-          {filtered.findIndex(i => i.id === zoomedItem.id) > 0 && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                const idx = filtered.findIndex(i => i.id === zoomedItem.id);
-                setZoomedItem(filtered[idx - 1]);
-                setAdjustments(defaultAdjustments);
-              }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 z-[60] flex h-12 w-12 items-center justify-center rounded-full bg-card/90 shadow-lg hover:bg-primary transition-colors"
-            >
-              <ChevronRight className="h-6 w-6 text-foreground" />
-            </button>
-          )}
+      {/* ─── Zoom Modal Dialog ─── */}
+      <Dialog open={!!zoomedItem} onOpenChange={(open) => { if (!open) closeZoom(); }}>
+        <DialogContent className="max-w-5xl max-h-[95vh] border-border p-0 overflow-hidden [&>button]:hidden" dir="rtl">
+          {zoomedItem && (
+            <>
+              {/* Toolbar */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-secondary/30">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-display text-sm font-bold text-foreground">{zoomedItem.background_name || "רקע מותאם"}</h3>
+                  <span className="font-body text-xs text-muted-foreground">{new Date(zoomedItem.created_at).toLocaleDateString("he-IL")}</span>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 font-accent text-[10px] font-semibold text-primary">
+                    {filtered.findIndex(i => i.id === zoomedItem.id) + 1}/{filtered.length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                  {/* Group 1: Quick actions */}
+                  <button
+                    onClick={() => toggleFavorite(zoomedItem)}
+                    className={`rounded-lg p-2 transition-colors ${zoomedItem.is_favorite ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-primary hover:bg-secondary"}`}
+                    title={zoomedItem.is_favorite ? "הסר ממועדפים" : "הוסף למועדפים"}
+                  >
+                    <Heart className={`h-4 w-4 ${zoomedItem.is_favorite ? "fill-current" : ""}`} />
+                  </button>
+                  <button
+                    onClick={() => setShowOriginal(!showOriginal)}
+                    className={`rounded-lg p-2 transition-colors ${showOriginal ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-primary hover:bg-secondary"}`}
+                    title={showOriginal ? "הצג תוצאה" : "הצג מקור"}
+                  >
+                    <Eye className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => setShowAdjustments(!showAdjustments)}
+                    className={`rounded-lg p-2 transition-colors ${showAdjustments ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-primary hover:bg-secondary"}`}
+                    title="כלי עריכה"
+                  >
+                    <Wand2 className="h-4 w-4" />
+                  </button>
 
-          <div className="relative w-full max-w-5xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-            {/* Controls */}
-            <div className="flex items-center justify-between bg-card rounded-t-xl px-4 py-3 border border-border" dir="rtl">
-              <div className="flex items-center gap-3">
-                <h3 className="font-display text-sm font-bold text-foreground">{zoomedItem.background_name || "רקע מותאם"}</h3>
-                <span className="font-body text-xs text-muted-foreground">{new Date(zoomedItem.created_at).toLocaleDateString("he-IL")}</span>
-                <span className="font-accent text-xs text-muted-foreground">
-                  ({filtered.findIndex(i => i.id === zoomedItem.id) + 1}/{filtered.length})
+                  <div className="w-px h-6 bg-border mx-1" />
+
+                  {/* Group 2: Edit actions */}
+                  <button
+                    onClick={() => navigate(`/tool?editImage=${encodeURIComponent(zoomedItem.result_image_url)}`)}
+                    className="rounded-lg px-3 py-2 font-accent text-xs font-semibold bg-primary text-primary-foreground hover:brightness-110 transition-all flex items-center gap-1.5"
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> ערוך
+                  </button>
+                  <button
+                    onClick={() => duplicateItem(zoomedItem)}
+                    className="rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                    title="שכפל"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => { setPinnedItem(zoomedItem); setSideBySideIndex(0); setViewMode("sideBySide"); closeZoom(); toast.success("תמונה ננעצה"); }}
+                    className="rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+                    title="נעץ להשוואה"
+                  >
+                    <Pin className="h-4 w-4" />
+                  </button>
+
+                  <div className="w-px h-6 bg-border mx-1" />
+
+                  {/* Group 3: Zoom controls */}
+                  <button onClick={() => setZoomLevel(prev => Math.min(5, prev + 0.5))} className="rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-secondary transition-colors">
+                    <Maximize2 className="h-4 w-4" />
+                  </button>
+                  <span className="font-accent text-xs text-muted-foreground min-w-[2.5rem] text-center">{Math.round(zoomLevel * 100)}%</span>
+                  <button onClick={() => { setZoomLevel(prev => Math.max(1, prev - 0.5)); if (zoomLevel <= 1.5) setPanPos({ x: 0, y: 0 }); }} className="rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-secondary transition-colors">
+                    <Minimize2 className="h-4 w-4" />
+                  </button>
+
+                  <div className="w-px h-6 bg-border mx-1" />
+
+                  {/* Group 4: Download + Delete + Close */}
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowDownloadMenu(showDownloadMenu === "zoom" ? null : "zoom")}
+                      className="rounded-lg p-2 text-muted-foreground hover:text-primary hover:bg-secondary transition-colors flex items-center gap-0.5"
+                    >
+                      <Download className="h-4 w-4" />
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    {showDownloadMenu === "zoom" && (
+                      <div className="absolute top-full left-0 mt-1 w-44 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden">
+                        {EXPORT_FORMATS.map(fmt => (
+                          <button
+                            key={fmt.id}
+                            onClick={() => {
+                              setShowDownloadMenu(null);
+                              downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image", fmt.id);
+                            }}
+                            className="flex w-full items-center justify-between px-3 py-2.5 font-accent text-xs hover:bg-secondary transition-colors"
+                          >
+                            <span className="font-semibold text-foreground">{fmt.label}</span>
+                            <span className="text-muted-foreground">{fmt.desc}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => confirmDeleteItem(zoomedItem.id)}
+                    className="rounded-lg p-2 text-destructive hover:bg-destructive/10 transition-colors"
+                    title="מחק"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                  <button onClick={closeZoom} className="rounded-lg p-2 text-muted-foreground hover:bg-secondary transition-colors">
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Content: image + optional adjustments panel */}
+              <div className="flex flex-1 overflow-hidden relative">
+                {/* Navigation arrows */}
+                {filtered.findIndex(i => i.id === zoomedItem.id) < filtered.length - 1 && (
+                  <button
+                    onClick={() => {
+                      const idx = filtered.findIndex(i => i.id === zoomedItem.id);
+                      setZoomedItem(filtered[idx + 1]);
+                      setAdjustments(defaultAdjustments);
+                    }}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card/90 border border-border shadow-md hover:bg-primary hover:text-primary-foreground transition-colors"
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                )}
+                {filtered.findIndex(i => i.id === zoomedItem.id) > 0 && (
+                  <button
+                    onClick={() => {
+                      const idx = filtered.findIndex(i => i.id === zoomedItem.id);
+                      setZoomedItem(filtered[idx - 1]);
+                      setAdjustments(defaultAdjustments);
+                    }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-card/90 border border-border shadow-md hover:bg-primary hover:text-primary-foreground transition-colors"
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                )}
+
+                {/* Image */}
+                <div
+                  className="flex-1 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing bg-secondary/20 p-4"
+                  onWheel={handleZoomWheel}
+                  onMouseDown={handlePanStart}
+                  onMouseMove={handlePanMove}
+                  onMouseUp={() => setIsPanning(false)}
+                  onMouseLeave={() => setIsPanning(false)}
+                >
+                  <div className="max-h-[70vh] max-w-full overflow-hidden rounded-lg border border-border shadow-sm">
+                    <img
+                      src={showOriginal ? zoomedItem.original_image_url : zoomedItem.result_image_url}
+                      alt=""
+                      className="block max-h-[70vh] max-w-full object-contain transition-transform duration-200 select-none"
+                      style={{
+                        transform: `scale(${zoomLevel}) translate(${panPos.x / zoomLevel}px, ${panPos.y / zoomLevel}px)`,
+                        filter: showOriginal ? undefined : filterStyle,
+                      }}
+                      draggable={false}
+                    />
+                  </div>
+                </div>
+
+                {/* Adjustments panel */}
+                {showAdjustments && (
+                  <div className="w-64 shrink-0 border-r border-border bg-card p-4 overflow-y-auto">
+                    <ImageAdjustmentsPanel
+                      adjustments={adjustments}
+                      onChange={setAdjustments}
+                      onReset={() => setAdjustments(defaultAdjustments)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Before/After label */}
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 pointer-events-none">
+                <span className={`rounded-full px-3 py-1.5 font-accent text-xs font-semibold shadow-md ${showOriginal ? "bg-muted text-muted-foreground" : "bg-primary text-primary-foreground"}`}>
+                  {showOriginal ? "לפני" : "אחרי"}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                {/* Favorite */}
-                <button
-                  onClick={() => toggleFavorite(zoomedItem)}
-                  className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 ${
-                    zoomedItem.is_favorite ? "bg-gold text-gold-foreground" : "border border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Heart className={`h-3.5 w-3.5 ${zoomedItem.is_favorite ? "fill-current" : ""}`} />
-                  {zoomedItem.is_favorite ? "מועדף" : "הוסף למועדפים"}
-                </button>
-                {/* Pin */}
-                <button
-                  onClick={() => {
-                    setPinnedItem(zoomedItem);
-                    setSideBySideIndex(0);
-                    setViewMode("sideBySide");
-                    setZoomedItem(null);
-                    setZoomLevel(1);
-                    setPanPos({ x: 0, y: 0 });
-                    setAdjustments(defaultAdjustments);
-                    setShowAdjustments(false);
-                    toast.success("תמונה ננעצה — עבור לתצוגת השוואה");
-                  }}
-                  className="rounded-lg border border-border px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-                >
-                  <Pin className="h-3.5 w-3.5" /> נעץ להשוואה
-                </button>
-                {/* Adjustments toggle */}
-                <button
-                  onClick={() => setShowAdjustments(!showAdjustments)}
-                  className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 ${
-                    showAdjustments ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  <Wand2 className="h-3.5 w-3.5" /> כלי עריכה
-                </button>
-                {/* Edit in tool */}
-                <button
-                  onClick={() => {
-                    navigate(`/tool?editImage=${encodeURIComponent(zoomedItem.result_image_url)}`);
-                  }}
-                  className="rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 bg-primary text-primary-foreground hover:brightness-110"
-                >
-                  <Pencil className="h-3.5 w-3.5" /> ערוך בכלי
-                </button>
-                {/* Duplicate */}
-                <button
-                  onClick={() => {
-                    duplicateItem(zoomedItem);
-                  }}
-                  className="rounded-lg border border-border px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5"
-                >
-                  <Copy className="h-3.5 w-3.5" /> שכפל
-                </button>
-                {/* Duplicate & Edit */}
-                <button
-                  onClick={() => {
-                    duplicateItem(zoomedItem, true);
-                  }}
-                  className="rounded-lg px-3 py-1.5 font-accent text-xs transition-colors flex items-center gap-1.5 bg-accent text-accent-foreground hover:brightness-110"
-                >
-                  <Copy className="h-3.5 w-3.5" /><Pencil className="h-3.5 w-3.5" /> שכפל וערוך
-                </button>
-                {/* Original/Result toggle */}
-                <button
-                  onClick={() => setShowOriginal(!showOriginal)}
-                  className={`rounded-lg px-3 py-1.5 font-accent text-xs transition-colors ${
-                    showOriginal ? "bg-gold text-gold-foreground" : "border border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {showOriginal ? "תוצאה" : "מקור"}
-                </button>
-                <button
-                  onClick={() => setZoomLevel(prev => Math.min(5, prev + 0.5))}
-                  className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                </button>
-                <span className="font-accent text-xs text-muted-foreground min-w-[3rem] text-center">{Math.round(zoomLevel * 100)}%</span>
-                <button
-                  onClick={() => { setZoomLevel(prev => Math.max(1, prev - 0.5)); if (zoomLevel <= 1.5) setPanPos({ x: 0, y: 0 }); }}
-                  className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Minimize2 className="h-3.5 w-3.5" />
-                </button>
-                <div className="relative">
-                  <button
-                    onClick={() => setShowDownloadMenu(showDownloadMenu === "zoom" ? null : "zoom")}
-                    className="rounded-lg border border-border p-1.5 text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-                  >
-                    <Download className="h-3.5 w-3.5" />
-                    <ChevronDown className="h-3 w-3" />
-                  </button>
-                  {showDownloadMenu === "zoom" && (
-                    <div className="absolute top-full left-0 mt-1 w-44 rounded-lg border border-border bg-card shadow-xl z-50 overflow-hidden">
-                      {EXPORT_FORMATS.map(fmt => (
-                        <button
-                          key={fmt.id}
-                          onClick={() => {
-                            setShowDownloadMenu(null);
-                            downloadImage(zoomedItem.result_image_url, zoomedItem.background_name || "image", fmt.id);
-                          }}
-                          className="flex w-full items-center justify-between px-3 py-2 font-accent text-xs hover:bg-secondary transition-colors"
-                        >
-                          <span className="font-semibold text-foreground">{fmt.label}</span>
-                          <span className="text-muted-foreground">{fmt.desc}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                {/* Delete button in zoom */}
-                <button
-                  onClick={() => confirmDeleteItem(zoomedItem.id)}
-                  className="rounded-lg border border-destructive/30 p-1.5 text-destructive hover:bg-destructive/10 transition-colors"
-                  title="מחק תמונה"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-                <button
-                  onClick={() => { setZoomedItem(null); setZoomLevel(1); setPanPos({ x: 0, y: 0 }); setShowOriginal(false); setAdjustments(defaultAdjustments); setShowAdjustments(false); }}
-                  className="rounded-lg p-1.5 hover:bg-secondary transition-colors"
-                >
-                  <X className="h-4 w-4 text-muted-foreground" />
-                </button>
-              </div>
-            </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
 
-            {/* Content: image + optional adjustments panel */}
-            <div className="flex flex-1 overflow-hidden border border-t-0 border-border rounded-b-xl">
-              {/* Image */}
-              <div
-                className="flex-1 overflow-hidden flex items-center justify-center cursor-grab active:cursor-grabbing"
-                onWheel={handleZoomWheel}
-                onMouseDown={handlePanStart}
-                onMouseMove={handlePanMove}
-                onMouseUp={() => setIsPanning(false)}
-                onMouseLeave={() => setIsPanning(false)}
-              >
-                <div className="max-h-[75vh] max-w-full overflow-hidden rounded-md border border-border/60 shadow-sm">
-                  <img
-                    src={showOriginal ? zoomedItem.original_image_url : zoomedItem.result_image_url}
-                    alt=""
-                    className="block max-h-[75vh] max-w-full object-contain transition-transform duration-200 select-none"
-                    style={{
-                      transform: `scale(${zoomLevel}) translate(${panPos.x / zoomLevel}px, ${panPos.y / zoomLevel}px)`,
-                      filter: showOriginal ? undefined : filterStyle,
-                    }}
-                    draggable={false}
-                  />
-                </div>
-              </div>
-
-              {/* Adjustments panel */}
-              {showAdjustments && (
-                <div className="w-64 shrink-0 border-r border-border bg-card p-4 overflow-y-auto" dir="rtl">
-                  <ImageAdjustmentsPanel
-                    adjustments={adjustments}
-                    onChange={setAdjustments}
-                    onReset={() => setAdjustments(defaultAdjustments)}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Before/After label */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-              <span className={`rounded-full px-3 py-1 font-accent text-xs ${showOriginal ? "bg-foreground/70 text-card" : "bg-gold text-gold-foreground"}`}>
-                {showOriginal ? "לפני" : "אחרי"}
-              </span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete Confirmation Modal */}
+      {/* ─── Delete Confirmation ─── */}
       <Dialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
         <DialogContent className="max-w-sm border-border" dir="rtl">
           <DialogHeader>
@@ -1062,11 +1065,11 @@ const Gallery = () => {
               </div>
               <div>
                 <DialogTitle className="font-display text-sm font-bold text-foreground">מחיקת תמונה</DialogTitle>
-                <p className="font-body text-xs text-muted-foreground">האם אתה בטוח שברצונך למחוק את התמונה? פעולה זו לא ניתנת לביטול.</p>
+                <p className="font-body text-xs text-muted-foreground">האם אתה בטוח? פעולה זו לא ניתנת לביטול.</p>
               </div>
             </div>
           </DialogHeader>
-          <div className="flex items-center gap-3 justify-end">
+          <div className="flex items-center gap-3 justify-end pt-2">
             <button
               onClick={() => setDeleteConfirmId(null)}
               className="rounded-lg border border-border px-4 py-2 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
