@@ -475,6 +475,93 @@ const ToolInner = () => {
     setSavedFramePresets((prev) => prev.filter((preset) => preset.id !== presetId));
   };
 
+  const exportSavedFramePresets = () => {
+    if (savedFramePresets.length === 0) {
+      toast.error("אין פריסטים אישיים לייצוא");
+      return;
+    }
+
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      presets: savedFramePresets,
+    };
+
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `frame-presets-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("פריסטים יוצאו לקובץ JSON");
+  };
+
+  const importSavedFramePresets = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rawText = String(reader.result || "");
+        const parsed = JSON.parse(rawText) as { presets?: FramePresetDefinition[] } | FramePresetDefinition[];
+        const source = Array.isArray(parsed) ? parsed : parsed.presets;
+        if (!Array.isArray(source)) {
+          toast.error("קובץ JSON לא תקין");
+          return;
+        }
+
+        const allowedStyles: FrameStyle[] = ["clean", "double", "shadow", "neon", "dashed", "vintage", "inner", "soft", "film", "bold"];
+        const allowedShapes: FrameShape[] = ["rect", "rounded", "pill", "circle", "diamond", "hexagon", "octagon"];
+        const hexColorRegex = /^#([0-9a-fA-F]{6})$/;
+
+        const imported: FramePresetDefinition[] = source
+          .map((item) => {
+            const style = allowedStyles.includes(item?.style) ? item.style : "clean";
+            const shape = allowedShapes.includes(item?.shape) ? item.shape : "rect";
+            const widthPx = Number.isFinite(item?.widthPx) ? Math.max(4, Math.min(80, Math.round(item.widthPx))) : 22;
+            const radius = Number.isFinite(item?.radius) ? Math.max(0, Math.min(50, Math.round(item.radius))) : 6;
+            const color = typeof item?.color === "string" && hexColorRegex.test(item.color) ? item.color : "#ffffff";
+            const name = typeof item?.name === "string" ? item.name.trim() : "";
+            if (!name) return null;
+            return {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              name,
+              style,
+              shape,
+              widthPx,
+              radius,
+              color,
+            };
+          })
+          .filter((item): item is FramePresetDefinition => item !== null);
+
+        if (imported.length === 0) {
+          toast.error("לא נמצאו פריסטים תקינים לייבוא");
+          return;
+        }
+
+        setSavedFramePresets((prev) => {
+          const merged = [...prev];
+          imported.forEach((preset) => {
+            const idx = merged.findIndex((existing) => existing.name === preset.name);
+            if (idx >= 0) merged[idx] = preset;
+            else merged.push(preset);
+          });
+          return merged.slice(-50);
+        });
+
+        toast.success(`יובאו ${imported.length} פריסטים`);
+      } catch {
+        toast.error("נכשל בפענוח קובץ הפריסטים");
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  const clearSavedFramePresets = () => {
+    setSavedFramePresets([]);
+    toast.success("פריסטים אישיים נוקו");
+  };
+
   const applyProfessionalLayoutPreset = (preset: typeof professionalLayoutPresets[number]) => {
     setPageAspectRatio(preset.ratio);
     setPageWidthPercent(preset.pageW);
@@ -1902,6 +1989,9 @@ const ToolInner = () => {
                         onApplyPreset={applyFramePreset}
                         onSaveCurrentPreset={saveCurrentFramePreset}
                         onDeleteSavedPreset={removeSavedFramePreset}
+                        onExportSavedPresets={exportSavedFramePresets}
+                        onImportSavedPresets={importSavedFramePresets}
+                        onClearSavedPresets={clearSavedFramePresets}
                       />
                     </div>
                   )}

@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Slider } from "@/components/ui/slider";
-import { Frame, Palette, Radius, Shapes, BookmarkPlus, Trash2 } from "lucide-react";
+import { Frame, Palette, Radius, Shapes, BookmarkPlus, Trash2, Upload, Download, RotateCcw } from "lucide-react";
 
 export type FrameStyle =
   | "clean"
@@ -44,6 +44,9 @@ type FrameStylePanelProps = {
   onApplyPreset: (preset: FramePresetDefinition) => void;
   onSaveCurrentPreset: (name: string) => void;
   onDeleteSavedPreset: (presetId: string) => void;
+  onExportSavedPresets: () => void;
+  onImportSavedPresets: (file: File) => void;
+  onClearSavedPresets: () => void;
 };
 
 const frameStyles: Array<{ id: FrameStyle; label: string }> = [
@@ -87,8 +90,12 @@ export default function FrameStylePanel({
   onApplyPreset,
   onSaveCurrentPreset,
   onDeleteSavedPreset,
+  onExportSavedPresets,
+  onImportSavedPresets,
+  onClearSavedPresets,
 }: FrameStylePanelProps) {
   const [presetName, setPresetName] = useState("");
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const frameRadiusCss = frameShape === "pill" ? "9999px" : frameShape === "circle" ? "50%" : `${frameRadius}%`;
   const shapePreviewClip = useMemo(() => {
@@ -276,7 +283,46 @@ export default function FrameStylePanel({
 
       {savedPresets.length > 0 && (
         <div className="space-y-2">
-          <div className="text-xs font-bold text-foreground">פריסטים אישיים</div>
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-foreground">פריסטים אישיים</div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={onExportSavedPresets}
+                className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                title="יצוא JSON"
+              >
+                <Download className="h-3.5 w-3.5" />
+                יצוא
+              </button>
+              <button
+                onClick={() => importInputRef.current?.click()}
+                className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                title="ייבוא JSON"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                ייבוא
+              </button>
+              <button
+                onClick={onClearSavedPresets}
+                className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-[11px] font-semibold text-muted-foreground hover:text-destructive"
+                title="ניקוי הכל"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                נקה
+              </button>
+            </div>
+          </div>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) onImportSavedPresets(file);
+              e.currentTarget.value = "";
+            }}
+          />
           <div className="space-y-1.5">
             {savedPresets.map((preset) => (
               <div key={preset.id} className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
