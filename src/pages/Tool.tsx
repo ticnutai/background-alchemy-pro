@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -1074,29 +1075,29 @@ const ToolInner = () => {
             <div className="w-full lg:w-80 shrink-0">
               <div className="sticky top-8 space-y-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Tabs */}
-                <div className="overflow-x-auto scrollbar-hide border-b border-border">
+              <div className="overflow-x-auto scrollbar-hide border-b border-border">
                   {[
-                    { key: "backgrounds" as const, label: "רקעים", icon: "" },
-                    { key: "smart" as const, label: "חכם", icon: "🧠" },
-                    { key: "nonai" as const, label: "Pro ללא AI", icon: "⚙️" },
-                    { key: "filters" as const, label: "פילטרים", icon: "⚡" },
-                    { key: "advanced" as const, label: "מתקדם", icon: "🎛️" },
-                    { key: "crop" as const, label: "חיתוך", icon: "✂️" },
-                    { key: "tools" as const, label: "כלים", icon: "" },
-                    { key: "adjust" as const, label: "התאמות", icon: "" },
-                    { key: "export" as const, label: "ייצוא", icon: "" },
+                    { key: "backgrounds" as const, label: "רקעים", icon: <ImageIcon className="h-4 w-4" /> },
+                    { key: "smart" as const, label: "חכם", icon: <Brain className="h-4 w-4" /> },
+                    { key: "nonai" as const, label: "Pro ללא AI", icon: <Wrench className="h-4 w-4" /> },
+                    { key: "filters" as const, label: "פילטרים", icon: <SlidersHorizontal className="h-4 w-4" /> },
+                    { key: "advanced" as const, label: "מתקדם", icon: <Settings2 className="h-4 w-4" /> },
+                    { key: "crop" as const, label: "חיתוך", icon: <Crop className="h-4 w-4" /> },
+                    { key: "tools" as const, label: "כלים", icon: <Wand2 className="h-4 w-4" /> },
+                    { key: "adjust" as const, label: "התאמות", icon: <Sun className="h-4 w-4" /> },
+                    { key: "export" as const, label: "ייצוא", icon: <Download className="h-4 w-4" /> },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: tab.key })}
-                      className={`shrink-0 whitespace-nowrap flex-1 py-3 px-2 font-body text-[11px] font-semibold leading-normal tracking-[0.01em] transition-colors ${
+                      className={`shrink-0 whitespace-nowrap flex-1 py-3 px-3 font-body text-[11px] font-semibold leading-normal tracking-[0.01em] transition-colors ${
                         activeTab === tab.key
                           ? "text-primary border-b-2 border-primary bg-primary/5"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       <span className="inline-flex items-center gap-1.5">
-                        {tab.icon && <span aria-hidden="true">{tab.icon}</span>}
+                        <span className="text-primary">{tab.icon}</span>
                         <span>{tab.label}</span>
                       </span>
                     </button>
@@ -1406,55 +1407,55 @@ const ToolInner = () => {
         <DevSettingsDialog open={showDevSettings} onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "devSettings", value: false } })} />
 
         {/* Save to Gallery Dialog */}
-        {showSaveDialog && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/60 backdrop-blur-sm" dir="rtl">
-            <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+        <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
+          <DialogContent className="max-w-md border-border" dir="rtl">
+            <DialogHeader>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
                   <Save className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h3 className="font-display text-sm font-bold text-foreground">שמירה לגלריה</h3>
+                  <DialogTitle className="font-display text-sm font-bold text-foreground">שמירה לגלריה</DialogTitle>
                   <p className="font-body text-xs text-muted-foreground">בחר שם לתמונה ואופן שמירה</p>
                 </div>
               </div>
+            </DialogHeader>
 
-              <input
-                value={saveNewName}
-                onChange={e => setSaveNewName(e.target.value)}
-                placeholder="שם התמונה..."
-                className="w-full rounded-lg border border-border bg-background px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                dir="rtl"
-                autoFocus
-              />
+            <input
+              value={saveNewName}
+              onChange={e => setSaveNewName(e.target.value)}
+              placeholder="שם התמונה..."
+              className="w-full rounded-lg border border-border bg-background px-4 py-2.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              dir="rtl"
+              autoFocus
+            />
 
-              <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowSaveDialog(false)}
+                className="rounded-lg border border-border px-4 py-2.5 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+              >
+                ביטול
+              </button>
+              {searchParams.get("editImage") && (
                 <button
-                  onClick={() => setShowSaveDialog(false)}
-                  className="rounded-lg border border-border px-4 py-2.5 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-                >
-                  ביטול
-                </button>
-                {searchParams.get("editImage") && (
-                  <button
-                    onClick={() => handleSaveToGallery("replace")}
-                    disabled={isSaving}
-                    className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
-                  >
-                    {isSaving ? "שומר..." : "🔄 החלף ושמור"}
-                  </button>
-                )}
-                <button
-                  onClick={() => handleSaveToGallery("new")}
+                  onClick={() => handleSaveToGallery("replace")}
                   disabled={isSaving}
-                  className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+                  className="flex-1 rounded-lg border border-primary bg-primary/10 px-4 py-2.5 font-display text-xs font-semibold text-primary transition-all hover:bg-primary/20 disabled:opacity-50"
                 >
-                  {isSaving ? "שומר..." : "🧬 שכפל ושמור"}
+                  {isSaving ? "שומר..." : "החלף ושמור"}
                 </button>
-              </div>
+              )}
+              <button
+                onClick={() => handleSaveToGallery("new")}
+                disabled={isSaving}
+                className="flex-1 rounded-lg bg-gold px-4 py-2.5 font-display text-xs font-semibold text-gold-foreground transition-all hover:brightness-110 disabled:opacity-50"
+              >
+                {isSaving ? "שומר..." : "שכפל ושמור"}
+              </button>
             </div>
-          </div>
-        )}
+          </DialogContent>
+        </Dialog>
 
         {/* Comparison Gallery */}
         {showComparison && (
@@ -1475,109 +1476,8 @@ const ToolInner = () => {
   );
 };
 
-// Helper functions
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Failed to create blob"))),
-      type,
-      quality
-    );
-  });
-}
-
-function downloadBlob(blob: Blob | string, filename: string, mimeType: string) {
-  const url = typeof blob === "string" ? blob : URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  if (typeof blob !== "string") URL.revokeObjectURL(url);
-}
-
-async function generatePDF(imageDataUrl: string, w: number, h: number): Promise<Blob> {
-  // Minimal PDF generator
-  const imgData = imageDataUrl.split(",")[1];
-  const binary = atob(imgData);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-
-  // Scale to fit A4-ish (595x842 points)
-  const scale = Math.min(575 / w, 822 / h);
-  const pw = Math.round(w * scale);
-  const ph = Math.round(h * scale);
-  const pageW = Math.max(pw + 20, 595);
-  const pageH = Math.max(ph + 20, 842);
-  const xOff = Math.round((pageW - pw) / 2);
-  const yOff = Math.round((pageH - ph) / 2);
-
-  const imgStream = bytes;
-  const streamLen = imgStream.length;
-
-  const objects: string[] = [];
-  const offsets: number[] = [];
-  let content = "%PDF-1.4\n";
-
-  function addObj(s: string) {
-    offsets.push(content.length);
-    objects.push(s);
-    content += s;
-  }
-
-  addObj(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
-  addObj(`2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`);
-  addObj(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Contents 4 0 R /Resources << /XObject << /Img 5 0 R >> >> >>\nendobj\n`);
-
-  const stream = `q ${pw} 0 0 ${ph} ${xOff} ${yOff} cm /Img Do Q`;
-  addObj(`4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`);
-
-  // We'll encode the image as a separate binary section
-  const imgObjHeader = `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${streamLen} >>\nstream\n`;
-  const imgObjFooter = `\nendstream\nendobj\n`;
-
-  const headerBytes = new TextEncoder().encode(content + imgObjHeader);
-  const footerBytes = new TextEncoder().encode(imgObjFooter);
-
-  // Convert imageDataUrl to JPEG blob for DCTDecode
-  const response = await fetch(imageDataUrl);
-  const imgBlob = await response.blob();
-  const jpegBlob = imgBlob; // already PNG, but let's use canvas
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-  const img = new Image();
-  await new Promise<void>((resolve) => {
-    img.onload = () => resolve();
-    img.src = imageDataUrl;
-  });
-  ctx.drawImage(img, 0, 0);
-  const jpegDataUrl = canvas.toDataURL("image/jpeg", 1.0);
-  const jpegBase64 = jpegDataUrl.split(",")[1];
-  const jpegBinary = atob(jpegBase64);
-  const jpegBytes = new Uint8Array(jpegBinary.length);
-  for (let i = 0; i < jpegBinary.length; i++) jpegBytes[i] = jpegBinary.charCodeAt(i);
-
-  // Rebuild with correct length
-  const realImgHeader = `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`;
-  const realHeaderBytes = new TextEncoder().encode(content + realImgHeader);
-
-  const xrefOffset = realHeaderBytes.length + jpegBytes.length + footerBytes.length;
-  const xref = `xref\n0 6\n0000000000 65535 f \n${offsets.map((o) => String(o).padStart(10, "0") + " 00000 n ").join("\n")}\n${String(content.length).padStart(10, "0")} 00000 n \ntrailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
-  const xrefBytes = new TextEncoder().encode(xref);
-
-  const totalSize = realHeaderBytes.length + jpegBytes.length + footerBytes.length + xrefBytes.length;
-  const pdfArray = new Uint8Array(totalSize);
-  let offset = 0;
-  pdfArray.set(realHeaderBytes, offset); offset += realHeaderBytes.length;
-  pdfArray.set(jpegBytes, offset); offset += jpegBytes.length;
-  pdfArray.set(footerBytes, offset); offset += footerBytes.length;
-  pdfArray.set(xrefBytes, offset);
-
-  return new Blob([pdfArray], { type: "application/pdf" });
-}
+// Helper functions — use shared export-utils
+import { downloadBlob, generateSimplePDF as generatePDF, canvasToBlob } from "@/lib/export-utils";
 
 const ToolPage = () => (
   <ToolProvider>

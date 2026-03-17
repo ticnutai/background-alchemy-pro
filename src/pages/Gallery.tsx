@@ -8,9 +8,11 @@ import {
   Grid, Columns2, Pin, Wand2, Eye, GripVertical, Home, Pencil, ChevronDown, Copy,
   FolderInput, LayoutGrid, BookOpen, Info,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import ImageHoverMenu from "@/components/ImageHoverMenu";
 import type { User } from "@supabase/supabase-js";
 import ImageAdjustmentsPanel, { getFilterString, defaultAdjustments, type ImageAdjustments } from "@/components/ImageAdjustmentsPanel";
+import { triggerDownload, generateSimplePDF, generateTIFF } from "@/lib/export-utils";
 
 interface HistoryItem {
   id: string;
@@ -89,116 +91,6 @@ async function downloadImage(url: string, filename: string, format: string = "pn
   }
 }
 
-function triggerDownload(blob: Blob, filename: string) {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
-
-async function generateSimplePDF(imageDataUrl: string, w: number, h: number): Promise<Blob> {
-  const imgData = imageDataUrl.split(",")[1];
-  const binary = atob(imgData);
-  const imgBytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) imgBytes[i] = binary.charCodeAt(i);
-  const scale = Math.min(575 / w, 822 / h);
-  const pw = Math.round(w * scale);
-  const ph = Math.round(h * scale);
-  const pageW = Math.max(pw + 20, 595);
-  const pageH = Math.max(ph + 20, 842);
-  const xOff = Math.round((pageW - pw) / 2);
-  const yOff = Math.round((pageH - ph) / 2);
-  const stream = `q ${pw} 0 0 ${ph} ${xOff} ${pageH - yOff - ph} cm /Img Do Q`;
-  const streamLen = imgBytes.length;
-  const objs: string[] = [];
-  objs.push(`1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n`);
-  objs.push(`2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n`);
-  objs.push(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Contents 4 0 R /Resources << /XObject << /Img 5 0 R >> >> >>\nendobj\n`);
-  objs.push(`4 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj\n`);
-  const header = `%PDF-1.4\n`;
-  const body = objs.join("");
-  const imgObjH = `5 0 obj\n<< /Type /XObject /Subtype /Image /Width ${w} /Height ${h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${streamLen} >>\nstream\n`;
-  const imgObjF = `\nendstream\nendobj\n`;
-  const enc = new TextEncoder();
-  const p1 = enc.encode(header + body + imgObjH);
-  const p2 = enc.encode(imgObjF);
-  const xrefPos = p1.length + imgBytes.length + p2.length;
-  let xref = `xref\n0 6\n0000000000 65535 f \n`;
-  let offset = header.length;
-  for (const obj of objs) { xref += `${String(offset).padStart(10, "0")} 00000 n \n`; offset += obj.length; }
-  xref += `${String(offset).padStart(10, "0")} 00000 n \n`;
-  const trailer = `trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n${xrefPos}\n%%EOF`;
-  const p3 = enc.encode(xref + trailer);
-  const final = new Uint8Array(p1.length + imgBytes.length + p2.length + p3.length);
-  final.set(p1, 0);
-  final.set(imgBytes, p1.length);
-  final.set(p2, p1.length + imgBytes.length);
-  final.set(p3, p1.length + imgBytes.length + p2.length);
-  return new Blob([final], { type: "application/pdf" });
-}
-
-function generateTIFF(canvas: HTMLCanvasElement): Blob {
-  const w = canvas.width;
-  const h = canvas.height;
-  const ctx = canvas.getContext("2d")!;
-  const imageData = ctx.getImageData(0, 0, w, h);
-  const rgba = imageData.data;
-  // Convert RGBA to RGB
-  const rgb = new Uint8Array(w * h * 3);
-  for (let i = 0, j = 0; i < rgba.length; i += 4, j += 3) {
-    rgb[j] = rgba[i];
-    rgb[j + 1] = rgba[i + 1];
-    rgb[j + 2] = rgba[i + 2];
-  }
-  const stripSize = rgb.length;
-  const headerSize = 8;
-  const ifdEntryCount = 10;
-  const ifdSize = 2 + ifdEntryCount * 12 + 4;
-  const dataOffset = headerSize + ifdSize;
-
-  const buf = new ArrayBuffer(dataOffset + stripSize);
-  const view = new DataView(buf);
-  const arr = new Uint8Array(buf);
-
-  // Header: little-endian TIFF
-  view.setUint16(0, 0x4949, false); // 'II'
-  view.setUint16(2, 42, true);
-  view.setUint32(4, headerSize, true); // IFD offset
-
-  let off = headerSize;
-  // IFD entry count
-  view.setUint16(off, ifdEntryCount, true); off += 2;
-
-  const writeIFD = (tag: number, type: number, count: number, value: number) => {
-    view.setUint16(off, tag, true); off += 2;
-    view.setUint16(off, type, true); off += 2;
-    view.setUint32(off, count, true); off += 4;
-    view.setUint32(off, value, true); off += 4;
-  };
-
-  writeIFD(256, 3, 1, w);            // ImageWidth
-  writeIFD(257, 3, 1, h);            // ImageLength
-  writeIFD(258, 3, 3, 8 | (8 << 16)); // BitsPerSample (8,8,8 packed)
-  writeIFD(259, 3, 1, 1);            // Compression: None
-  writeIFD(262, 3, 1, 2);            // PhotometricInterpretation: RGB
-  writeIFD(273, 4, 1, dataOffset);   // StripOffsets
-  writeIFD(277, 3, 1, 3);            // SamplesPerPixel
-  writeIFD(278, 4, 1, h);            // RowsPerStrip
-  writeIFD(279, 4, 1, stripSize);    // StripByteCounts
-  writeIFD(282, 5, 1, 0);            // XResolution (simplified)
-
-  // Next IFD = 0
-  view.setUint32(off, 0, true);
-
-  // Write RGB data
-  arr.set(rgb, dataOffset);
-
-  return new Blob([buf], { type: "image/tiff" });
-}
 
 type ViewMode = "grid" | "single" | "sideBySide";
 
@@ -1155,35 +1047,35 @@ const Gallery = () => {
       )}
 
       {/* Delete Confirmation Modal */}
-      {deleteConfirmId && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-foreground/60 backdrop-blur-sm" dir="rtl">
-          <div className="w-full max-w-sm rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => { if (!open) setDeleteConfirmId(null); }}>
+        <DialogContent className="max-w-sm border-border" dir="rtl">
+          <DialogHeader>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-destructive/10">
                 <Trash2 className="h-5 w-5 text-destructive" />
               </div>
               <div>
-                <h3 className="font-display text-sm font-bold text-foreground">מחיקת תמונה</h3>
+                <DialogTitle className="font-display text-sm font-bold text-foreground">מחיקת תמונה</DialogTitle>
                 <p className="font-body text-xs text-muted-foreground">האם אתה בטוח שברצונך למחוק את התמונה? פעולה זו לא ניתנת לביטול.</p>
               </div>
             </div>
-            <div className="flex items-center gap-3 justify-end">
-              <button
-                onClick={() => setDeleteConfirmId(null)}
-                className="rounded-lg border border-border px-4 py-2 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
-              >
-                ביטול
-              </button>
-              <button
-                onClick={() => deleteItem(deleteConfirmId)}
-                className="rounded-lg bg-destructive px-4 py-2 font-display text-xs font-semibold text-destructive-foreground transition-all hover:brightness-110"
-              >
-                מחק
-              </button>
-            </div>
+          </DialogHeader>
+          <div className="flex items-center gap-3 justify-end">
+            <button
+              onClick={() => setDeleteConfirmId(null)}
+              className="rounded-lg border border-border px-4 py-2 font-display text-xs font-semibold text-foreground transition-colors hover:bg-secondary"
+            >
+              ביטול
+            </button>
+            <button
+              onClick={() => deleteConfirmId && deleteItem(deleteConfirmId)}
+              className="rounded-lg bg-destructive px-4 py-2 font-display text-xs font-semibold text-destructive-foreground transition-all hover:brightness-110"
+            >
+              מחק
+            </button>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
