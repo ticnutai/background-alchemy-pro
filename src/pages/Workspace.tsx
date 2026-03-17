@@ -25,6 +25,12 @@ interface RecentImage {
 
 export default function Workspace() {
   const navigate = useNavigate();
+  // Force light mode
+  useEffect(() => {
+    const wasDark = document.documentElement.classList.contains("dark");
+    document.documentElement.classList.remove("dark");
+    return () => { if (wasDark) document.documentElement.classList.add("dark"); };
+  }, []);
   const [user, setUser] = useState<User | null>(null);
   const [recentImages, setRecentImages] = useState<RecentImage[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
