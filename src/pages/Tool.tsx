@@ -3,7 +3,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2 } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -121,19 +121,7 @@ const ToolInner = () => {
   const [liveFilterCss, setLiveFilterCss] = useState("");
   const [localApplying, setLocalApplying] = useState(false);
   const [showPdfProcessor, setShowPdfProcessor] = useState(false);
-  const [showLayoutDialog, setShowLayoutDialog] = useState(false);
-  const [pageWidthPercent, setPageWidthPercent] = useState(92);
-  const [pageAspectRatio, setPageAspectRatio] = useState("4/3");
-  const [imageScalePercent, setImageScalePercent] = useState(100);
-  const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
   const { aiEnabled, setAiMode } = useAiMode(true);
-
-  const pagePresets = [
-    { id: "1/1", label: "ריבוע" },
-    { id: "4/3", label: "קלאסי" },
-    { id: "3/4", label: "פורטרט" },
-    { id: "16/9", label: "רחב" },
-  ];
 
   const {
     originalImage, resultImage, adjustments, referenceImages,
@@ -806,27 +794,6 @@ const ToolInner = () => {
           {originalImage && (
             <div className="w-full lg:w-[340px] shrink-0 order-2 lg:order-1">
               <div className="sticky top-4 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between border-b border-border/70 px-3 py-2">
-                  <button
-                    onClick={() => setShowLayoutDialog(true)}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 font-accent text-xs text-foreground hover:border-primary/40"
-                    title="הגדרות גודל דף"
-                  >
-                    <Ruler className="h-3.5 w-3.5" />
-                    גודל דף
-                  </button>
-                  <button
-                    onClick={() => {
-                      setPageWidthPercent(96);
-                      setImageScalePercent(100);
-                      setImageFitMode("contain");
-                    }}
-                    className="rounded-lg border border-border bg-background px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground"
-                    title="תצוגה מהירה של גוף הדף"
-                  >
-                    תצוגה מהירה
-                  </button>
-                </div>
                 {/* Tab grid — 3 columns, big & clear */}
                 <div className="grid grid-cols-3 gap-px bg-border/50 border-b border-border">
                   {[
@@ -866,7 +833,6 @@ const ToolInner = () => {
                       <SmartRemoveBgPanel
                         currentImage={resultImage || originalImage}
                         onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
-                        aiEnabled={aiEnabled}
                       />
                       <BackgroundPresets
                         selectedId={selectedPreset}
@@ -1102,25 +1068,12 @@ const ToolInner = () => {
             {originalImage ? (
               <>
                 <div className="relative sticky top-4">
-                  <button
-                    onClick={() => setShowLayoutDialog(true)}
-                    className="absolute left-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
-                    title="בקרת דף מהירה"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
                   <ImageCanvas
                     originalImage={originalImage}
                     resultImage={resultImage}
                     isProcessing={isProcessing || isEnhancing}
                     adjustments={adjustments}
                     liveFilterCss={liveFilterCss}
-                    pageWidthPercent={pageWidthPercent}
-                    pageAspectRatio={pageAspectRatio}
-                    imageScalePercent={imageScalePercent}
-                    imageFitMode={imageFitMode}
-                    onPageWidthChange={setPageWidthPercent}
-                    onImageScaleChange={setImageScalePercent}
                   />
                   <FloatingSaveAction
                     visible={!!originalImage && hasUnsavedChanges && !!user}
@@ -1372,113 +1325,6 @@ const ToolInner = () => {
         <DevSettingsDialog open={showDevSettings} onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "devSettings", value: false } })} />
 
         {/* Save to Gallery Dialog */}
-        <Dialog open={showLayoutDialog} onOpenChange={setShowLayoutDialog}>
-          <DialogContent className="max-w-lg border-border" dir="rtl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 font-display text-base font-bold">
-                <Ruler className="h-4 w-4 text-primary" />
-                מערכת גודל דף ותמונה
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <p className="font-body text-xs text-muted-foreground">תבנית דף</p>
-                <div className="grid grid-cols-4 gap-2">
-                  {pagePresets.map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => setPageAspectRatio(preset.id)}
-                      className={`rounded-lg border px-2 py-2 font-accent text-xs ${pageAspectRatio === preset.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span>רוחב דף</span>
-                  <span>{Math.round(pageWidthPercent)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={50}
-                  max={100}
-                  value={pageWidthPercent}
-                  onChange={(e) => setPageWidthPercent(Number(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs">
-                  <span>גודל תמונה</span>
-                  <span>{Math.round(imageScalePercent)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min={60}
-                  max={170}
-                  value={imageScalePercent}
-                  onChange={(e) => setImageScalePercent(Number(e.target.value))}
-                  className="w-full"
-                />
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setImageFitMode("contain")}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold ${imageFitMode === "contain" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
-                >
-                  התאמה לדף (Contain)
-                </button>
-                <button
-                  onClick={() => setImageFitMode("cover")}
-                  className={`flex-1 rounded-lg border px-3 py-2 text-xs font-semibold ${imageFitMode === "cover" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"}`}
-                >
-                  מילוי דף (Cover)
-                </button>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => {
-                    setPageWidthPercent(100);
-                    setImageScalePercent(110);
-                  }}
-                  className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground"
-                >
-                  <Maximize2 className="h-3.5 w-3.5" />
-                  הרחב
-                </button>
-                <button
-                  onClick={() => {
-                    setPageWidthPercent(78);
-                    setImageScalePercent(90);
-                  }}
-                  className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground"
-                >
-                  <Minimize2 className="h-3.5 w-3.5" />
-                  הצר
-                </button>
-                <button
-                  onClick={() => {
-                    setPageWidthPercent(92);
-                    setPageAspectRatio("4/3");
-                    setImageScalePercent(100);
-                    setImageFitMode("contain");
-                  }}
-                  className="mr-auto rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
-                >
-                  איפוס מהיר
-                </button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
         <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
           <DialogContent className="max-w-md border-border" dir="rtl">
             <DialogHeader>

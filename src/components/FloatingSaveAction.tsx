@@ -30,7 +30,7 @@ const FloatingSaveAction = ({ visible, onSaveNew, onReplace, isSaving }: Floatin
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.9 }}
           transition={{ duration: 0.2 }}
-          className="absolute bottom-4 right-4 z-30"
+          className="absolute bottom-4 left-4 z-30"
         >
           {expanded ? (
             <div className="flex flex-col gap-1.5 rounded-xl bg-card border border-border shadow-2xl p-2 min-w-[180px]">

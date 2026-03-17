@@ -687,7 +687,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg hover:brightness-110 transition-all hover:scale-105"
+        className="fixed bottom-6 left-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary shadow-lg hover:brightness-110 transition-all hover:scale-105"
       >
         <MessageCircle className="h-6 w-6 text-primary-foreground" />
       </button>
@@ -695,7 +695,7 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-40 flex flex-col w-[420px] h-[650px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
+    <div className="fixed bottom-6 left-6 z-40 flex flex-col w-[420px] h-[650px] rounded-2xl bg-card border border-border shadow-2xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-3 bg-primary/5">
         <div className="flex items-center gap-2">
