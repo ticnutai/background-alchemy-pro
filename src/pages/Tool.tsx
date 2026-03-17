@@ -1424,31 +1424,54 @@ const ToolInner = () => {
             {originalImage ? (
               <>
                 <div className="relative">
-                  <button
-                    onClick={() => setShowLayoutDialog(true)}
-                    className="absolute left-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
-                    title="בקרת דף מהירה"
-                  >
-                    <Eye className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => {
-                      const next = !(lockPageAspect && lockImageAspect);
-                      setLockPageAspect(next);
-                      setLockImageAspect(next);
-                    }}
-                    className={`absolute left-14 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border bg-background/90 shadow ${lockPageAspect && lockImageAspect ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                    title={lockPageAspect && lockImageAspect ? "כיבוי נעילת יחס" : "הפעלת נעילת יחס"}
-                  >
-                    {lockPageAspect && lockImageAspect ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                  </button>
-                  <button
-                    onClick={() => setPanMode((v) => !v)}
-                    className={`absolute left-[6.75rem] top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border bg-background/90 shadow ${panMode ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                    title={panMode ? "מצב יד פעיל" : "הפעלת מצב יד"}
-                  >
-                    <Hand className="h-4 w-4" />
-                  </button>
+                  <div className="absolute left-3 top-3 z-30 flex max-w-[calc(100%-1.5rem)] items-center gap-2 overflow-x-auto rounded-lg bg-background/60 p-1 backdrop-blur-sm">
+                    <button
+                      onClick={() => setShowLayoutDialog(true)}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
+                      title="בקרת דף מהירה"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const next = !(lockPageAspect && lockImageAspect);
+                        setLockPageAspect(next);
+                        setLockImageAspect(next);
+                      }}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background/90 shadow ${lockPageAspect && lockImageAspect ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                      title={lockPageAspect && lockImageAspect ? "כיבוי נעילת יחס" : "הפעלת נעילת יחס"}
+                    >
+                      {lockPageAspect && lockImageAspect ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                    </button>
+                    <button
+                      onClick={() => setPanMode((v) => !v)}
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border bg-background/90 shadow ${panMode ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                      title={panMode ? "מצב יד פעיל" : "הפעלת מצב יד"}
+                    >
+                      <Hand className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => dispatch({ type: "RESET_IMAGE" })}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
+                      title="הוספת תמונה"
+                    >
+                      <UploadIcon className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: "crop" })}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
+                      title="הוספת מסגרת"
+                    >
+                      <Frame className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: "backgrounds" })}
+                      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
+                      title="שינוי רקע"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                    </button>
+                  </div>
                   <ImageCanvas
                     originalImage={originalImage}
                     resultImage={resultImage}
@@ -1722,7 +1745,7 @@ const ToolInner = () => {
           <DialogPortal>
             <DialogOverlay className="bg-transparent pointer-events-none" />
             <div
-              className="fixed z-50 w-[min(92vw,640px)] rounded-lg border border-border bg-background p-4 shadow-2xl"
+              className="fixed z-50 w-[min(95vw,700px)] max-h-[86vh] overflow-x-auto overflow-y-auto rounded-lg border border-border bg-background p-4 shadow-2xl"
               style={{ left: layoutDialogPos.x, top: layoutDialogPos.y }}
               dir="rtl"
             >
@@ -1743,7 +1766,7 @@ const ToolInner = () => {
                 </DialogClose>
               </div>
 
-              <div className="space-y-4">
+              <div className="min-w-[640px] space-y-4">
               <div className="space-y-2">
                 <p className="font-body text-xs text-muted-foreground">תבנית דף</p>
                 <div className="grid grid-cols-4 gap-2">
