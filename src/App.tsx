@@ -18,7 +18,7 @@ const NotFound = lazy(() => import("./pages/NotFound.tsx"));
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen">
     <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-    <span className="mr-3 text-muted-foreground">טוען...</span>
+    <span className="ml-3 text-muted-foreground">טוען...</span>
   </div>
 );
 
@@ -30,21 +30,23 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <ErrorBoundary>
-        <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/tool" element={<Tool />} />
-          <Route path="/gallery" element={<Gallery />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/collage" element={<Collage />} />
-          <Route path="/workspace" element={<Workspace />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        </Suspense>
-        </ErrorBoundary>
+        <div dir="rtl">
+          <ErrorBoundary>
+          <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/tool" element={<Tool />} />
+            <Route path="/gallery" element={<Gallery />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/catalog" element={<Catalog />} />
+            <Route path="/collage" element={<Collage />} />
+            <Route path="/workspace" element={<Workspace />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          </Suspense>
+          </ErrorBoundary>
+        </div>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
