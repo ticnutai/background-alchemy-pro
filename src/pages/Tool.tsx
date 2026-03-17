@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
 import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench } from "lucide-react";
