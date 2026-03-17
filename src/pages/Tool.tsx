@@ -35,7 +35,7 @@ import LiveHistogram from "@/components/LiveHistogram";
 import CropTransformPanel from "@/components/CropTransformPanel";
 import FloatingSaveAction from "@/components/FloatingSaveAction";
 import AdvancedFiltersPanel from "@/components/AdvancedFiltersPanel";
-import FrameStylePanel, { type FrameShape, type FrameStyle } from "@/components/FrameStylePanel";
+import FrameStylePanel, { type FramePresetDefinition, type FrameShape, type FrameStyle } from "@/components/FrameStylePanel";
 import NonAiLabPanel from "@/components/NonAiLabPanel";
 import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
@@ -296,6 +296,7 @@ const ToolInner = () => {
   const [frameStyle, setFrameStyle] = useState<FrameStyle>("clean");
   const [frameShape, setFrameShape] = useState<FrameShape>("rect");
   const [frameRadius, setFrameRadius] = useState(6);
+  const [savedFramePresets, setSavedFramePresets] = useState<FramePresetDefinition[]>([]);
   const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
   const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
   const [customWidthCm, setCustomWidthCm] = useState("21");
@@ -321,6 +322,7 @@ const ToolInner = () => {
   const layoutProfilesStorageKey = "tool-layout-size-profiles-v1";
   const layoutSessionStorageKey = "tool-layout-session-v2";
   const projectSnapshotStorageKey = "tool-project-snapshot-v1";
+  const framePresetsStorageKey = "tool-frame-presets-v1";
 
   const convertToCm = (value: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
     if (unit === "cm") return value;
@@ -353,6 +355,15 @@ const ToolInner = () => {
     { id: "hero-wide", label: "Hero רחב", ratio: "16/9", pageW: 100, pageH: 90, imgW: 106, imgH: 106, fit: "cover" as const },
     { id: "story-portrait", label: "Story אנכי", ratio: "3/4", pageW: 82, pageH: 116, imgW: 104, imgH: 104, fit: "contain" as const },
     { id: "social-square", label: "Social ריבוע", ratio: "1/1", pageW: 90, pageH: 100, imgW: 98, imgH: 98, fit: "contain" as const },
+  ];
+
+  const professionalFramePresets: FramePresetDefinition[] = [
+    { id: "lux-gold", name: "Luxury Gold", style: "double", shape: "rounded", widthPx: 28, radius: 10, color: "#d4af37" },
+    { id: "minimal-clean", name: "Minimal Clean", style: "clean", shape: "rect", widthPx: 14, radius: 4, color: "#ffffff" },
+    { id: "editorial-film", name: "Editorial Film", style: "film", shape: "rect", widthPx: 26, radius: 2, color: "#f5f3ef" },
+    { id: "neon-pop", name: "Neon Pop", style: "neon", shape: "pill", widthPx: 20, radius: 22, color: "#00e5ff" },
+    { id: "gallery-shadow", name: "Gallery Shadow", style: "shadow", shape: "rounded", widthPx: 24, radius: 12, color: "#f8f8f8" },
+    { id: "vintage-card", name: "Vintage Card", style: "vintage", shape: "diamond", widthPx: 18, radius: 8, color: "#c8a36a" },
   ];
 
   const printPresetsCm = [
@@ -425,6 +436,45 @@ const ToolInner = () => {
     setSavedSizeProfiles((prev) => prev.filter((profile) => profile.id !== profileId));
   };
 
+  const applyFramePreset = (preset: FramePresetDefinition) => {
+    setFrameEnabled(true);
+    setFrameStyle(preset.style);
+    setFrameShape(preset.shape);
+    setFrameWidthPx(preset.widthPx);
+    setFrameRadius(preset.radius);
+    setFrameColor(preset.color);
+    toast.success(`פריסט המסגרת ${preset.name} הוחל`);
+  };
+
+  const saveCurrentFramePreset = (name: string) => {
+    const nextName = name.trim();
+    if (!nextName) {
+      toast.error("יש להזין שם לפריסט");
+      return;
+    }
+
+    setSavedFramePresets((prev) => {
+      const next: FramePresetDefinition[] = [
+        ...prev.filter((p) => p.name !== nextName),
+        {
+          id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          name: nextName,
+          style: frameStyle,
+          shape: frameShape,
+          widthPx: frameWidthPx,
+          radius: frameRadius,
+          color: frameColor,
+        },
+      ];
+      return next.slice(-20);
+    });
+    toast.success("פריסט המסגרת נשמר");
+  };
+
+  const removeSavedFramePreset = (presetId: string) => {
+    setSavedFramePresets((prev) => prev.filter((preset) => preset.id !== presetId));
+  };
+
   const applyProfessionalLayoutPreset = (preset: typeof professionalLayoutPresets[number]) => {
     setPageAspectRatio(preset.ratio);
     setPageWidthPercent(preset.pageW);
@@ -484,6 +534,33 @@ const ToolInner = () => {
   useEffect(() => {
     localStorage.setItem(layoutProfilesStorageKey, JSON.stringify(savedSizeProfiles));
   }, [savedSizeProfiles]);
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(framePresetsStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as FramePresetDefinition[];
+      if (!Array.isArray(parsed)) return;
+      setSavedFramePresets(
+        parsed.filter(
+          (item) =>
+            !!item?.id &&
+            !!item?.name &&
+            typeof item.widthPx === "number" &&
+            typeof item.radius === "number" &&
+            typeof item.color === "string" &&
+            typeof item.style === "string" &&
+            typeof item.shape === "string",
+        ),
+      );
+    } catch (error) {
+      console.error("Failed to load frame presets", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem(framePresetsStorageKey, JSON.stringify(savedFramePresets));
+  }, [savedFramePresets]);
 
   useEffect(() => {
     try {
@@ -1820,6 +1897,11 @@ const ToolInner = () => {
                         onFrameRadiusChange={setFrameRadius}
                         frameColor={frameColor}
                         onFrameColorChange={setFrameColor}
+                        professionalPresets={professionalFramePresets}
+                        savedPresets={savedFramePresets}
+                        onApplyPreset={applyFramePreset}
+                        onSaveCurrentPreset={saveCurrentFramePreset}
+                        onDeleteSavedPreset={removeSavedFramePreset}
                       />
                     </div>
                   )}
