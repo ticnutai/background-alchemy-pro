@@ -3,7 +3,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2, Move, X, Lock, Unlock, Hand } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2, Move, X, Lock, Unlock, Hand, FolderOpen, FolderPlus } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -141,6 +141,7 @@ const ToolInner = () => {
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [gridSizePx, setGridSizePx] = useState(20);
   const [sourceImageMeta, setSourceImageMeta] = useState<{ width: number; height: number } | null>(null);
+  const projectFileInputRef = useRef<HTMLInputElement | null>(null);
   const dragStateRef = useRef<{ dragging: boolean; startX: number; startY: number; startLeft: number; startTop: number }>({
     dragging: false,
     startX: 0,
@@ -153,6 +154,7 @@ const ToolInner = () => {
 
   const layoutProfilesStorageKey = "tool-layout-size-profiles-v1";
   const layoutSessionStorageKey = "tool-layout-session-v2";
+  const projectSnapshotStorageKey = "tool-project-snapshot-v1";
 
   const convertToCm = (value: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
     if (unit === "cm") return value;
@@ -1021,8 +1023,164 @@ const ToolInner = () => {
     }
   }, [resultImage, originalImage, user, saveNewName, suggestedName, customPrompt, activePrompt, searchParams, adjustments, dispatch]);
 
+  const saveProjectSnapshot = useCallback(() => {
+    if (!originalImage) {
+      toast.error("אין פרויקט פעיל לשמירה");
+      return;
+    }
+
+    const snapshot = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      tool: {
+        originalImage,
+        resultImage,
+        adjustments,
+        referenceImages,
+        selectedPreset,
+        selectedPresetName,
+        selectedPresetType,
+        customPrompt,
+        activePrompt,
+        suggestedName,
+        preciseMode,
+        activeTab,
+        compareMode,
+        showComparison,
+        comparisonImages,
+      },
+      layout: {
+        pageWidthPercent,
+        pageHeightPercent,
+        pageAspectRatio,
+        imageScaleXPercent,
+        imageScaleYPercent,
+        lockPageAspect,
+        lockImageAspect,
+        panMode,
+        imageFitMode,
+        sizeUnit,
+        sizeDpi,
+      },
+    };
+
+    localStorage.setItem(projectSnapshotStorageKey, JSON.stringify(snapshot));
+
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `project-${Date.now()}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success("הפרויקט נשמר בהצלחה");
+  }, [
+    activePrompt,
+    activeTab,
+    adjustments,
+    compareMode,
+    comparisonImages,
+    customPrompt,
+    imageFitMode,
+    imageScaleXPercent,
+    imageScaleYPercent,
+    lockImageAspect,
+    lockPageAspect,
+    originalImage,
+    pageAspectRatio,
+    pageHeightPercent,
+    pageWidthPercent,
+    panMode,
+    preciseMode,
+    referenceImages,
+    resultImage,
+    selectedPreset,
+    selectedPresetName,
+    selectedPresetType,
+    showComparison,
+    sizeDpi,
+    sizeUnit,
+  ]);
+
+  const applyProjectSnapshot = useCallback((snapshot: any) => {
+    if (!snapshot?.tool?.originalImage) {
+      toast.error("קובץ פרויקט לא תקין");
+      return;
+    }
+
+    dispatch({ type: "SET_ORIGINAL_IMAGE", payload: snapshot.tool.originalImage });
+    if (snapshot.tool.resultImage) dispatch({ type: "SET_RESULT_IMAGE", payload: snapshot.tool.resultImage });
+    if (snapshot.tool.adjustments) dispatch({ type: "SET_ADJUSTMENTS", payload: snapshot.tool.adjustments });
+    if (Array.isArray(snapshot.tool.referenceImages)) dispatch({ type: "SET_REFERENCE_IMAGES", payload: snapshot.tool.referenceImages });
+    if (typeof snapshot.tool.customPrompt === "string") dispatch({ type: "SET_CUSTOM_PROMPT", payload: snapshot.tool.customPrompt });
+    if (typeof snapshot.tool.activePrompt === "string") dispatch({ type: "SET_ACTIVE_PROMPT", payload: snapshot.tool.activePrompt });
+    if (typeof snapshot.tool.suggestedName === "string" || snapshot.tool.suggestedName === null) dispatch({ type: "SET_SUGGESTED_NAME", payload: snapshot.tool.suggestedName });
+    if (typeof snapshot.tool.preciseMode === "boolean") dispatch({ type: "SET_PRECISE_MODE", payload: snapshot.tool.preciseMode });
+    if (typeof snapshot.tool.activeTab === "string") dispatch({ type: "SET_ACTIVE_TAB", payload: snapshot.tool.activeTab });
+    if (typeof snapshot.tool.compareMode === "string") dispatch({ type: "SET_COMPARE_MODE", payload: snapshot.tool.compareMode });
+    if (typeof snapshot.tool.showComparison === "boolean") dispatch({ type: "TOGGLE_COMPARISON", payload: snapshot.tool.showComparison });
+    if (Array.isArray(snapshot.tool.comparisonImages)) {
+      dispatch({ type: "CLEAR_COMPARISON" });
+      snapshot.tool.comparisonImages.forEach((item: { image: string; label: string }) => {
+        if (item?.image) dispatch({ type: "ADD_COMPARISON_IMAGE", payload: item });
+      });
+    }
+
+    if (snapshot.layout) {
+      if (typeof snapshot.layout.pageWidthPercent === "number") setPageWidthPercent(snapshot.layout.pageWidthPercent);
+      if (typeof snapshot.layout.pageHeightPercent === "number") setPageHeightPercent(snapshot.layout.pageHeightPercent);
+      if (typeof snapshot.layout.pageAspectRatio === "string") setPageAspectRatio(snapshot.layout.pageAspectRatio);
+      if (typeof snapshot.layout.imageScaleXPercent === "number") setImageScaleXPercent(snapshot.layout.imageScaleXPercent);
+      if (typeof snapshot.layout.imageScaleYPercent === "number") setImageScaleYPercent(snapshot.layout.imageScaleYPercent);
+      if (typeof snapshot.layout.lockPageAspect === "boolean") setLockPageAspect(snapshot.layout.lockPageAspect);
+      if (typeof snapshot.layout.lockImageAspect === "boolean") setLockImageAspect(snapshot.layout.lockImageAspect);
+      if (typeof snapshot.layout.panMode === "boolean") setPanMode(snapshot.layout.panMode);
+      if (snapshot.layout.imageFitMode === "contain" || snapshot.layout.imageFitMode === "cover") setImageFitMode(snapshot.layout.imageFitMode);
+      if (snapshot.layout.sizeUnit === "cm" || snapshot.layout.sizeUnit === "mm" || snapshot.layout.sizeUnit === "in" || snapshot.layout.sizeUnit === "px") setSizeUnit(snapshot.layout.sizeUnit);
+      if (typeof snapshot.layout.sizeDpi === "number") setSizeDpi(snapshot.layout.sizeDpi);
+    }
+
+    toast.success("הפרויקט נטען בהצלחה");
+  }, [dispatch]);
+
+  const loadProjectSnapshot = useCallback((file?: File) => {
+    const readAndApply = (content: string) => {
+      try {
+        const parsed = JSON.parse(content);
+        applyProjectSnapshot(parsed);
+      } catch {
+        toast.error("נכשל בפענוח קובץ הפרויקט");
+      }
+    };
+
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = () => readAndApply(String(reader.result || ""));
+      reader.readAsText(file);
+      return;
+    }
+
+    const raw = localStorage.getItem(projectSnapshotStorageKey);
+    if (!raw) {
+      toast.error("לא נמצא פרויקט שמור");
+      return;
+    }
+    readAndApply(raw);
+  }, [applyProjectSnapshot]);
+
   return (
     <div className="min-h-screen bg-background font-body" dir="rtl">
+      <input
+        ref={projectFileInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) loadProjectSnapshot(file);
+          e.currentTarget.value = "";
+        }}
+      />
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
@@ -1512,6 +1670,35 @@ const ToolInner = () => {
                       <Redo2 className="h-4 w-4" />
                     </button>
                   </div>
+
+                  <div className="h-6 w-px bg-border mx-1" />
+
+                  <button
+                    onClick={saveProjectSnapshot}
+                    className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground hover:border-primary/40"
+                    title="שמירת פרויקט"
+                  >
+                    <FolderPlus className="h-3.5 w-3.5" />
+                    שמור פרויקט
+                  </button>
+
+                  <button
+                    onClick={() => loadProjectSnapshot()}
+                    className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground hover:border-primary/40"
+                    title="טעינת פרויקט שמור"
+                  >
+                    <FolderOpen className="h-3.5 w-3.5" />
+                    טען אחרון
+                  </button>
+
+                  <button
+                    onClick={() => projectFileInputRef.current?.click()}
+                    className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground hover:border-primary/40"
+                    title="טעינה מקובץ"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    ייבוא קובץ
+                  </button>
 
                   <div className="h-6 w-px bg-border mx-1" />
 

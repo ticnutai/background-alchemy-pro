@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "qa:visual": "playwright test tests/visual/tool.visual.spec.ts",
+    "qa:visual:update": "playwright test tests/visual/tool.visual.spec.ts --update-snapshots"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
