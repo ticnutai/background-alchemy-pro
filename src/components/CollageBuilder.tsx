@@ -218,6 +218,7 @@ type CollageImage = { id: string; src: string; name: string; cellBgColor?: strin
 interface CollageTemplate {
   id: string;
   name: string;
+  category?: string;
   createdAt: number;
   layout: CollageLayout;
   gap: number;
@@ -235,75 +236,60 @@ interface CollageTemplate {
   textureStyle?: 'none' | 'paper' | 'linen' | 'noise' | 'grain';
 }
 
+const BUILTIN_TEMPLATE_CATEGORIES: { id: string; label: string; emoji: string }[] = [
+  { id: 'all', label: 'הכול', emoji: '🗂️' },
+  { id: 'product', label: 'מוצרים', emoji: '🛍️' },
+  { id: 'social', label: 'סושיאל', emoji: '📱' },
+  { id: 'fashion', label: 'אופנה', emoji: '👗' },
+  { id: 'wedding', label: 'חתונה', emoji: '💍' },
+  { id: 'kids', label: 'ילדים', emoji: '🎉' },
+  { id: 'travel', label: 'טיולים', emoji: '🌍' },
+  { id: 'branding', label: 'מיתוג', emoji: '🏷️' },
+  { id: 'special', label: 'מיוחד', emoji: '✨' },
+];
+
 const TEMPLATES_STORAGE_KEY = 'collage-templates';
 
 // Built-in smart templates
 const BUILTIN_TEMPLATES: CollageTemplate[] = [
+  // ─── מוצרים / קטלוג ───
   {
-    id: 'builtin-luxury-gold', name: '✨ יוקרה זהב', createdAt: 0,
+    id: 'builtin-luxury-gold', name: '✨ יוקרה זהב', category: 'product', createdAt: 0,
     layout: 'grid-2x2', gap: 16, borderRadius: 12, bgColor: '#1a1a2e', canvasHeight: 1200,
     fitMode: 'contain', frameStyle: 'double-gold', bgGradientEnabled: true,
     bgGradient: { from: '#1a1a2e', to: '#2d1b4e', angle: 135 },
     textOverlays: [{ id: 'b1', text: 'קולקציה חדשה', x: 0.5, y: 0.08, fontSize: 52, fontFamily: 'luxury', fontWeight: 'bold', color: '#c9a84c', align: 'center', opacity: 1, rotation: 0, shadow: { color: 'rgba(0,0,0,0.5)', blur: 8, offsetX: 2, offsetY: 2 } }],
   },
   {
-    id: 'builtin-minimal-white', name: '⬜ מינימל לבן', createdAt: 0,
+    id: 'builtin-minimal-white', name: '⬜ מינימל לבן', category: 'product', createdAt: 0,
     layout: 'grid-3x2', gap: 24, borderRadius: 0, bgColor: '#ffffff', canvasHeight: 1000,
     fitMode: 'contain', frameStyle: 'none', bgGradientEnabled: false,
     bgGradient: { from: '#fff', to: '#fff', angle: 0 },
     textOverlays: [],
   },
   {
-    id: 'builtin-instagram-story', name: '📱 סטורי אינסטגרם', createdAt: 0,
-    layout: 'hero-top', gap: 8, borderRadius: 16, bgColor: '#f5f0e8', canvasHeight: 1920,
-    fitMode: 'cover', frameStyle: 'shadow-float', bgGradientEnabled: true,
-    bgGradient: { from: '#f5e6d3', to: '#e8c7a7', angle: 180 },
-    textOverlays: [{ id: 'b2', text: 'NEW IN', x: 0.5, y: 0.04, fontSize: 40, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#1a1a2e', align: 'center', opacity: 1, rotation: 0 }],
-  },
-  {
-    id: 'builtin-dark-cinema', name: '🎬 קולנועי כהה', createdAt: 0,
-    layout: 'strip', gap: 4, borderRadius: 0, bgColor: '#000000', canvasHeight: 600,
-    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
-    bgGradient: { from: '#000', to: '#000', angle: 0 },
-    textOverlays: [{ id: 'b3', text: 'THE COLLECTION', x: 0.5, y: 0.9, fontSize: 48, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.8, rotation: 0 }],
-  },
-  {
-    id: 'builtin-pastel-soft', name: '🌸 פסטל רך', createdAt: 0,
-    layout: 'featured-grid', gap: 14, borderRadius: 20, bgColor: '#fce4ec', canvasHeight: 1200,
-    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: true,
-    bgGradient: { from: '#fce4ec', to: '#f3e5f5', angle: 135 },
+    id: 'builtin-catalog-pro', name: '📋 קטלוג מקצועי', category: 'product', createdAt: 0,
+    layout: 'grid-4x4', gap: 2, borderRadius: 0, bgColor: '#f8f9fa', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: false,
+    bgGradient: { from: '#f8f9fa', to: '#f8f9fa', angle: 0 },
     textOverlays: [],
   },
   {
-    id: 'builtin-neon-night', name: '🌃 ניאון לילי', createdAt: 0,
-    layout: 'diagonal', gap: 0, borderRadius: 8, bgColor: '#0a0a1a', canvasHeight: 1200,
-    fitMode: 'cover', frameStyle: 'neon-glow', bgGradientEnabled: true,
-    bgGradient: { from: '#0a0a1a', to: '#1a0a2e', angle: 135 },
-    textOverlays: [{ id: 'b4', text: 'NIGHT EDITION', x: 0.5, y: 0.5, fontSize: 56, fontFamily: 'modern-sans', fontWeight: 'bold', color: '#00f0ff', align: 'center', opacity: 1, rotation: -15, shadow: { color: '#00f0ff', blur: 25, offsetX: 0, offsetY: 0 } }],
-  },
-  {
-    id: 'builtin-vintage-warm', name: '📜 וינטאג׳ חם', createdAt: 0,
-    layout: 'l-shape', gap: 10, borderRadius: 4, bgColor: '#f5e6d3', canvasHeight: 1200,
-    fitMode: 'contain', frameStyle: 'vintage-border', bgGradientEnabled: false,
-    bgGradient: { from: '#f5e6d3', to: '#f5e6d3', angle: 0 },
-    textOverlays: [{ id: 'b5', text: 'קלאסיקה', x: 0.5, y: 0.06, fontSize: 44, fontFamily: 'hebrew-suez', fontWeight: 'bold', color: '#6b4c3b', align: 'center', opacity: 1, rotation: 0 }],
-  },
-  {
-    id: 'builtin-kids-fun', name: '🎉 ילדים שמח', createdAt: 0,
-    layout: 'grid-2x3', gap: 10, borderRadius: 24, bgColor: '#fff3e0', canvasHeight: 1400,
-    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
-    bgGradient: { from: '#fff3e0', to: '#e1f5fe', angle: 135 },
-    textOverlays: [{ id: 'b6', text: '!יום הולדת שמח', x: 0.5, y: 0.05, fontSize: 52, fontFamily: 'hebrew-fredoka', fontWeight: 'bold', color: '#6c5ce7', align: 'center', opacity: 1, rotation: -3 }],
-  },
-  {
-    id: 'builtin-marble-lux', name: '💎 שיש יוקרתי', createdAt: 0,
+    id: 'builtin-marble-lux', name: '💎 שיש יוקרתי', category: 'product', createdAt: 0,
     layout: 'hero-side', gap: 12, borderRadius: 8, bgColor: '#f0ece3', canvasHeight: 1200,
     fitMode: 'contain', frameStyle: 'marble-edge', bgGradientEnabled: false,
     bgGradient: { from: '#f0ece3', to: '#f0ece3', angle: 0 },
     textOverlays: [],
   },
   {
-    id: 'builtin-sale-bold', name: '🔥 מבצע בולט', createdAt: 0,
+    id: 'builtin-product-hero', name: '🛒 Hero מוצר', category: 'product', createdAt: 0,
+    layout: 'hero-top', gap: 6, borderRadius: 6, bgColor: '#fafafa', canvasHeight: 1400,
+    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: false,
+    bgGradient: { from: '#fafafa', to: '#fafafa', angle: 0 },
+    textOverlays: [{ id: 'ph1', text: 'מוצר חדש', x: 0.5, y: 0.05, fontSize: 44, fontFamily: 'hebrew-secular', fontWeight: 'bold', color: '#1a1a2e', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-sale-bold', name: '🔥 מבצע בולט', category: 'product', createdAt: 0,
     layout: 'grid-2x2', gap: 6, borderRadius: 0, bgColor: '#e63946', canvasHeight: 1200,
     fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
     bgGradient: { from: '#e63946', to: '#d00000', angle: 180 },
@@ -313,17 +299,219 @@ const BUILTIN_TEMPLATES: CollageTemplate[] = [
     ],
   },
   {
-    id: 'builtin-catalog-pro', name: '📋 קטלוג מקצועי', createdAt: 0,
-    layout: 'grid-4x4', gap: 2, borderRadius: 0, bgColor: '#f8f9fa', canvasHeight: 1200,
-    fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: false,
-    bgGradient: { from: '#f8f9fa', to: '#f8f9fa', angle: 0 },
+    id: 'builtin-product-magazine', name: '📰 מגזין מוצרים', category: 'product', createdAt: 0,
+    layout: 'magazine', gap: 8, borderRadius: 4, bgColor: '#f8f5f0', canvasHeight: 1400,
+    fitMode: 'cover', frameStyle: 'thin-gold', bgGradientEnabled: false,
+    bgGradient: { from: '#f8f5f0', to: '#f8f5f0', angle: 0 },
+    textOverlays: [{ id: 'pm1', text: 'קולקציה', x: 0.5, y: 0.05, fontSize: 38, fontFamily: 'elegant-serif', fontWeight: 'bold', color: '#1a1a2e', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  // ─── סושיאל ───
+  {
+    id: 'builtin-instagram-story', name: '📱 סטורי אינסטגרם', category: 'social', createdAt: 0,
+    layout: 'hero-top', gap: 8, borderRadius: 16, bgColor: '#f5f0e8', canvasHeight: 1920,
+    fitMode: 'cover', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#f5e6d3', to: '#e8c7a7', angle: 180 },
+    textOverlays: [{ id: 'b2', text: 'NEW IN', x: 0.5, y: 0.04, fontSize: 40, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#1a1a2e', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-reels-vertical', name: '🎥 ריל אנכי', category: 'social', createdAt: 0,
+    layout: 'strip-vertical', gap: 4, borderRadius: 0, bgColor: '#000000', canvasHeight: 1920,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#0a0a1a', to: '#1a0a2e', angle: 180 },
+    textOverlays: [{ id: 'rv1', text: 'REEL', x: 0.5, y: 0.93, fontSize: 52, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.9, rotation: 0 }],
+  },
+  {
+    id: 'builtin-ig-grid-post', name: '📸 פוסט IG ריבוע', category: 'social', createdAt: 0,
+    layout: 'grid-2x2', gap: 4, borderRadius: 0, bgColor: '#ffffff', canvasHeight: 1080,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#fff', to: '#fff', angle: 0 },
     textOverlays: [],
   },
   {
-    id: 'builtin-nature-green', name: '🌿 טבע ירוק', createdAt: 0,
+    id: 'builtin-fb-cover', name: '📘 כיסוי פייסבוק', category: 'social', createdAt: 0,
+    layout: 'strip', gap: 0, borderRadius: 0, bgColor: '#1877f2', canvasHeight: 624,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#1877f2', to: '#0d5dbf', angle: 135 },
+    textOverlays: [{ id: 'fb1', text: 'הדף שלנו', x: 0.5, y: 0.5, fontSize: 56, fontFamily: 'hebrew-secular', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-neon-night', name: '🌃 ניאון לילי', category: 'social', createdAt: 0,
+    layout: 'diagonal', gap: 0, borderRadius: 8, bgColor: '#0a0a1a', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'neon-glow', bgGradientEnabled: true,
+    bgGradient: { from: '#0a0a1a', to: '#1a0a2e', angle: 135 },
+    textOverlays: [{ id: 'b4', text: 'NIGHT EDITION', x: 0.5, y: 0.5, fontSize: 56, fontFamily: 'modern-sans', fontWeight: 'bold', color: '#00f0ff', align: 'center', opacity: 1, rotation: -15, shadow: { color: '#00f0ff', blur: 25, offsetX: 0, offsetY: 0 } }],
+  },
+  {
+    id: 'builtin-dark-cinema', name: '🎬 קולנועי כהה', category: 'social', createdAt: 0,
+    layout: 'filmstrip', gap: 4, borderRadius: 0, bgColor: '#000000', canvasHeight: 600,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#000', to: '#000', angle: 0 },
+    textOverlays: [{ id: 'b3', text: 'THE COLLECTION', x: 0.5, y: 0.9, fontSize: 48, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.8, rotation: 0 }],
+  },
+  // ─── אופנה ───
+  {
+    id: 'builtin-fashion-bw', name: '🖤 אופנה שחור-לבן', category: 'fashion', createdAt: 0,
+    layout: 'asymmetric-columns', gap: 6, borderRadius: 0, bgColor: '#ffffff', canvasHeight: 1400,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#fff', to: '#fff', angle: 0 },
+    textOverlays: [{ id: 'fw1', text: 'FASHION WEEK', x: 0.5, y: 0.96, fontSize: 36, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#1a1a1a', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-fashion-luxury', name: '💄 אופנה יוקרה', category: 'fashion', createdAt: 0,
+    layout: 'triple-hero', gap: 10, borderRadius: 0, bgColor: '#f0ece3', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: false,
+    bgGradient: { from: '#f0ece3', to: '#f0ece3', angle: 0 },
+    textOverlays: [{ id: 'fl1', text: 'LUXURY', x: 0.5, y: 0.06, fontSize: 60, fontFamily: 'luxury', fontWeight: 'bold', color: '#c9a84c', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-pastel-soft', name: '🌸 פסטל אופנה', category: 'fashion', createdAt: 0,
+    layout: 'featured-grid', gap: 14, borderRadius: 20, bgColor: '#fce4ec', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#fce4ec', to: '#f3e5f5', angle: 135 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-fashion-magazine', name: '📖 מגזין אופנה', category: 'fashion', createdAt: 0,
+    layout: 'magazine', gap: 12, borderRadius: 0, bgColor: '#fafafa', canvasHeight: 1600,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#fafafa', to: '#fafafa', angle: 0 },
+    textOverlays: [
+      { id: 'fm1', text: 'COLLECTION', x: 0.5, y: 0.03, fontSize: 28, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#1a1a1a', align: 'center', opacity: 1, rotation: 0 },
+      { id: 'fm2', text: 'S/S 2026', x: 0.5, y: 0.97, fontSize: 22, fontFamily: 'elegant-serif', fontWeight: 'normal', color: '#888888', align: 'center', opacity: 1, rotation: 0 },
+    ],
+  },
+  // ─── חתונה / אירועים ───
+  {
+    id: 'builtin-wedding-elegant', name: '💍 חתונה אלגנטית', category: 'wedding', createdAt: 0,
+    layout: 'hero-side', gap: 14, borderRadius: 2, bgColor: '#fdf8f0', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'double-gold', bgGradientEnabled: true,
+    bgGradient: { from: '#fdf8f0', to: '#f5e6d3', angle: 45 },
+    textOverlays: [
+      { id: 'we1', text: '& מיכל אדם', x: 0.5, y: 0.06, fontSize: 48, fontFamily: 'script-lobster', fontWeight: 'normal', color: '#c9a84c', align: 'center', opacity: 1, rotation: 0 },
+      { id: 'we2', text: '15.03.2026', x: 0.5, y: 0.94, fontSize: 24, fontFamily: 'elegant-serif', fontWeight: 'normal', color: '#6b4c3b', align: 'center', opacity: 1, rotation: 0 },
+    ],
+  },
+  {
+    id: 'builtin-wedding-mosaic', name: '🤍 פסיפס חתונה', category: 'wedding', createdAt: 0,
+    layout: 'mosaic', gap: 8, borderRadius: 4, bgColor: '#fff8f0', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'ornate-corners', bgGradientEnabled: false,
+    bgGradient: { from: '#fff8f0', to: '#fff8f0', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-wedding-story', name: '💒 סטורי חתונה', category: 'wedding', createdAt: 0,
+    layout: 'center-strip', gap: 6, borderRadius: 16, bgColor: '#fce4ec', canvasHeight: 1920,
+    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#fce4ec', to: '#f8bbd0', angle: 180 },
+    textOverlays: [{ id: 'ws1', text: 'WEDDING DAY', x: 0.5, y: 0.05, fontSize: 44, fontFamily: 'script-satisfy', fontWeight: 'normal', color: '#880e4f', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  // ─── ילדים ───
+  {
+    id: 'builtin-kids-fun', name: '🎉 יום הולדת', category: 'kids', createdAt: 0,
+    layout: 'grid-2x3', gap: 10, borderRadius: 24, bgColor: '#fff3e0', canvasHeight: 1400,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#fff3e0', to: '#e1f5fe', angle: 135 },
+    textOverlays: [{ id: 'b6', text: '!יום הולדת שמח', x: 0.5, y: 0.05, fontSize: 52, fontFamily: 'hebrew-fredoka', fontWeight: 'bold', color: '#6c5ce7', align: 'center', opacity: 1, rotation: -3 }],
+  },
+  {
+    id: 'builtin-kids-rainbow', name: '🌈 קשת ילדים', category: 'kids', createdAt: 0,
+    layout: 'grid-3x3', gap: 6, borderRadius: 16, bgColor: '#e8f5e9', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#e8f5e9', to: '#e3f2fd', angle: 90 },
+    textOverlays: [{ id: 'kr1', text: 'גן ילדים', x: 0.5, y: 0.04, fontSize: 46, fontFamily: 'hebrew-amatic', fontWeight: 'bold', color: '#ff6b6b', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-kids-school', name: '✏️ סוף שנה', category: 'kids', createdAt: 0,
+    layout: 'focus-center', gap: 8, borderRadius: 12, bgColor: '#fffde7', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: false,
+    bgGradient: { from: '#fffde7', to: '#fffde7', angle: 0 },
+    textOverlays: [{ id: 'ks1', text: 'כיתה א׳ 2026', x: 0.5, y: 0.06, fontSize: 42, fontFamily: 'hebrew-fredoka', fontWeight: 'bold', color: '#4caf50', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  // ─── טיולים ───
+  {
+    id: 'builtin-travel-panoramic', name: '🌍 פנורמת טיול', category: 'travel', createdAt: 0,
+    layout: 'panoramic-stack', gap: 6, borderRadius: 8, bgColor: '#1a2744', canvasHeight: 900,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#1a2744', to: '#2d4a7a', angle: 180 },
+    textOverlays: [{ id: 'tp1', text: 'MY JOURNEY', x: 0.5, y: 0.94, fontSize: 42, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.9, rotation: 0 }],
+  },
+  {
+    id: 'builtin-nature-green', name: '🌿 טבע ירוק', category: 'travel', createdAt: 0,
     layout: 'masonry', gap: 10, borderRadius: 12, bgColor: '#1b4332', canvasHeight: 1200,
     fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
     bgGradient: { from: '#1b4332', to: '#2d6a4f', angle: 135 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-travel-grid', name: '🗺️ גריד מסע', category: 'travel', createdAt: 0,
+    layout: 'pinterest', gap: 8, borderRadius: 10, bgColor: '#0f2027', canvasHeight: 1400,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#0f2027', to: '#203a43', angle: 135 },
+    textOverlays: [],
+  },
+  // ─── מיתוג ───
+  {
+    id: 'builtin-branding-minimal', name: '🏷️ מינימל מיתוג', category: 'branding', createdAt: 0,
+    layout: 'grid-3x3', gap: 2, borderRadius: 0, bgColor: '#1a1a1a', canvasHeight: 1080,
+    fitMode: 'contain', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#1a1a1a', to: '#1a1a1a', angle: 0 },
+    textOverlays: [{ id: 'bm1', text: 'BRAND', x: 0.5, y: 0.97, fontSize: 28, fontFamily: 'modern-sans', fontWeight: 'bold', color: '#ffffff', align: 'center', opacity: 0.6, rotation: 0 }],
+  },
+  {
+    id: 'builtin-branding-gold', name: '🥇 מיתוג זהב', category: 'branding', createdAt: 0,
+    layout: 'featured-grid', gap: 12, borderRadius: 6, bgColor: '#0f0f0f', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: true,
+    bgGradient: { from: '#0f0f0f', to: '#1a1a2e', angle: 135 },
+    textOverlays: [{ id: 'bg1', text: 'PREMIUM BRAND', x: 0.5, y: 0.06, fontSize: 38, fontFamily: 'display-bebas', fontWeight: 'bold', color: '#c9a84c', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  {
+    id: 'builtin-vintage-warm', name: '📜 וינטאג׳ חם', category: 'branding', createdAt: 0,
+    layout: 'l-shape', gap: 10, borderRadius: 4, bgColor: '#f5e6d3', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'vintage-border', bgGradientEnabled: false,
+    bgGradient: { from: '#f5e6d3', to: '#f5e6d3', angle: 0 },
+    textOverlays: [{ id: 'b5', text: 'קלאסיקה', x: 0.5, y: 0.06, fontSize: 44, fontFamily: 'hebrew-suez', fontWeight: 'bold', color: '#6b4c3b', align: 'center', opacity: 1, rotation: 0 }],
+  },
+  // ─── מיוחד ───
+  {
+    id: 'builtin-spiral-art', name: '🌀 ספירלה אמנותית', category: 'special', createdAt: 0,
+    layout: 'spiral', gap: 0, borderRadius: 50, bgColor: '#0f0f23', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'neon-glow', bgGradientEnabled: true,
+    bgGradient: { from: '#0f0f23', to: '#1a0533', angle: 135 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-diamond-layout', name: '♦️ יהלומים', category: 'special', createdAt: 0,
+    layout: 'diamond', gap: 8, borderRadius: 8, bgColor: '#f0f4f8', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'shadow-float', bgGradientEnabled: true,
+    bgGradient: { from: '#e0e8f0', to: '#f0f4f8', angle: 45 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-checkerboard', name: '♟️ שחמט', category: 'special', createdAt: 0,
+    layout: 'checkerboard', gap: 3, borderRadius: 0, bgColor: '#1a1a1a', canvasHeight: 1080,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: false,
+    bgGradient: { from: '#1a1a1a', to: '#1a1a1a', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-ring-circle', name: '⭕ טבעת עיגולים', category: 'special', createdAt: 0,
+    layout: 'ring', gap: 10, borderRadius: 50, bgColor: '#1a2744', canvasHeight: 1200,
+    fitMode: 'cover', frameStyle: 'none', bgGradientEnabled: true,
+    bgGradient: { from: '#1a2744', to: '#0f172a', angle: 135 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-golden-ratio', name: '📐 יחס הזהב', category: 'special', createdAt: 0,
+    layout: 'golden-ratio', gap: 6, borderRadius: 4, bgColor: '#ffffff', canvasHeight: 1000,
+    fitMode: 'contain', frameStyle: 'thin-gold', bgGradientEnabled: false,
+    bgGradient: { from: '#fff', to: '#fff', angle: 0 },
+    textOverlays: [],
+  },
+  {
+    id: 'builtin-frame-in-frame', name: '🖼️ מסגרת במסגרת', category: 'special', createdAt: 0,
+    layout: 'frame-in-frame', gap: 20, borderRadius: 8, bgColor: '#2c1810', canvasHeight: 1200,
+    fitMode: 'contain', frameStyle: 'double-gold', bgGradientEnabled: true,
+    bgGradient: { from: '#2c1810', to: '#4a2c1a', angle: 135 },
     textOverlays: [],
   },
 ];
@@ -625,6 +813,7 @@ export default function CollageBuilder() {
   // Templates
   const [savedTemplates, setSavedTemplates] = useState<CollageTemplate[]>(() => loadTemplatesFromStorage());
   const [templateName, setTemplateName] = useState("");
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState("all");
 
   // Split image
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
@@ -2449,16 +2638,32 @@ export default function CollageBuilder() {
                     <h3 className="font-semibold text-sm flex items-center gap-2">
                       <Sparkles className="h-4 w-4" />תבניות מוכנות ({BUILTIN_TEMPLATES.length})
                     </h3>
-                    <ScrollArea className="max-h-[300px]">
+                    {/* Category filter */}
+                    <div className="flex flex-wrap gap-1">
+                      {BUILTIN_TEMPLATE_CATEGORIES.map(cat => {
+                        const count = cat.id === 'all' ? BUILTIN_TEMPLATES.length : BUILTIN_TEMPLATES.filter(t => t.category === cat.id).length;
+                        if (count === 0) return null;
+                        return (
+                          <button
+                            key={cat.id}
+                            onClick={() => setTemplateCategoryFilter(cat.id)}
+                            className={`rounded-full px-2 py-1 text-[10px] font-semibold transition-all ${templateCategoryFilter === cat.id ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground hover:text-foreground'}`}
+                          >
+                            {cat.emoji} {cat.label} {cat.id !== 'all' && <span className="opacity-60">({count})</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <ScrollArea className="max-h-[420px]">
                       <div className="grid grid-cols-2 gap-2">
-                        {BUILTIN_TEMPLATES.map(tpl => (
+                        {BUILTIN_TEMPLATES.filter(tpl => templateCategoryFilter === 'all' || tpl.category === templateCategoryFilter).map(tpl => (
                           <button
                             key={tpl.id}
                             onClick={() => loadTemplate(tpl)}
                             className="border rounded-lg p-2 text-right hover:border-primary/50 hover:bg-accent/30 transition-all space-y-1"
                           >
-                            <div className="w-full h-8 rounded" style={{ background: tpl.bgGradientEnabled ? `linear-gradient(${tpl.bgGradient.angle}deg, ${tpl.bgGradient.from}, ${tpl.bgGradient.to})` : tpl.bgColor }} />
-                            <p className="text-xs font-semibold truncate">{tpl.name}</p>
+                            <div className="w-full h-10 rounded" style={{ background: tpl.bgGradientEnabled ? `linear-gradient(${tpl.bgGradient.angle}deg, ${tpl.bgGradient.from}, ${tpl.bgGradient.to})` : tpl.bgColor }} />
+                            <p className="text-[11px] font-semibold truncate leading-tight">{tpl.name}</p>
                             <div className="flex flex-wrap gap-0.5">
                               <Badge variant="outline" className="text-[8px] px-1 py-0">{LAYOUT_OPTIONS.find(l => l.id === tpl.layout)?.label || tpl.layout}</Badge>
                               {tpl.frameStyle !== 'none' && <Badge variant="outline" className="text-[8px] px-1 py-0">{FRAME_PRESETS.find(f => f.id === tpl.frameStyle)?.label}</Badge>}
