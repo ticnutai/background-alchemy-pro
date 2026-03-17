@@ -123,8 +123,10 @@ const ToolInner = () => {
   const [showPdfProcessor, setShowPdfProcessor] = useState(false);
   const [showLayoutDialog, setShowLayoutDialog] = useState(false);
   const [pageWidthPercent, setPageWidthPercent] = useState(92);
+  const [pageHeightPercent, setPageHeightPercent] = useState(100);
   const [pageAspectRatio, setPageAspectRatio] = useState("4/3");
-  const [imageScalePercent, setImageScalePercent] = useState(100);
+  const [imageScaleXPercent, setImageScaleXPercent] = useState(100);
+  const [imageScaleYPercent, setImageScaleYPercent] = useState(100);
   const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
   const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
   const [customWidthCm, setCustomWidthCm] = useState("21");
@@ -1002,7 +1004,9 @@ const ToolInner = () => {
                   <button
                     onClick={() => {
                       setPageWidthPercent(96);
-                      setImageScalePercent(100);
+                      setPageHeightPercent(100);
+                      setImageScaleXPercent(100);
+                      setImageScaleYPercent(100);
                       setImageFitMode("contain");
                     }}
                     className="rounded-lg border border-border bg-background px-3 py-1.5 font-accent text-xs text-muted-foreground hover:text-foreground"
@@ -1284,7 +1288,7 @@ const ToolInner = () => {
           <div className="flex-1 order-1 lg:order-2 space-y-4">
             {originalImage ? (
               <>
-                <div className="sticky top-4">
+                <div className="relative">
                   <button
                     onClick={() => setShowLayoutDialog(true)}
                     className="absolute left-3 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border border-border bg-background/90 text-muted-foreground shadow hover:text-foreground"
@@ -1299,11 +1303,15 @@ const ToolInner = () => {
                     adjustments={adjustments}
                     liveFilterCss={liveFilterCss}
                     pageWidthPercent={pageWidthPercent}
+                    pageHeightPercent={pageHeightPercent}
                     pageAspectRatio={pageAspectRatio}
-                    imageScalePercent={imageScalePercent}
+                    imageScaleXPercent={imageScaleXPercent}
+                    imageScaleYPercent={imageScaleYPercent}
                     imageFitMode={imageFitMode}
                     onPageWidthChange={setPageWidthPercent}
-                    onImageScaleChange={setImageScalePercent}
+                    onPageHeightChange={setPageHeightPercent}
+                    onImageScaleXChange={setImageScaleXPercent}
+                    onImageScaleYChange={setImageScaleYPercent}
                   />
                   <FloatingSaveAction
                     visible={!!originalImage && hasUnsavedChanges && !!user}
@@ -1755,15 +1763,45 @@ const ToolInner = () => {
 
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-xs">
-                  <span>גודל תמונה</span>
-                  <span>{Math.round(imageScalePercent)}%</span>
+                  <span>גובה דף</span>
+                  <span>{Math.round(pageHeightPercent)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={50}
+                  max={140}
+                  value={pageHeightPercent}
+                  onChange={(e) => setPageHeightPercent(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span>רוחב תמונה</span>
+                  <span>{Math.round(imageScaleXPercent)}%</span>
                 </div>
                 <input
                   type="range"
                   min={60}
-                  max={170}
-                  value={imageScalePercent}
-                  onChange={(e) => setImageScalePercent(Number(e.target.value))}
+                  max={190}
+                  value={imageScaleXPercent}
+                  onChange={(e) => setImageScaleXPercent(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs">
+                  <span>גובה תמונה</span>
+                  <span>{Math.round(imageScaleYPercent)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min={60}
+                  max={190}
+                  value={imageScaleYPercent}
+                  onChange={(e) => setImageScaleYPercent(Number(e.target.value))}
                   className="w-full"
                 />
               </div>
@@ -1787,7 +1825,9 @@ const ToolInner = () => {
                 <button
                   onClick={() => {
                     setPageWidthPercent(100);
-                    setImageScalePercent(110);
+                    setPageHeightPercent(108);
+                    setImageScaleXPercent(110);
+                    setImageScaleYPercent(110);
                   }}
                   className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground"
                 >
@@ -1797,7 +1837,9 @@ const ToolInner = () => {
                 <button
                   onClick={() => {
                     setPageWidthPercent(78);
-                    setImageScalePercent(90);
+                    setPageHeightPercent(90);
+                    setImageScaleXPercent(90);
+                    setImageScaleYPercent(90);
                   }}
                   className="flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-foreground"
                 >
@@ -1807,8 +1849,10 @@ const ToolInner = () => {
                 <button
                   onClick={() => {
                     setPageWidthPercent(92);
+                    setPageHeightPercent(100);
                     setPageAspectRatio("4/3");
-                    setImageScalePercent(100);
+                    setImageScaleXPercent(100);
+                    setImageScaleYPercent(100);
                     setImageFitMode("contain");
                     setCustomWidthCm("21");
                     setCustomHeightCm("29.7");

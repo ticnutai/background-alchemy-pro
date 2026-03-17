@@ -12,11 +12,15 @@ interface ImageCanvasProps {
   compareMode?: CompareMode;
   liveFilterCss?: string;
   pageWidthPercent?: number;
+  pageHeightPercent?: number;
   pageAspectRatio?: string;
-  imageScalePercent?: number;
+  imageScaleXPercent?: number;
+  imageScaleYPercent?: number;
   imageFitMode?: "contain" | "cover";
   onPageWidthChange?: (next: number) => void;
-  onImageScaleChange?: (next: number) => void;
+  onPageHeightChange?: (next: number) => void;
+  onImageScaleXChange?: (next: number) => void;
+  onImageScaleYChange?: (next: number) => void;
 }
 
 const compareModeLabels: Record<CompareMode, string> = {
@@ -42,11 +46,15 @@ const ImageCanvas = memo(({
   compareMode = "slider",
   liveFilterCss,
   pageWidthPercent = 92,
+  pageHeightPercent = 100,
   pageAspectRatio = "4/3",
-  imageScalePercent = 100,
+  imageScaleXPercent = 100,
+  imageScaleYPercent = 100,
   imageFitMode = "contain",
   onPageWidthChange,
-  onImageScaleChange,
+  onPageHeightChange,
+  onImageScaleXChange,
+  onImageScaleYChange,
 }: ImageCanvasProps) => {
   const [sliderPos, setSliderPos] = useState(50);
   const [fadeOpacity, setFadeOpacity] = useState(1);
@@ -54,10 +62,13 @@ const ImageCanvas = memo(({
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
-  const dragModeRef = useRef<null | "page-left" | "page-right" | "image">(null);
+  const dragModeRef = useRef<null | "page-left" | "page-right" | "page-top" | "page-bottom" | "image-x" | "image-y">(null);
   const dragStartXRef = useRef(0);
+  const dragStartYRef = useRef(0);
   const startPageWidthRef = useRef(pageWidthPercent);
-  const startImageScaleRef = useRef(imageScalePercent);
+  const startPageHeightRef = useRef(pageHeightPercent);
+  const startImageScaleXRef = useRef(imageScaleXPercent);
+  const startImageScaleYRef = useRef(imageScaleYPercent);
 
   const handleMove = useCallback((clientX: number) => {
     if (!containerRef.current || !isDragging.current) return;
@@ -75,32 +86,55 @@ const ImageCanvas = memo(({
   const combinedFilter = [svgFilterId ? `${filterStyle} url(#${svgFilterId})` : filterStyle, liveFilterCss].filter(Boolean).join(" ");
   const overlayStyles = getOverlayStyles(adjustments);
   const hasAdjustments = JSON.stringify(adjustments) !== JSON.stringify(defaultAdjustments);
-  const ratio = parseRatio(pageAspectRatio);
+  const baseRatio = parseRatio(pageAspectRatio);
+  const ratio = clamp(baseRatio * (pageWidthPercent / Math.max(1, pageHeightPercent)), 0.2, 8);
   const mediaClass = imageFitMode === "cover" ? "block h-full w-full object-cover" : "block h-full w-full object-contain";
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!dragModeRef.current || !stageRef.current) return;
       const dx = e.clientX - dragStartXRef.current;
-      if (dragModeRef.current === "image") {
-        onImageScaleChange?.(clamp(startImageScaleRef.current + dx * 0.2, 60, 170));
+      const dy = e.clientY - dragStartYRef.current;
+      if (dragModeRef.current === "image-x") {
+        onImageScaleXChange?.(clamp(startImageScaleXRef.current + dx * 0.2, 60, 190));
+        return;
+      }
+      if (dragModeRef.current === "image-y") {
+        onImageScaleYChange?.(clamp(startImageScaleYRef.current + dy * 0.2, 60, 190));
         return;
       }
       const stageWidth = stageRef.current.parentElement?.clientWidth || stageRef.current.clientWidth || 1;
-      const dir = dragModeRef.current === "page-right" ? 1 : -1;
-      onPageWidthChange?.(clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 100));
+      const stageHeight = stageRef.current.parentElement?.clientHeight || stageRef.current.clientHeight || 1;
+      if (dragModeRef.current === "page-left" || dragModeRef.current === "page-right") {
+        const dir = dragModeRef.current === "page-right" ? 1 : -1;
+        onPageWidthChange?.(clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 120));
+        return;
+      }
+      const dirY = dragModeRef.current === "page-bottom" ? 1 : -1;
+      onPageHeightChange?.(clamp(startPageHeightRef.current + ((dy / stageHeight) * 100 * dirY), 50, 140));
     };
 
     const handleTouchMove = (e: TouchEvent) => {
       if (!dragModeRef.current || !stageRef.current || e.touches.length === 0) return;
       const dx = e.touches[0].clientX - dragStartXRef.current;
-      if (dragModeRef.current === "image") {
-        onImageScaleChange?.(clamp(startImageScaleRef.current + dx * 0.2, 60, 170));
+      const dy = e.touches[0].clientY - dragStartYRef.current;
+      if (dragModeRef.current === "image-x") {
+        onImageScaleXChange?.(clamp(startImageScaleXRef.current + dx * 0.2, 60, 190));
+        return;
+      }
+      if (dragModeRef.current === "image-y") {
+        onImageScaleYChange?.(clamp(startImageScaleYRef.current + dy * 0.2, 60, 190));
         return;
       }
       const stageWidth = stageRef.current.parentElement?.clientWidth || stageRef.current.clientWidth || 1;
-      const dir = dragModeRef.current === "page-right" ? 1 : -1;
-      onPageWidthChange?.(clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 100));
+      const stageHeight = stageRef.current.parentElement?.clientHeight || stageRef.current.clientHeight || 1;
+      if (dragModeRef.current === "page-left" || dragModeRef.current === "page-right") {
+        const dir = dragModeRef.current === "page-right" ? 1 : -1;
+        onPageWidthChange?.(clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 120));
+        return;
+      }
+      const dirY = dragModeRef.current === "page-bottom" ? 1 : -1;
+      onPageHeightChange?.(clamp(startPageHeightRef.current + ((dy / stageHeight) * 100 * dirY), 50, 140));
     };
 
     const stopDrag = () => {
@@ -117,13 +151,20 @@ const ImageCanvas = memo(({
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", stopDrag);
     };
-  }, [onImageScaleChange, onPageWidthChange]);
+  }, [onImageScaleXChange, onImageScaleYChange, onPageHeightChange, onPageWidthChange]);
 
-  const startDragHandle = (mode: "page-left" | "page-right" | "image", clientX: number) => {
+  const startDragHandle = (
+    mode: "page-left" | "page-right" | "page-top" | "page-bottom" | "image-x" | "image-y",
+    clientX: number,
+    clientY: number,
+  ) => {
     dragModeRef.current = mode;
     dragStartXRef.current = clientX;
+    dragStartYRef.current = clientY;
     startPageWidthRef.current = pageWidthPercent;
-    startImageScaleRef.current = imageScalePercent;
+    startPageHeightRef.current = pageHeightPercent;
+    startImageScaleXRef.current = imageScaleXPercent;
+    startImageScaleYRef.current = imageScaleYPercent;
   };
 
   const renderOverlay = () => {
@@ -179,7 +220,7 @@ const ImageCanvas = memo(({
         style={{ width: `${pageWidthPercent}%`, aspectRatio: `${ratio}` }}
       >
         <div className="absolute inset-0 overflow-hidden">
-          <div className="h-full w-full origin-center transition-transform duration-150" style={{ transform: `scale(${imageScalePercent / 100})` }}>
+          <div className="h-full w-full origin-center transition-transform duration-150" style={{ transform: `scaleX(${imageScaleXPercent / 100}) scaleY(${imageScaleYPercent / 100})` }}>
       {resultImage ? (
         <>
           {localMode === "slider" && (
@@ -288,38 +329,72 @@ const ImageCanvas = memo(({
           <>
             <button
               type="button"
-              onMouseDown={(e) => startDragHandle("page-left", e.clientX)}
-              onTouchStart={(e) => startDragHandle("page-left", e.touches[0].clientX)}
+              onMouseDown={(e) => startDragHandle("page-left", e.clientX, e.clientY)}
+              onTouchStart={(e) => startDragHandle("page-left", e.touches[0].clientX, e.touches[0].clientY)}
               className="absolute left-1 top-1/2 z-20 h-10 w-2 -translate-y-1/2 cursor-ew-resize rounded bg-primary/40 hover:bg-primary/70"
               title="ידית רוחב דף"
             />
             <button
               type="button"
-              onMouseDown={(e) => startDragHandle("page-right", e.clientX)}
-              onTouchStart={(e) => startDragHandle("page-right", e.touches[0].clientX)}
+              onMouseDown={(e) => startDragHandle("page-right", e.clientX, e.clientY)}
+              onTouchStart={(e) => startDragHandle("page-right", e.touches[0].clientX, e.touches[0].clientY)}
               className="absolute right-1 top-1/2 z-20 h-10 w-2 -translate-y-1/2 cursor-ew-resize rounded bg-primary/40 hover:bg-primary/70"
               title="ידית רוחב דף"
             />
           </>
         )}
 
-        {onImageScaleChange && (
-          <button
-            type="button"
-            onMouseDown={(e) => startDragHandle("image", e.clientX)}
-            onTouchStart={(e) => startDragHandle("image", e.touches[0].clientX)}
-            className="absolute bottom-2 left-2 z-20 flex h-7 w-7 cursor-ew-resize items-center justify-center rounded-full border border-primary/60 bg-background/90 text-primary shadow"
-            title="ידית גודל תמונה"
-          >
-            <span className="text-[10px] font-bold">↔</span>
-          </button>
+        {onPageHeightChange && (
+          <>
+            <button
+              type="button"
+              onMouseDown={(e) => startDragHandle("page-top", e.clientX, e.clientY)}
+              onTouchStart={(e) => startDragHandle("page-top", e.touches[0].clientX, e.touches[0].clientY)}
+              className="absolute top-1 left-1/2 z-20 h-2 w-10 -translate-x-1/2 cursor-ns-resize rounded bg-primary/40 hover:bg-primary/70"
+              title="ידית גובה דף"
+            />
+            <button
+              type="button"
+              onMouseDown={(e) => startDragHandle("page-bottom", e.clientX, e.clientY)}
+              onTouchStart={(e) => startDragHandle("page-bottom", e.touches[0].clientX, e.touches[0].clientY)}
+              className="absolute bottom-1 left-1/2 z-20 h-2 w-10 -translate-x-1/2 cursor-ns-resize rounded bg-primary/40 hover:bg-primary/70"
+              title="ידית גובה דף"
+            />
+          </>
+        )}
+
+        {(onImageScaleXChange || onImageScaleYChange) && (
+          <>
+            {onImageScaleXChange && (
+              <button
+                type="button"
+                onMouseDown={(e) => startDragHandle("image-x", e.clientX, e.clientY)}
+                onTouchStart={(e) => startDragHandle("image-x", e.touches[0].clientX, e.touches[0].clientY)}
+                className="absolute bottom-2 left-2 z-20 flex h-7 w-7 cursor-ew-resize items-center justify-center rounded-full border border-primary/60 bg-background/90 text-primary shadow"
+                title="ידית רוחב תמונה"
+              >
+                <span className="text-[10px] font-bold">↔</span>
+              </button>
+            )}
+            {onImageScaleYChange && (
+              <button
+                type="button"
+                onMouseDown={(e) => startDragHandle("image-y", e.clientX, e.clientY)}
+                onTouchStart={(e) => startDragHandle("image-y", e.touches[0].clientX, e.touches[0].clientY)}
+                className="absolute bottom-2 left-11 z-20 flex h-7 w-7 cursor-ns-resize items-center justify-center rounded-full border border-primary/60 bg-background/90 text-primary shadow"
+                title="ידית גובה תמונה"
+              >
+                <span className="text-[10px] font-bold">↕</span>
+              </button>
+            )}
+          </>
         )}
 
         <div className="absolute top-2 right-2 z-20 rounded bg-foreground/70 px-2 py-0.5 font-accent text-[10px] text-primary-foreground">
-          דף {Math.round(pageWidthPercent)}%
+          דף {Math.round(pageWidthPercent)}% x {Math.round(pageHeightPercent)}%
         </div>
         <div className="absolute top-2 left-2 z-20 rounded bg-primary/80 px-2 py-0.5 font-accent text-[10px] text-primary-foreground">
-          תמונה {Math.round(imageScalePercent)}%
+          תמונה {Math.round(imageScaleXPercent)}% x {Math.round(imageScaleYPercent)}%
         </div>
       </div>
     </div>
