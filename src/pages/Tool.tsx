@@ -35,7 +35,7 @@ import LiveHistogram from "@/components/LiveHistogram";
 import CropTransformPanel from "@/components/CropTransformPanel";
 import FloatingSaveAction from "@/components/FloatingSaveAction";
 import AdvancedFiltersPanel from "@/components/AdvancedFiltersPanel";
-import FrameStylePanel, { type FramePresetDefinition, type FrameShape, type FrameStyle } from "@/components/FrameStylePanel";
+import FrameStylePanel, { type FramePresetDefinition, type FramePresetCategory, type FrameShape, type FrameStyle } from "@/components/FrameStylePanel";
 import NonAiLabPanel from "@/components/NonAiLabPanel";
 import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
@@ -358,12 +358,20 @@ const ToolInner = () => {
   ];
 
   const professionalFramePresets: FramePresetDefinition[] = [
-    { id: "lux-gold", name: "Luxury Gold", style: "double", shape: "rounded", widthPx: 28, radius: 10, color: "#d4af37" },
-    { id: "minimal-clean", name: "Minimal Clean", style: "clean", shape: "rect", widthPx: 14, radius: 4, color: "#ffffff" },
-    { id: "editorial-film", name: "Editorial Film", style: "film", shape: "rect", widthPx: 26, radius: 2, color: "#f5f3ef" },
-    { id: "neon-pop", name: "Neon Pop", style: "neon", shape: "pill", widthPx: 20, radius: 22, color: "#00e5ff" },
-    { id: "gallery-shadow", name: "Gallery Shadow", style: "shadow", shape: "rounded", widthPx: 24, radius: 12, color: "#f8f8f8" },
-    { id: "vintage-card", name: "Vintage Card", style: "vintage", shape: "diamond", widthPx: 18, radius: 8, color: "#c8a36a" },
+    { id: "lux-gold", name: "Luxury Gold", category: "luxury", style: "double", shape: "rounded", widthPx: 28, radius: 10, color: "#d4af37" },
+    { id: "royal-platinum", name: "Royal Platinum", category: "luxury", style: "bold", shape: "rounded", widthPx: 26, radius: 14, color: "#e5e7eb" },
+    { id: "jewel-neon", name: "Jewel Neon", category: "luxury", style: "neon", shape: "pill", widthPx: 18, radius: 20, color: "#7df9ff" },
+    { id: "minimal-clean", name: "Minimal Clean", category: "catalog", style: "clean", shape: "rect", widthPx: 14, radius: 4, color: "#ffffff" },
+    { id: "catalog-soft", name: "Catalog Soft", category: "catalog", style: "soft", shape: "rounded", widthPx: 16, radius: 8, color: "#f8fafc" },
+    { id: "editorial-film", name: "Editorial Film", category: "catalog", style: "film", shape: "rect", widthPx: 26, radius: 2, color: "#f5f3ef" },
+    { id: "brand-dashed", name: "Brand Dashed", category: "catalog", style: "dashed", shape: "rect", widthPx: 12, radius: 6, color: "#0f172a" },
+    { id: "neon-pop", name: "Neon Pop", category: "social", style: "neon", shape: "pill", widthPx: 20, radius: 22, color: "#00e5ff" },
+    { id: "social-ring", name: "Social Ring", category: "social", style: "clean", shape: "circle", widthPx: 18, radius: 50, color: "#ffffff" },
+    { id: "story-glow", name: "Story Glow", category: "social", style: "shadow", shape: "rounded", widthPx: 22, radius: 18, color: "#fef3c7" },
+    { id: "print-safe", name: "Print Safe", category: "print", style: "inner", shape: "rect", widthPx: 24, radius: 2, color: "#111827" },
+    { id: "poster-classic", name: "Poster Classic", category: "print", style: "vintage", shape: "rect", widthPx: 20, radius: 4, color: "#c8a36a" },
+    { id: "gallery-shadow", name: "Gallery Shadow", category: "print", style: "shadow", shape: "rounded", widthPx: 24, radius: 12, color: "#f8f8f8" },
+    { id: "vintage-card", name: "Vintage Card", category: "print", style: "vintage", shape: "diamond", widthPx: 18, radius: 8, color: "#c8a36a" },
   ];
 
   const printPresetsCm = [
@@ -459,6 +467,7 @@ const ToolInner = () => {
         {
           id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
           name: nextName,
+          category: "custom",
           style: frameStyle,
           shape: frameShape,
           widthPx: frameWidthPx,
@@ -511,12 +520,14 @@ const ToolInner = () => {
 
         const allowedStyles: FrameStyle[] = ["clean", "double", "shadow", "neon", "dashed", "vintage", "inner", "soft", "film", "bold"];
         const allowedShapes: FrameShape[] = ["rect", "rounded", "pill", "circle", "diamond", "hexagon", "octagon"];
+        const allowedCategories: FramePresetCategory[] = ["luxury", "catalog", "social", "print", "custom"];
         const hexColorRegex = /^#([0-9a-fA-F]{6})$/;
 
         const imported: FramePresetDefinition[] = source
           .map((item) => {
             const style = allowedStyles.includes(item?.style) ? item.style : "clean";
             const shape = allowedShapes.includes(item?.shape) ? item.shape : "rect";
+            const category = allowedCategories.includes(item?.category) ? item.category : "custom";
             const widthPx = Number.isFinite(item?.widthPx) ? Math.max(4, Math.min(80, Math.round(item.widthPx))) : 22;
             const radius = Number.isFinite(item?.radius) ? Math.max(0, Math.min(50, Math.round(item.radius))) : 6;
             const color = typeof item?.color === "string" && hexColorRegex.test(item.color) ? item.color : "#ffffff";
@@ -525,6 +536,7 @@ const ToolInner = () => {
             return {
               id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
               name,
+              category,
               style,
               shape,
               widthPx,

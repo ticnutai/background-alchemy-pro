@@ -16,9 +16,12 @@ export type FrameStyle =
 
 export type FrameShape = "rect" | "rounded" | "pill" | "circle" | "diamond" | "hexagon" | "octagon";
 
+export type FramePresetCategory = "luxury" | "catalog" | "social" | "print" | "custom";
+
 export type FramePresetDefinition = {
   id: string;
   name: string;
+  category?: FramePresetCategory;
   style: FrameStyle;
   shape: FrameShape;
   widthPx: number;
@@ -95,7 +98,33 @@ export default function FrameStylePanel({
   onClearSavedPresets,
 }: FrameStylePanelProps) {
   const [presetName, setPresetName] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | FramePresetCategory>("all");
   const importInputRef = useRef<HTMLInputElement | null>(null);
+
+  const categoryLabels: Record<FramePresetCategory | "all", string> = {
+    all: "הכול",
+    luxury: "יוקרה",
+    catalog: "קטלוג",
+    social: "סושיאל",
+    print: "הדפסה",
+    custom: "אישי",
+  };
+
+  const professionalCategories = useMemo(() => {
+    const set = new Set<FramePresetCategory>();
+    professionalPresets.forEach((p) => {
+      if (p.category) set.add(p.category);
+    });
+    return Array.from(set);
+  }, [professionalPresets]);
+
+  const visibleProfessionalPresets = useMemo(
+    () =>
+      selectedCategory === "all"
+        ? professionalPresets
+        : professionalPresets.filter((preset) => (preset.category ?? "catalog") === selectedCategory),
+    [professionalPresets, selectedCategory],
+  );
 
   const frameRadiusCss = frameShape === "pill" ? "9999px" : frameShape === "circle" ? "50%" : `${frameRadius}%`;
   const shapePreviewClip = useMemo(() => {
@@ -159,9 +188,22 @@ export default function FrameStylePanel({
       </div>
 
       <div className="space-y-2">
-        <div className="text-xs font-bold text-foreground">פריסטים מקצועיים</div>
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-xs font-bold text-foreground">פריסטים מקצועיים</div>
+          <div className="flex flex-wrap gap-1">
+            {["all", ...professionalCategories].map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat as "all" | FramePresetCategory)}
+                className={`rounded-full px-2 py-1 text-[11px] font-semibold ${selectedCategory === cat ? "bg-primary text-primary-foreground" : "border border-border text-muted-foreground hover:text-foreground"}`}
+              >
+                {categoryLabels[cat as "all" | FramePresetCategory]}
+              </button>
+            ))}
+          </div>
+        </div>
         <div className="grid grid-cols-2 gap-2">
-          {professionalPresets.map((preset) => (
+          {visibleProfessionalPresets.map((preset) => (
             <button
               key={preset.id}
               onClick={() => {
@@ -170,7 +212,10 @@ export default function FrameStylePanel({
               }}
               className="rounded-lg border border-border bg-background p-2 text-right hover:border-primary/50"
             >
-              <div className="text-xs font-bold text-foreground">{preset.name}</div>
+              <div className="flex items-center justify-between gap-1">
+                <div className="text-xs font-bold text-foreground">{preset.name}</div>
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">{categoryLabels[(preset.category ?? "catalog") as FramePresetCategory]}</span>
+              </div>
               <div className="mt-1 h-8 rounded-md bg-gradient-to-br from-slate-100 to-slate-300 p-1">
                 <div
                   className="h-full w-full bg-white/70"
@@ -193,6 +238,11 @@ export default function FrameStylePanel({
             </button>
           ))}
         </div>
+        {visibleProfessionalPresets.length === 0 && (
+          <div className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+            אין פריסטים בקטגוריה שנבחרה
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2">
