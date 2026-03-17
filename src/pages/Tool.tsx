@@ -1476,29 +1476,8 @@ const ToolInner = () => {
   );
 };
 
-// Helper functions
-function canvasToBlob(canvas: HTMLCanvasElement, type: string, quality: number): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => (blob ? resolve(blob) : reject(new Error("Failed to create blob"))),
-      type,
-      quality
-    );
-  });
-}
-
-function downloadBlob(blob: Blob | string, filename: string, mimeType: string) {
-  const url = typeof blob === "string" ? blob : URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  if (typeof blob !== "string") URL.revokeObjectURL(url);
-}
-
-async function generatePDF(imageDataUrl: string, w: number, h: number): Promise<Blob> {
+// Helper functions — use shared export-utils
+import { downloadBlob, generateSimplePDF as generatePDF, canvasToBlob } from "@/lib/export-utils";
   // Minimal PDF generator
   const imgData = imageDataUrl.split(",")[1];
   const binary = atob(imgData);
