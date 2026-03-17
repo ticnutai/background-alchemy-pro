@@ -110,22 +110,10 @@ export default function SmartRemoveBgPanel({ currentImage, onResult }: SmartRemo
 
     try {
       if (selectedMethod === "local") {
-        try {
-          const resultUrl = await handleLocalRemoveBg(currentImage);
-          setPreviewUrl(resultUrl);
-          onResult(resultUrl);
-          toast.success("הרקע הוסר בהצלחה! (מקומי — ללא AI ענן)");
-        } catch (localErr: any) {
-          console.warn("Local bg removal failed, falling back to cloud:", localErr.message);
-          toast.info("ההרצה המקומית נכשלה — עובר אוטומטית ל-AI בענן...");
-          setProgress(20);
-          setProgressLabel("עובר ל-AI בענן...");
-          const compressed = await compressImage(currentImage);
-          const result = await removeBgPrecise(compressed, (p) => setProgress(20 + p * 0.8));
-          setPreviewUrl(result.resultImage);
-          onResult(result.resultImage);
-          toast.success("הרקע הוסר בהצלחה! (fallback — BRIA RMBG 2.0)");
-        }
+        const resultUrl = await handleLocalRemoveBg(currentImage);
+        setPreviewUrl(resultUrl);
+        onResult(resultUrl);
+        toast.success("הרקע הוסר בהצלחה! (מקומי — ללא AI ענן)");
       } else {
         const compressed = await compressImage(currentImage);
 
