@@ -127,6 +127,8 @@ const ToolInner = () => {
   const [pageAspectRatio, setPageAspectRatio] = useState("4/3");
   const [imageScaleXPercent, setImageScaleXPercent] = useState(100);
   const [imageScaleYPercent, setImageScaleYPercent] = useState(100);
+  const [lockPageAspect, setLockPageAspect] = useState(false);
+  const [lockImageAspect, setLockImageAspect] = useState(false);
   const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
   const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
   const [customWidthCm, setCustomWidthCm] = useState("21");
@@ -1308,6 +1310,8 @@ const ToolInner = () => {
                     imageScaleXPercent={imageScaleXPercent}
                     imageScaleYPercent={imageScaleYPercent}
                     imageFitMode={imageFitMode}
+                    lockPageAspect={lockPageAspect}
+                    lockImageAspect={lockImageAspect}
                     onPageWidthChange={setPageWidthPercent}
                     onPageHeightChange={setPageHeightPercent}
                     onImageScaleXChange={setImageScaleXPercent}
@@ -1756,7 +1760,14 @@ const ToolInner = () => {
                   min={50}
                   max={100}
                   value={pageWidthPercent}
-                  onChange={(e) => setPageWidthPercent(Number(e.target.value))}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (lockPageAspect) {
+                      const ratio = pageHeightPercent / Math.max(1, pageWidthPercent);
+                      setPageHeightPercent(Math.max(50, Math.min(140, next * ratio)));
+                    }
+                    setPageWidthPercent(next);
+                  }}
                   className="w-full"
                 />
               </div>
@@ -1771,9 +1782,21 @@ const ToolInner = () => {
                   min={50}
                   max={140}
                   value={pageHeightPercent}
-                  onChange={(e) => setPageHeightPercent(Number(e.target.value))}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (lockPageAspect) {
+                      const ratio = pageWidthPercent / Math.max(1, pageHeightPercent);
+                      setPageWidthPercent(Math.max(50, Math.min(120, next * ratio)));
+                    }
+                    setPageHeightPercent(next);
+                  }}
                   className="w-full"
                 />
+              </div>
+
+              <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+                <span className="text-xs text-muted-foreground">נעילת יחס דף</span>
+                <Switch checked={lockPageAspect} onCheckedChange={setLockPageAspect} />
               </div>
 
               <div className="space-y-2">
@@ -1786,7 +1809,14 @@ const ToolInner = () => {
                   min={60}
                   max={190}
                   value={imageScaleXPercent}
-                  onChange={(e) => setImageScaleXPercent(Number(e.target.value))}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (lockImageAspect) {
+                      const ratio = imageScaleYPercent / Math.max(1, imageScaleXPercent);
+                      setImageScaleYPercent(Math.max(60, Math.min(190, next * ratio)));
+                    }
+                    setImageScaleXPercent(next);
+                  }}
                   className="w-full"
                 />
               </div>
@@ -1801,9 +1831,21 @@ const ToolInner = () => {
                   min={60}
                   max={190}
                   value={imageScaleYPercent}
-                  onChange={(e) => setImageScaleYPercent(Number(e.target.value))}
+                  onChange={(e) => {
+                    const next = Number(e.target.value);
+                    if (lockImageAspect) {
+                      const ratio = imageScaleXPercent / Math.max(1, imageScaleYPercent);
+                      setImageScaleXPercent(Math.max(60, Math.min(190, next * ratio)));
+                    }
+                    setImageScaleYPercent(next);
+                  }}
                   className="w-full"
                 />
+              </div>
+
+              <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+                <span className="text-xs text-muted-foreground">נעילת יחס תמונה</span>
+                <Switch checked={lockImageAspect} onCheckedChange={setLockImageAspect} />
               </div>
 
               <div className="flex items-center gap-2">

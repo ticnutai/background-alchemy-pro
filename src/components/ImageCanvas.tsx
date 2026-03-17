@@ -17,6 +17,8 @@ interface ImageCanvasProps {
   imageScaleXPercent?: number;
   imageScaleYPercent?: number;
   imageFitMode?: "contain" | "cover";
+  lockPageAspect?: boolean;
+  lockImageAspect?: boolean;
   onPageWidthChange?: (next: number) => void;
   onPageHeightChange?: (next: number) => void;
   onImageScaleXChange?: (next: number) => void;
@@ -51,6 +53,8 @@ const ImageCanvas = memo(({
   imageScaleXPercent = 100,
   imageScaleYPercent = 100,
   imageFitMode = "contain",
+  lockPageAspect = false,
+  lockImageAspect = false,
   onPageWidthChange,
   onPageHeightChange,
   onImageScaleXChange,
@@ -96,22 +100,42 @@ const ImageCanvas = memo(({
       const dx = e.clientX - dragStartXRef.current;
       const dy = e.clientY - dragStartYRef.current;
       if (dragModeRef.current === "image-x") {
-        onImageScaleXChange?.(clamp(startImageScaleXRef.current + dx * 0.2, 60, 190));
+        const nextX = clamp(startImageScaleXRef.current + dx * 0.2, 60, 190);
+        onImageScaleXChange?.(nextX);
+        if (lockImageAspect) {
+          const ratio = startImageScaleYRef.current / Math.max(1, startImageScaleXRef.current);
+          onImageScaleYChange?.(clamp(nextX * ratio, 60, 190));
+        }
         return;
       }
       if (dragModeRef.current === "image-y") {
-        onImageScaleYChange?.(clamp(startImageScaleYRef.current + dy * 0.2, 60, 190));
+        const nextY = clamp(startImageScaleYRef.current + dy * 0.2, 60, 190);
+        onImageScaleYChange?.(nextY);
+        if (lockImageAspect) {
+          const ratio = startImageScaleXRef.current / Math.max(1, startImageScaleYRef.current);
+          onImageScaleXChange?.(clamp(nextY * ratio, 60, 190));
+        }
         return;
       }
       const stageWidth = stageRef.current.parentElement?.clientWidth || stageRef.current.clientWidth || 1;
       const stageHeight = stageRef.current.parentElement?.clientHeight || stageRef.current.clientHeight || 1;
       if (dragModeRef.current === "page-left" || dragModeRef.current === "page-right") {
         const dir = dragModeRef.current === "page-right" ? 1 : -1;
-        onPageWidthChange?.(clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 120));
+        const nextWidth = clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 120);
+        onPageWidthChange?.(nextWidth);
+        if (lockPageAspect) {
+          const ratio = startPageHeightRef.current / Math.max(1, startPageWidthRef.current);
+          onPageHeightChange?.(clamp(nextWidth * ratio, 50, 140));
+        }
         return;
       }
       const dirY = dragModeRef.current === "page-bottom" ? 1 : -1;
-      onPageHeightChange?.(clamp(startPageHeightRef.current + ((dy / stageHeight) * 100 * dirY), 50, 140));
+      const nextHeight = clamp(startPageHeightRef.current + ((dy / stageHeight) * 100 * dirY), 50, 140);
+      onPageHeightChange?.(nextHeight);
+      if (lockPageAspect) {
+        const ratio = startPageWidthRef.current / Math.max(1, startPageHeightRef.current);
+        onPageWidthChange?.(clamp(nextHeight * ratio, 50, 120));
+      }
     };
 
     const handleTouchMove = (e: TouchEvent) => {
@@ -119,22 +143,42 @@ const ImageCanvas = memo(({
       const dx = e.touches[0].clientX - dragStartXRef.current;
       const dy = e.touches[0].clientY - dragStartYRef.current;
       if (dragModeRef.current === "image-x") {
-        onImageScaleXChange?.(clamp(startImageScaleXRef.current + dx * 0.2, 60, 190));
+        const nextX = clamp(startImageScaleXRef.current + dx * 0.2, 60, 190);
+        onImageScaleXChange?.(nextX);
+        if (lockImageAspect) {
+          const ratio = startImageScaleYRef.current / Math.max(1, startImageScaleXRef.current);
+          onImageScaleYChange?.(clamp(nextX * ratio, 60, 190));
+        }
         return;
       }
       if (dragModeRef.current === "image-y") {
-        onImageScaleYChange?.(clamp(startImageScaleYRef.current + dy * 0.2, 60, 190));
+        const nextY = clamp(startImageScaleYRef.current + dy * 0.2, 60, 190);
+        onImageScaleYChange?.(nextY);
+        if (lockImageAspect) {
+          const ratio = startImageScaleXRef.current / Math.max(1, startImageScaleYRef.current);
+          onImageScaleXChange?.(clamp(nextY * ratio, 60, 190));
+        }
         return;
       }
       const stageWidth = stageRef.current.parentElement?.clientWidth || stageRef.current.clientWidth || 1;
       const stageHeight = stageRef.current.parentElement?.clientHeight || stageRef.current.clientHeight || 1;
       if (dragModeRef.current === "page-left" || dragModeRef.current === "page-right") {
         const dir = dragModeRef.current === "page-right" ? 1 : -1;
-        onPageWidthChange?.(clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 120));
+        const nextWidth = clamp(startPageWidthRef.current + ((dx / stageWidth) * 100 * dir), 50, 120);
+        onPageWidthChange?.(nextWidth);
+        if (lockPageAspect) {
+          const ratio = startPageHeightRef.current / Math.max(1, startPageWidthRef.current);
+          onPageHeightChange?.(clamp(nextWidth * ratio, 50, 140));
+        }
         return;
       }
       const dirY = dragModeRef.current === "page-bottom" ? 1 : -1;
-      onPageHeightChange?.(clamp(startPageHeightRef.current + ((dy / stageHeight) * 100 * dirY), 50, 140));
+      const nextHeight = clamp(startPageHeightRef.current + ((dy / stageHeight) * 100 * dirY), 50, 140);
+      onPageHeightChange?.(nextHeight);
+      if (lockPageAspect) {
+        const ratio = startPageWidthRef.current / Math.max(1, startPageHeightRef.current);
+        onPageWidthChange?.(clamp(nextHeight * ratio, 50, 120));
+      }
     };
 
     const stopDrag = () => {
@@ -151,7 +195,7 @@ const ImageCanvas = memo(({
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", stopDrag);
     };
-  }, [onImageScaleXChange, onImageScaleYChange, onPageHeightChange, onPageWidthChange]);
+  }, [lockImageAspect, lockPageAspect, onImageScaleXChange, onImageScaleYChange, onPageHeightChange, onPageWidthChange]);
 
   const startDragHandle = (
     mode: "page-left" | "page-right" | "page-top" | "page-bottom" | "image-x" | "image-y",
