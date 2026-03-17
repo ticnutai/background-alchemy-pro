@@ -139,6 +139,7 @@ const ToolInner = () => {
   const [savedSizeProfiles, setSavedSizeProfiles] = useState<Array<{ id: string; name: string; widthCm: number; heightCm: number }>>([]);
   const [snapToGrid, setSnapToGrid] = useState(true);
   const [gridSizePx, setGridSizePx] = useState(20);
+  const [sourceImageMeta, setSourceImageMeta] = useState<{ width: number; height: number } | null>(null);
   const dragStateRef = useRef<{ dragging: boolean; startX: number; startY: number; startLeft: number; startTop: number }>({
     dragging: false,
     startX: 0,
@@ -175,6 +176,13 @@ const ToolInner = () => {
     { id: "4/3", label: "קלאסי" },
     { id: "3/4", label: "פורטרט" },
     { id: "16/9", label: "רחב" },
+  ];
+
+  const professionalLayoutPresets = [
+    { id: "catalog-pro", label: "קטלוג Pro", ratio: "4/3", pageW: 94, pageH: 102, imgW: 102, imgH: 102, fit: "contain" as const },
+    { id: "hero-wide", label: "Hero רחב", ratio: "16/9", pageW: 100, pageH: 90, imgW: 106, imgH: 106, fit: "cover" as const },
+    { id: "story-portrait", label: "Story אנכי", ratio: "3/4", pageW: 82, pageH: 116, imgW: 104, imgH: 104, fit: "contain" as const },
+    { id: "social-square", label: "Social ריבוע", ratio: "1/1", pageW: 90, pageH: 100, imgW: 98, imgH: 98, fit: "contain" as const },
   ];
 
   const printPresetsCm = [
@@ -245,6 +253,49 @@ const ToolInner = () => {
 
   const removeSavedProfile = (profileId: string) => {
     setSavedSizeProfiles((prev) => prev.filter((profile) => profile.id !== profileId));
+  };
+
+  const applyProfessionalLayoutPreset = (preset: typeof professionalLayoutPresets[number]) => {
+    setPageAspectRatio(preset.ratio);
+    setPageWidthPercent(preset.pageW);
+    setPageHeightPercent(preset.pageH);
+    setImageScaleXPercent(preset.imgW);
+    setImageScaleYPercent(preset.imgH);
+    setImageFitMode(preset.fit);
+    setLockPageAspect(false);
+    setLockImageAspect(true);
+    toast.success(`הפריסט ${preset.label} הוחל`);
+  };
+
+  const applySmartAutoLayout = () => {
+    if (!sourceImageMeta) {
+      toast.error("לא זוהה יחס תמונת מקור עדיין");
+      return;
+    }
+    const ratio = sourceImageMeta.width / Math.max(1, sourceImageMeta.height);
+    const baseCmWidth = 21;
+    const baseCmHeight = Math.max(8, Math.min(40, baseCmWidth / ratio));
+    setCustomWidthCm(formatUnitValue(convertFromCm(baseCmWidth, sizeUnit, sizeDpi)));
+    setCustomHeightCm(formatUnitValue(convertFromCm(baseCmHeight, sizeUnit, sizeDpi)));
+
+    if (ratio >= 1.45) {
+      applyProfessionalLayoutPreset(professionalLayoutPresets[1]);
+      toast.success("Smart Layout: זוהה פורמט רחב");
+      return;
+    }
+    if (ratio <= 0.82) {
+      applyProfessionalLayoutPreset(professionalLayoutPresets[2]);
+      toast.success("Smart Layout: זוהה פורמט אנכי");
+      return;
+    }
+    if (ratio >= 0.95 && ratio <= 1.05) {
+      applyProfessionalLayoutPreset(professionalLayoutPresets[3]);
+      toast.success("Smart Layout: זוהה פורמט ריבועי");
+      return;
+    }
+
+    applyProfessionalLayoutPreset(professionalLayoutPresets[0]);
+    toast.success("Smart Layout: זוהה פורמט קטלוג קלאסי");
   };
 
   useEffect(() => {
@@ -332,6 +383,21 @@ const ToolInner = () => {
     multiSelectMode, selectedPresetIds, batchResults, batchProcessing, batchProgress,
     undoStack, redoStack, showComparison, comparisonImages, compareMode,
   } = state;
+
+  useEffect(() => {
+    if (!originalImage) {
+      setSourceImageMeta(null);
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      setSourceImageMeta({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+    img.onerror = () => {
+      setSourceImageMeta(null);
+    };
+    img.src = originalImage;
+  }, [originalImage]);
 
   const studioTopTabs = [
     { label: "קולאז", path: "/collage" },
@@ -1600,6 +1666,39 @@ const ToolInner = () => {
                       key={preset.id}
                       onClick={() => setPageAspectRatio(preset.id)}
                       className={`rounded-lg border px-2 py-2 font-accent text-xs ${pageAspectRatio === preset.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2 rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-display text-xs font-bold text-foreground">Smart Auto Layout</p>
+                    <p className="font-body text-[11px] text-muted-foreground">
+                      {sourceImageMeta ? `יחס מקור: ${sourceImageMeta.width}x${sourceImageMeta.height}` : "ממתין לניתוח תמונת מקור"}
+                    </p>
+                  </div>
+                  <button
+                    onClick={applySmartAutoLayout}
+                    disabled={!sourceImageMeta}
+                    className="rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                  >
+                    ניתוח אוטומטי
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-body text-xs text-muted-foreground">פריסטים מקצועיים</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {professionalLayoutPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => applyProfessionalLayoutPreset(preset)}
+                      className="rounded-lg border border-border px-2 py-2 text-xs text-foreground hover:border-primary/50"
                     >
                       {preset.label}
                     </button>
