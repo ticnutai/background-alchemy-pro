@@ -27,7 +27,7 @@ import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import ImageHoverMenu from "@/components/ImageHoverMenu";
 import {
-  generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark,
+  generateCollage, type CollageLayout, type CollageOptions, type CollageTextOverlay, type FrameStyle, type CollageWatermark, type CollageFrameControls,
   colorBasedRemoveBg, removeWhiteBg, autoTrimTransparency,
   addDropShadow, extractColorPalette, compositeImages, adjustImage,
   autoEnhance, addVignette, sharpenImage, COLLAGE_FONT_MAP, calcOptimalCanvasHeight
@@ -143,6 +143,24 @@ const FRAME_PRESETS: { id: FrameStyle; label: string; description: string }[] = 
   { id: "marble-edge", label: "שיש זהב", description: "גרדיאנט שיש-זהב" },
 ];
 
+const DEFAULT_FRAME_TUNE: CollageFrameControls = {
+  hue: 44,
+  style: 55,
+  thickness: 4,
+};
+
+const FRAME_TUNE_PRESETS: Record<FrameStyle, CollageFrameControls> = {
+  none: { hue: 44, style: 0, thickness: 1 },
+  'thin-gold': { hue: 46, style: 50, thickness: 3 },
+  'double-gold': { hue: 44, style: 62, thickness: 5 },
+  'luxury-dark': { hue: 40, style: 70, thickness: 7 },
+  'ornate-corners': { hue: 38, style: 68, thickness: 4 },
+  'shadow-float': { hue: 0, style: 45, thickness: 8 },
+  'neon-glow': { hue: 188, style: 85, thickness: 6 },
+  'vintage-border': { hue: 32, style: 72, thickness: 5 },
+  'marble-edge': { hue: 43, style: 76, thickness: 6 },
+};
+
 const FONT_OPTIONS = [
   { id: "hebrew-modern", label: "עברית מודרנית", category: "עברית" },
   { id: "hebrew-classic", label: "עברית קלאסית", category: "עברית" },
@@ -233,6 +251,7 @@ interface CollageTemplate {
   frameInset?: number;
   pagePadding?: number;
   textureStyle?: 'none' | 'paper' | 'linen' | 'noise' | 'grain';
+  frameTuneByStyle?: Partial<Record<FrameStyle, CollageFrameControls>>;
 }
 
 const TEMPLATES_STORAGE_KEY = 'collage-templates';
@@ -374,6 +393,8 @@ export default function CollageBuilder() {
   const [pagePadding, setPagePadding] = useState(0);
   const [textureStyle, setTextureStyle] = useState<'none' | 'paper' | 'linen' | 'noise' | 'grain'>('none');
   const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
+  const [activeFrameEditor, setActiveFrameEditor] = useState<FrameStyle>('none');
+  const [frameTuneByStyle, setFrameTuneByStyle] = useState<Record<FrameStyle, CollageFrameControls>>(() => ({ ...FRAME_TUNE_PRESETS }));
   const [bgGradientEnabled, setBgGradientEnabled] = useState(false);
   const [bgGradient, setBgGradient] = useState({ from: "#1a1a2e", to: "#c9a84c", angle: 135 });
 
@@ -457,6 +478,25 @@ export default function CollageBuilder() {
 
   const clampValue = useCallback((value: number, min: number, max: number) => {
     return Math.max(min, Math.min(max, value));
+  }, []);
+
+  const getFrameTune = useCallback((style: FrameStyle): CollageFrameControls => {
+    const existing = frameTuneByStyle[style];
+    if (existing) return existing;
+    return FRAME_TUNE_PRESETS[style] || DEFAULT_FRAME_TUNE;
+  }, [frameTuneByStyle]);
+
+  const setFrameTuneValue = useCallback((style: FrameStyle, key: keyof CollageFrameControls, value: number) => {
+    setFrameTuneByStyle((prev) => {
+      const current = prev[style] || FRAME_TUNE_PRESETS[style] || DEFAULT_FRAME_TUNE;
+      return {
+        ...prev,
+        [style]: {
+          ...current,
+          [key]: value,
+        },
+      };
+    });
   }, []);
 
   const handleCanvasWidthChange = useCallback((nextWidth: number) => {
@@ -962,6 +1002,7 @@ export default function CollageBuilder() {
       pagePadding,
       textureStyle,
       frameStyle,
+      frameTuneByStyle,
       bgGradientEnabled,
       bgGradient,
       textOverlays,
@@ -971,7 +1012,7 @@ export default function CollageBuilder() {
     saveTemplatesToStorage(updated);
     setTemplateName("");
     toast.success(`תבנית "${name}" נשמרה בהצלחה`);
-  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasHeight, fitMode, imageScale, frameInset, pagePadding, textureStyle, frameStyle, bgGradientEnabled, bgGradient, textOverlays]);
+  }, [templateName, savedTemplates, layout, gap, borderRadius, bgColor, canvasHeight, fitMode, imageScale, frameInset, pagePadding, textureStyle, frameStyle, frameTuneByStyle, bgGradientEnabled, bgGradient, textOverlays]);
 
   const loadTemplate = useCallback((template: CollageTemplate) => {
     setLayout(template.layout);
@@ -985,6 +1026,11 @@ export default function CollageBuilder() {
     setPagePadding(template.pagePadding ?? 0);
     setTextureStyle(template.textureStyle ?? 'none');
     setFrameStyle(template.frameStyle);
+    setActiveFrameEditor(template.frameStyle);
+    setFrameTuneByStyle((prev) => ({
+      ...prev,
+      ...template.frameTuneByStyle,
+    }));
     setBgGradientEnabled(template.bgGradientEnabled);
     setBgGradient(template.bgGradient);
     setTextOverlays(template.textOverlays);
@@ -1289,6 +1335,7 @@ export default function CollageBuilder() {
           imageScale,
           frameInset,
           pagePadding,
+          frameControls: frameStyle !== 'none' ? getFrameTune(frameStyle) : undefined,
         };
         const dataUrl = await generateCollage(pageSrcs, collageOptions);
         results.push(dataUrl);
@@ -1302,7 +1349,7 @@ export default function CollageBuilder() {
       toast.error("שגיאה ביצירת הקולאז׳");
     }
     setProcessing(false);
-  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark, textureStyle, imageScale, frameInset, pagePadding]);
+  }, [images, layout, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark, textureStyle, imageScale, frameInset, pagePadding, getFrameTune]);
 
   const toggleCompareLayout = useCallback((layoutId: CollageLayout) => {
     recordCompareSnapshot();
@@ -1382,6 +1429,7 @@ export default function CollageBuilder() {
             imageScale,
             frameInset,
             pagePadding,
+            frameControls: frameStyle !== 'none' ? getFrameTune(frameStyle) : undefined,
           };
 
           const beforeOptions: CollageOptions = {
@@ -1433,7 +1481,7 @@ export default function CollageBuilder() {
       toast.error("שגיאה ביצירת תצוגות מקדימות");
     }
     setCompareProcessing(false);
-  }, [images, compareSelectedLayouts, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark, textureStyle, imageScale, frameInset, pagePadding]);
+  }, [images, compareSelectedLayouts, canvasWidth, canvasHeight, gap, bgColor, borderRadius, fitMode, frameStyle, textOverlays, bgGradientEnabled, bgGradient, watermarkEnabled, watermark, textureStyle, imageScale, frameInset, pagePadding, getFrameTune]);
 
   const selectCompareLayout = useCallback((selectedLayout: CollageLayout) => {
     setLayout(selectedLayout);
@@ -2167,43 +2215,95 @@ export default function CollageBuilder() {
                     <h3 className="font-semibold text-sm flex items-center gap-2"><Frame className="h-4 w-4" />מסגרות יוקרתיות</h3>
                     <div className="grid grid-cols-1 gap-1.5">
                       {FRAME_PRESETS.map((fp) => (
-                        <button
-                          key={fp.id}
-                          className={`flex items-center gap-3 p-2.5 rounded-lg border-2 text-right transition-all ${frameStyle === fp.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/30'}`}
-                          onClick={() => setFrameStyle(fp.id)}
-                        >
-                          <div className="w-10 h-10 rounded bg-muted flex items-center justify-center shrink-0">
-                            {fp.id === 'none' ? (
-                              <span className="text-muted-foreground text-lg">✕</span>
-                            ) : fp.id === 'thin-gold' ? (
-                              <div className="w-7 h-7 border-2 border-yellow-600 rounded-sm" />
-                            ) : fp.id === 'double-gold' ? (
-                              <div className="w-7 h-7 border-2 border-yellow-600 rounded-sm p-0.5"><div className="w-full h-full border border-yellow-600 rounded-[1px]" /></div>
-                            ) : fp.id === 'luxury-dark' ? (
-                              <div className="w-7 h-7 border-[3px] border-foreground rounded-sm relative"><div className="absolute inset-[2px] border border-yellow-600 rounded-[1px]" /></div>
-                            ) : fp.id === 'ornate-corners' ? (
-                              <div className="w-7 h-7 relative">
-                                <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-yellow-600" />
-                                <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-yellow-600" />
-                                <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-yellow-600" />
-                                <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-yellow-600" />
+                        <div key={fp.id} className="rounded-lg border border-border/70 overflow-hidden">
+                          <button
+                            className={`w-full flex items-center gap-3 p-2.5 text-right transition-all ${frameStyle === fp.id ? 'bg-primary/5' : 'hover:bg-muted/40'}`}
+                            onClick={() => {
+                              setFrameStyle(fp.id);
+                              if (fp.id === 'none') {
+                                setActiveFrameEditor('none');
+                                return;
+                              }
+                              setActiveFrameEditor((prev) => (prev === fp.id ? 'none' : fp.id));
+                            }}
+                          >
+                            <div className="w-10 h-10 rounded bg-muted flex items-center justify-center shrink-0">
+                              {fp.id === 'none' ? (
+                                <span className="text-muted-foreground text-lg">✕</span>
+                              ) : fp.id === 'thin-gold' ? (
+                                <div className="w-7 h-7 border-2 border-yellow-600 rounded-sm" />
+                              ) : fp.id === 'double-gold' ? (
+                                <div className="w-7 h-7 border-2 border-yellow-600 rounded-sm p-0.5"><div className="w-full h-full border border-yellow-600 rounded-[1px]" /></div>
+                              ) : fp.id === 'luxury-dark' ? (
+                                <div className="w-7 h-7 border-[3px] border-foreground rounded-sm relative"><div className="absolute inset-[2px] border border-yellow-600 rounded-[1px]" /></div>
+                              ) : fp.id === 'ornate-corners' ? (
+                                <div className="w-7 h-7 relative">
+                                  <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-yellow-600" />
+                                  <div className="absolute top-0 right-0 w-2 h-2 border-t-2 border-r-2 border-yellow-600" />
+                                  <div className="absolute bottom-0 left-0 w-2 h-2 border-b-2 border-l-2 border-yellow-600" />
+                                  <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-yellow-600" />
+                                </div>
+                              ) : fp.id === 'neon-glow' ? (
+                                <div className="w-7 h-7 border-2 border-cyan-400 rounded-sm shadow-[0_0_6px_#00f0ff]" />
+                              ) : fp.id === 'vintage-border' ? (
+                                <div className="w-7 h-7 border-2 border-dashed border-amber-700 rounded-sm" />
+                              ) : fp.id === 'shadow-float' ? (
+                                <div className="w-6 h-6 bg-card rounded-sm shadow-lg" />
+                              ) : (
+                                <div className="w-7 h-7 rounded-sm" style={{ border: '2px solid transparent', borderImage: 'linear-gradient(135deg, #e8e0d4, #c9a84c, #e8e0d4) 1' }} />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold">{fp.label}</p>
+                              <p className="text-[10px] text-muted-foreground">{fp.description}</p>
+                            </div>
+                            {frameStyle === fp.id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                          </button>
+
+                          {fp.id !== 'none' && activeFrameEditor === fp.id && (
+                            <div className="px-3 pb-3 pt-1 border-t bg-muted/20 space-y-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">צבע מסגרת (Hue): {Math.round(getFrameTune(fp.id).hue)}°</Label>
+                                <Slider
+                                  value={[getFrameTune(fp.id).hue]}
+                                  onValueChange={([v]) => setFrameTuneValue(fp.id, 'hue', v)}
+                                  min={0}
+                                  max={360}
+                                  step={1}
+                                />
                               </div>
-                            ) : fp.id === 'neon-glow' ? (
-                              <div className="w-7 h-7 border-2 border-cyan-400 rounded-sm shadow-[0_0_6px_#00f0ff]" />
-                            ) : fp.id === 'vintage-border' ? (
-                              <div className="w-7 h-7 border-2 border-dashed border-amber-700 rounded-sm" />
-                            ) : fp.id === 'shadow-float' ? (
-                              <div className="w-6 h-6 bg-card rounded-sm shadow-lg" />
-                            ) : (
-                              <div className="w-7 h-7 rounded-sm" style={{ border: '2px solid transparent', borderImage: 'linear-gradient(135deg, #e8e0d4, #c9a84c, #e8e0d4) 1' }} />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold">{fp.label}</p>
-                            <p className="text-[10px] text-muted-foreground">{fp.description}</p>
-                          </div>
-                          {frameStyle === fp.id && <Check className="h-4 w-4 text-primary shrink-0" />}
-                        </button>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">סגנון/עוצמה: {Math.round(getFrameTune(fp.id).style)}%</Label>
+                                <Slider
+                                  value={[getFrameTune(fp.id).style]}
+                                  onValueChange={([v]) => setFrameTuneValue(fp.id, 'style', v)}
+                                  min={0}
+                                  max={100}
+                                  step={1}
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px]">עובי מסגרת: {Math.round(getFrameTune(fp.id).thickness)}px</Label>
+                                <Slider
+                                  value={[getFrameTune(fp.id).thickness]}
+                                  onValueChange={([v]) => setFrameTuneValue(fp.id, 'thickness', v)}
+                                  min={1}
+                                  max={24}
+                                  step={1}
+                                />
+                              </div>
+                              <div className="rounded-md border border-border/70 bg-background/70 p-2">
+                                <div className="text-[10px] text-muted-foreground mb-1">תצוגת צבע</div>
+                                <div
+                                  className="h-6 rounded"
+                                  style={{
+                                    background: `linear-gradient(90deg, hsla(${getFrameTune(fp.id).hue}, 90%, 45%, 0.9), hsla(${getFrameTune(fp.id).hue}, 80%, 70%, 0.9))`,
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </CardContent>

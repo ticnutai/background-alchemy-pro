@@ -209,6 +209,32 @@ const ToolInner = () => {
     });
   }, [dispatch]);
 
+  const urlToDataUrl = useCallback(async (url: string): Promise<string> => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("טעינת קובץ תמונה נכשלה");
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ""));
+      reader.onerror = () => reject(new Error("המרת התמונה נכשלה"));
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  const readableApplyError = useCallback((err: unknown): string => {
+    const message = err instanceof Error ? err.message : String(err || "");
+    if (/tainted|cross-origin|security/i.test(message)) {
+      return "התמונה ממקור חיצוני שחוסם עיבוד מקומי (CORS). נסה לשמור/לטעון מחדש מהגלריה.";
+    }
+    if (/memory|allocation|out of memory|canvas/i.test(message)) {
+      return "התמונה גדולה מדי לעיבוד מקומי כרגע. נסה גרסה קטנה יותר.";
+    }
+    if (/Failed to fetch|NetworkError|טעינת קובץ תמונה נכשלה/i.test(message)) {
+      return "לא הצלחנו לטעון את קובץ התמונה. בדוק חיבור או נסה תמונה אחרת.";
+    }
+    return "שגיאה בהחלת ההתאמות";
+  }, []);
+
   // Apply adjustments locally using Canvas pixel engine (no AI)
   const handleApplyLocal = useCallback(async () => {
     const sourceImage = resultImage || originalImage;
@@ -241,16 +267,28 @@ const ToolInner = () => {
         cbMidtonesR: adjustments.cbMidtonesR, cbMidtonesG: adjustments.cbMidtonesG, cbMidtonesB: adjustments.cbMidtonesB,
         cbHighlightsR: adjustments.cbHighlightsR, cbHighlightsG: adjustments.cbHighlightsG, cbHighlightsB: adjustments.cbHighlightsB,
       };
-      const result = await applyCanvasFilters(sourceImage, opts);
+      let result = "";
+      try {
+        result = await applyCanvasFilters(sourceImage, opts);
+      } catch (initialErr) {
+        // Fallback for URL sources: convert to data URL and retry to avoid CORS/tainted canvas issues.
+        if (/^https?:\/\//i.test(sourceImage)) {
+          const localDataUrl = await urlToDataUrl(sourceImage);
+          result = await applyCanvasFilters(localDataUrl, opts);
+        } else {
+          throw initialErr;
+        }
+      }
       dispatch({ type: "SET_RESULT_IMAGE", payload: result });
       dispatch({ type: "RESET_ADJUSTMENTS" });
       toast.success("ההתאמות הוחלו מקומית!");
-    } catch {
-      toast.error("שגיאה בהחלת ההתאמות");
+    } catch (err) {
+      console.error("Local apply failed:", err);
+      toast.error(readableApplyError(err));
     } finally {
       setLocalApplying(false);
     }
-  }, [resultImage, originalImage, adjustments, dispatch]);
+  }, [resultImage, originalImage, adjustments, dispatch, urlToDataUrl, readableApplyError]);
 
   // Floating save — Save as New (to gallery)
   const handleFloatingSaveNew = useCallback(() => {
@@ -1134,6 +1172,7 @@ const ToolInner = () => {
                     <NonAiLabPanel
                       currentImage={resultImage || originalImage}
                       onResult={(img) => dispatch({ type: "SET_RESULT_IMAGE", payload: img })}
+                      onNavigate={(tab) => dispatch({ type: "SET_ACTIVE_TAB", payload: tab })}
                     />
                   )}
                   {activeTab === "filters" && (

@@ -6,19 +6,45 @@
 // ─── Color Utilities ──────────────────────────────────────────────
 export interface RGBA { r: number; g: number; b: number; a: number }
 export interface HSL  { h: number; s: number; l: number }
+export interface Lab  { L: number; a: number; b: number }
 
-function rgbToHsl(r: number, g: number, b: number): HSL {
+/** Clamp a value between min and max (default 0–255) */
+export function clamp(v: number, min = 0, max = 255): number {
+  return v < min ? min : v > max ? max : v;
+}
+
+/** RGB → HSL (tuple: [h 0–1, s 0–1, l 0–1]) */
+export function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
   r /= 255; g /= 255; b /= 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);
   const l = (max + min) / 2;
-  if (max === min) return { h: 0, s: 0, l };
+  if (max === min) return [0, 0, l];
   const d = max - min;
   const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
   let h = 0;
   if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
   else if (max === g) h = ((b - r) / d + 2) / 6;
   else h = ((r - g) / d + 4) / 6;
-  return { h: h * 360, s, l };
+  return [h, s, l];
+}
+
+/** HSL (h 0–1, s 0–1, l 0–1) → RGB [0–255, 0–255, 0–255] */
+export function hslToRgb(h: number, s: number, l: number): [number, number, number] {
+  if (s === 0) { const v = Math.round(l * 255); return [v, v, v]; }
+  const hue2rgb = (p: number, q: number, t: number) => {
+    if (t < 0) t += 1; if (t > 1) t -= 1;
+    if (t < 1 / 6) return p + (q - p) * 6 * t;
+    if (t < 1 / 2) return q;
+    if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+    return p;
+  };
+  const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+  const p = 2 * l - q;
+  return [
+    Math.round(hue2rgb(p, q, h + 1 / 3) * 255),
+    Math.round(hue2rgb(p, q, h) * 255),
+    Math.round(hue2rgb(p, q, h - 1 / 3) * 255),
+  ];
 }
 
 function colorDistance(c1: RGBA, c2: RGBA): number {
@@ -29,12 +55,595 @@ function colorDistance(c1: RGBA, c2: RGBA): number {
   );
 }
 
+// ─── CIE Lab Color Space (perceptual color distance) ────────────
+// Based on CIE 1976 L*a*b* with D65 illuminant
+function srgbToLinear(c: number): number {
+  c /= 255;
+  return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+}
+
+function rgbToLab(r: number, g: number, b: number): Lab {
+  // sRGB → linear RGB → XYZ (D65)
+  const lr = srgbToLinear(r), lg = srgbToLinear(g), lb = srgbToLinear(b);
+  let x = (lr * 0.4124564 + lg * 0.3575761 + lb * 0.1804375) / 0.95047;
+  let y = (lr * 0.2126729 + lg * 0.7151522 + lb * 0.0721750);
+  let z = (lr * 0.0193339 + lg * 0.1191920 + lb * 0.9503041) / 1.08883;
+  const f = (t: number) => t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116;
+  x = f(x); y = f(y); z = f(z);
+  return { L: 116 * y - 16, a: 500 * (x - y), b: 200 * (y - z) };
+}
+
+/** CIE76 Delta E — perceptual color distance (0 = identical, ~2.3 = JND) */
+function deltaE76(c1: RGBA, c2: RGBA): number {
+  const lab1 = rgbToLab(c1.r, c1.g, c1.b);
+  const lab2 = rgbToLab(c2.r, c2.g, c2.b);
+  return Math.sqrt(
+    (lab1.L - lab2.L) ** 2 +
+    (lab1.a - lab2.a) ** 2 +
+    (lab1.b - lab2.b) ** 2
+  );
+}
+
+/**
+ * CIEDE2000 (Delta E00) — state-of-the-art perceptual color distance
+ * Reference: CIE Technical Report 142-2001 / Sharma, Wu & Dalal 2005
+ * Much more accurate than Delta E76, especially for saturated & blue colors.
+ * Accounts for lightness, chroma, and hue weighting + blue rotation term.
+ */
+function deltaE2000(c1: RGBA, c2: RGBA): number {
+  const lab1 = rgbToLab(c1.r, c1.g, c1.b);
+  const lab2 = rgbToLab(c2.r, c2.g, c2.b);
+  const L1 = lab1.L, a1 = lab1.a, b1 = lab1.b;
+  const L2 = lab2.L, a2 = lab2.a, b2 = lab2.b;
+
+  const C1 = Math.sqrt(a1 * a1 + b1 * b1);
+  const C2 = Math.sqrt(a2 * a2 + b2 * b2);
+  const Cab = (C1 + C2) / 2;
+  const Cab7 = Cab ** 7;
+  const G = 0.5 * (1 - Math.sqrt(Cab7 / (Cab7 + 6103515625))); // 25^7
+  const a1p = a1 * (1 + G), a2p = a2 * (1 + G);
+  const C1p = Math.sqrt(a1p * a1p + b1 * b1);
+  const C2p = Math.sqrt(a2p * a2p + b2 * b2);
+
+  const h1p = Math.atan2(b1, a1p) * 180 / Math.PI;
+  const h2p = Math.atan2(b2, a2p) * 180 / Math.PI;
+  const h1pn = h1p < 0 ? h1p + 360 : h1p;
+  const h2pn = h2p < 0 ? h2p + 360 : h2p;
+
+  const dLp = L2 - L1;
+  const dCp = C2p - C1p;
+  let dhp: number;
+  if (C1p * C2p === 0) {
+    dhp = 0;
+  } else {
+    const diff = h2pn - h1pn;
+    if (Math.abs(diff) <= 180) dhp = diff;
+    else if (diff > 180) dhp = diff - 360;
+    else dhp = diff + 360;
+  }
+  const dHp = 2 * Math.sqrt(C1p * C2p) * Math.sin((dhp * Math.PI / 180) / 2);
+
+  const Lp = (L1 + L2) / 2;
+  const Cp = (C1p + C2p) / 2;
+  let Hp: number;
+  if (C1p * C2p === 0) {
+    Hp = h1pn + h2pn;
+  } else if (Math.abs(h1pn - h2pn) <= 180) {
+    Hp = (h1pn + h2pn) / 2;
+  } else {
+    Hp = (h1pn + h2pn + (h1pn + h2pn < 360 ? 360 : -360)) / 2;
+  }
+
+  const T = 1
+    - 0.17 * Math.cos((Hp - 30) * Math.PI / 180)
+    + 0.24 * Math.cos((2 * Hp) * Math.PI / 180)
+    + 0.32 * Math.cos((3 * Hp + 6) * Math.PI / 180)
+    - 0.20 * Math.cos((4 * Hp - 63) * Math.PI / 180);
+
+  const Lp50sq = (Lp - 50) ** 2;
+  const SL = 1 + 0.015 * Lp50sq / Math.sqrt(20 + Lp50sq);
+  const SC = 1 + 0.045 * Cp;
+  const SH = 1 + 0.015 * Cp * T;
+  const Cp7 = Cp ** 7;
+  const RT = -2 * Math.sqrt(Cp7 / (Cp7 + 6103515625))
+    * Math.sin(60 * Math.exp(-(((Hp - 275) / 25) ** 2)) * Math.PI / 180);
+
+  return Math.sqrt(
+    (dLp / SL) ** 2 +
+    (dCp / SC) ** 2 +
+    (dHp / SH) ** 2 +
+    RT * (dCp / SC) * (dHp / SH)
+  );
+}
+
+// ─── Otsu's Automatic Thresholding ──────────────────────────────
+// Finds optimal threshold to separate bimodal distribution
+// Reference: Nobuyuki Otsu (1979) — "A Threshold Selection Method from Gray-Level Histograms"
+function otsuThreshold(values: Float32Array<ArrayBuffer>, count: number): number {
+  // Build histogram (256 bins)
+  const hist = new Float32Array(256);
+  for (let i = 0; i < count; i++) {
+    const bin = Math.max(0, Math.min(255, Math.round(values[i])));
+    hist[bin]++;
+  }
+  // Normalize
+  for (let i = 0; i < 256; i++) hist[i] /= count;
+
+  // Find threshold that maximizes inter-class variance
+  let bestThresh = 128;
+  let bestVariance = 0;
+  let w0 = 0, sum0 = 0;
+  let totalMean = 0;
+  for (let i = 0; i < 256; i++) totalMean += i * hist[i];
+
+  for (let t = 0; t < 256; t++) {
+    w0 += hist[t];
+    if (w0 === 0) continue;
+    const w1 = 1 - w0;
+    if (w1 === 0) break;
+    sum0 += t * hist[t];
+    const mu0 = sum0 / w0;
+    const mu1 = (totalMean - sum0) / w1;
+    const variance = w0 * w1 * (mu0 - mu1) ** 2;
+    if (variance > bestVariance) {
+      bestVariance = variance;
+      bestThresh = t;
+    }
+  }
+  return bestThresh;
+}
+
+// ─── Bilateral Filter for Edge-Preserving Mask Smoothing ────────
+// Reference: Tomasi & Manduchi 1998 — "Bilateral Filtering for Gray and Color Images"
+// Preserves sharp mask edges while smoothing internal noise
+function bilateralFilterMask(
+  mask: Float32Array<ArrayBuffer>,
+  w: number, h: number,
+  spatialSigma: number,
+  rangeSigma: number
+): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(mask.length);
+  const radius = Math.ceil(2 * spatialSigma);
+  const spatialDenom = -2 * spatialSigma * spatialSigma;
+  const rangeDenom = -2 * rangeSigma * rangeSigma;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const center = mask[idx];
+      let sum = 0, wSum = 0;
+      for (let ky = -radius; ky <= radius; ky++) {
+        const sy = y + ky;
+        if (sy < 0 || sy >= h) continue;
+        for (let kx = -radius; kx <= radius; kx++) {
+          const sx = x + kx;
+          if (sx < 0 || sx >= w) continue;
+          const nIdx = sy * w + sx;
+          const spatialW = Math.exp((kx * kx + ky * ky) / spatialDenom);
+          const rangeW = Math.exp((mask[nIdx] - center) ** 2 / rangeDenom);
+          const weight = spatialW * rangeW;
+          sum += mask[nIdx] * weight;
+          wSum += weight;
+        }
+      }
+      out[idx] = wSum > 0 ? sum / wSum : center;
+    }
+  }
+  return out;
+}
+
+// ─── Color Decontamination / Spill Removal ──────────────────────
+// Removes background color "spill" from semi-transparent edge pixels
+// Based on premultiplied alpha compositing: C_observed = α·C_fg + (1-α)·C_bg
+// Solving for C_fg: C_fg = (C_observed - (1-α)·C_bg) / α
+function decontaminateColors(
+  data: Uint8ClampedArray,
+  w: number, h: number,
+  bgColor: RGBA,
+  strength: number = 1.0
+): void {
+  const totalPixels = w * h;
+  for (let idx = 0; idx < totalPixels; idx++) {
+    const i = idx * 4;
+    const alpha = data[i + 3] / 255;
+    // Only process semi-transparent edge pixels (not fully opaque/transparent)
+    if (alpha <= 0.02 || alpha >= 0.98) continue;
+    const factor = Math.min(1, strength * (1 - alpha) * 2); // stronger effect at lower alpha
+    for (let ch = 0; ch < 3; ch++) {
+      const observed = data[i + ch];
+      const bg = ch === 0 ? bgColor.r : ch === 1 ? bgColor.g : bgColor.b;
+      // Estimate true foreground color
+      const decontaminated = (observed - (1 - alpha) * bg) / Math.max(0.01, alpha);
+      // Blend based on strength
+      data[i + ch] = Math.max(0, Math.min(255, Math.round(
+        observed + factor * (decontaminated - observed)
+      )));
+    }
+  }
+}
+
+// ─── Multi-Component GMM (Gaussian Mixture Model) ───────────────
+// K=5 components per class, each with mean, covariance, weight
+// Based on GrabCut (Rother, Kolmogorov & Blake, SIGGRAPH 2004)
+interface GMMComponent {
+  mean: [number, number, number];       // RGB mean
+  cov: [number, number, number,         // 3x3 covariance matrix (symmetric, stored as 6 unique)
+        number, number, number];
+  weight: number;                        // mixture weight
+  count: number;
+}
+
+class GaussianMixtureModel {
+  components: GMMComponent[];
+  k: number;
+
+  constructor(k: number = 5) {
+    this.k = k;
+    this.components = [];
+    for (let i = 0; i < k; i++) {
+      this.components.push({
+        mean: [128, 128, 128],
+        cov: [100, 0, 0, 100, 0, 100], // diagonal init
+        weight: 1 / k,
+        count: 0,
+      });
+    }
+  }
+
+  /** Assign pixel to the most likely component */
+  assignComponent(r: number, g: number, b: number): number {
+    let bestIdx = 0, bestScore = -Infinity;
+    for (let c = 0; c < this.k; c++) {
+      const comp = this.components[c];
+      if (comp.weight < 1e-8) continue;
+      const score = Math.log(comp.weight + 1e-10) - 0.5 * this.mahalanobis(r, g, b, comp);
+      if (score > bestScore) {
+        bestScore = score;
+        bestIdx = c;
+      }
+    }
+    return bestIdx;
+  }
+
+  /** Mahalanobis distance using diagonal approximation for numerical stability */
+  private mahalanobis(r: number, g: number, b: number, comp: GMMComponent): number {
+    const dr = r - comp.mean[0], dg = g - comp.mean[1], db = b - comp.mean[2];
+    // Use diagonal for stability (full covariance inversion is fragile)
+    const vr = Math.max(1, comp.cov[0]);
+    const vg = Math.max(1, comp.cov[3]);
+    const vb = Math.max(1, comp.cov[5]);
+    return (dr * dr) / vr + (dg * dg) / vg + (db * db) / vb
+      + Math.log(vr) + Math.log(vg) + Math.log(vb);
+  }
+
+  /** Probability of pixel belonging to this GMM */
+  probability(r: number, g: number, b: number): number {
+    let totalProb = 0;
+    for (let c = 0; c < this.k; c++) {
+      const comp = this.components[c];
+      if (comp.weight < 1e-8) continue;
+      const maha = this.mahalanobis(r, g, b, comp);
+      totalProb += comp.weight * Math.exp(-0.5 * maha);
+    }
+    return totalProb;
+  }
+
+  /** Learn GMM parameters from assigned pixels */
+  learn(
+    data: Uint8ClampedArray,
+    assignments: Int8Array,
+    labels: Float32Array<ArrayBuffer>,
+    w: number, h: number,
+    classLabel: 'fg' | 'bg',
+    threshold: number
+  ): void {
+    const totalPixels = w * h;
+    // Reset accumulators
+    for (let c = 0; c < this.k; c++) {
+      this.components[c].count = 0;
+      this.components[c].mean = [0, 0, 0];
+      this.components[c].cov = [0, 0, 0, 0, 0, 0];
+    }
+
+    // Accumulate statistics per component
+    for (let idx = 0; idx < totalPixels; idx++) {
+      const inClass = classLabel === 'fg' ? labels[idx] > threshold : labels[idx] <= threshold;
+      if (!inClass) continue;
+      const ci = assignments[idx];
+      if (ci < 0 || ci >= this.k) continue;
+      const i = idx * 4;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const comp = this.components[ci];
+      comp.mean[0] += r; comp.mean[1] += g; comp.mean[2] += b;
+      comp.count++;
+    }
+
+    let totalCount = 0;
+    for (let c = 0; c < this.k; c++) {
+      const comp = this.components[c];
+      totalCount += comp.count;
+      if (comp.count > 0) {
+        comp.mean[0] /= comp.count;
+        comp.mean[1] /= comp.count;
+        comp.mean[2] /= comp.count;
+      }
+    }
+
+    // Compute covariances
+    for (let idx = 0; idx < totalPixels; idx++) {
+      const inClass = classLabel === 'fg' ? labels[idx] > threshold : labels[idx] <= threshold;
+      if (!inClass) continue;
+      const ci = assignments[idx];
+      if (ci < 0 || ci >= this.k) continue;
+      const i = idx * 4;
+      const dr = data[i] - this.components[ci].mean[0];
+      const dg = data[i + 1] - this.components[ci].mean[1];
+      const db = data[i + 2] - this.components[ci].mean[2];
+      const comp = this.components[ci];
+      comp.cov[0] += dr * dr; comp.cov[1] += dr * dg; comp.cov[2] += dr * db;
+      comp.cov[3] += dg * dg; comp.cov[4] += dg * db;
+      comp.cov[5] += db * db;
+    }
+
+    for (let c = 0; c < this.k; c++) {
+      const comp = this.components[c];
+      if (comp.count > 1) {
+        for (let j = 0; j < 6; j++) comp.cov[j] /= comp.count;
+        // Regularization: ensure positive definite
+        comp.cov[0] = Math.max(5, comp.cov[0]);
+        comp.cov[3] = Math.max(5, comp.cov[3]);
+        comp.cov[5] = Math.max(5, comp.cov[5]);
+      } else {
+        comp.cov = [100, 0, 0, 100, 0, 100];
+      }
+      comp.weight = totalCount > 0 ? comp.count / totalCount : 1 / this.k;
+    }
+  }
+}
+
+// ─── Morphological Operations on Alpha Mask ─────────────────────
+function erodeMask(mask: Float32Array<ArrayBuffer>, w: number, h: number, radius: number): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(mask.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let minVal = 255;
+      for (let ky = -radius; ky <= radius; ky++) {
+        for (let kx = -radius; kx <= radius; kx++) {
+          const sx = Math.min(w - 1, Math.max(0, x + kx));
+          const sy = Math.min(h - 1, Math.max(0, y + ky));
+          minVal = Math.min(minVal, mask[sy * w + sx]);
+        }
+      }
+      out[y * w + x] = minVal;
+    }
+  }
+  return out;
+}
+
+function dilateMask(mask: Float32Array<ArrayBuffer>, w: number, h: number, radius: number): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(mask.length);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      let maxVal = 0;
+      for (let ky = -radius; ky <= radius; ky++) {
+        for (let kx = -radius; kx <= radius; kx++) {
+          const sx = Math.min(w - 1, Math.max(0, x + kx));
+          const sy = Math.min(h - 1, Math.max(0, y + ky));
+          maxVal = Math.max(maxVal, mask[sy * w + sx]);
+        }
+      }
+      out[y * w + x] = maxVal;
+    }
+  }
+  return out;
+}
+
+/** Morphological open (erode then dilate) — removes small foreground noise */
+function morphOpen(mask: Float32Array<ArrayBuffer>, w: number, h: number, radius: number): Float32Array<ArrayBuffer> {
+  return dilateMask(erodeMask(mask, w, h, radius), w, h, radius);
+}
+
+/** Morphological close (dilate then erode) — fills small holes in foreground */
+function morphClose(mask: Float32Array<ArrayBuffer>, w: number, h: number, radius: number): Float32Array<ArrayBuffer> {
+  return erodeMask(dilateMask(mask, w, h, radius), w, h, radius);
+}
+
+// ─── Guided Filter (Edge-Aware Alpha Refinement) ────────────────
+// Based on He, Sun & Tang 2010 — "Guided Image Filtering"
+// Standard technique used in OpenCV, Photoshop, GIMP for mask refinement
+function guidedFilter(
+  guide: Float32Array<ArrayBuffer>, // grayscale guide image (the original photo)
+  src: Float32Array<ArrayBuffer>,   // input mask to refine
+  w: number, h: number,
+  radius: number,
+  eps: number
+): Float32Array<ArrayBuffer> {
+  const size = w * h;
+  const meanI = boxFilter(guide, w, h, radius);
+  const meanP = boxFilter(src, w, h, radius);
+  const corrIP = boxFilter(multiply(guide, src, size), w, h, radius);
+  const corrII = boxFilter(multiply(guide, guide, size), w, h, radius);
+
+  const a = new Float32Array(size);
+  const b = new Float32Array(size);
+  for (let i = 0; i < size; i++) {
+    const covIP = corrIP[i] - meanI[i] * meanP[i];
+    const varI = corrII[i] - meanI[i] * meanI[i];
+    a[i] = covIP / (varI + eps);
+    b[i] = meanP[i] - a[i] * meanI[i];
+  }
+
+  const meanA = boxFilter(a, w, h, radius);
+  const meanB = boxFilter(b, w, h, radius);
+  const result = new Float32Array(size);
+  for (let i = 0; i < size; i++) {
+    result[i] = Math.max(0, Math.min(255, meanA[i] * guide[i] + meanB[i]));
+  }
+  return result;
+}
+
+function multiply(a: Float32Array<ArrayBuffer>, b: Float32Array<ArrayBuffer>, size: number): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(size);
+  for (let i = 0; i < size; i++) out[i] = a[i] * b[i];
+  return out;
+}
+
+function boxFilter(src: Float32Array<ArrayBuffer>, w: number, h: number, r: number): Float32Array<ArrayBuffer> {
+  const dst = new Float32Array(src.length);
+  const tmp = new Float32Array(src.length);
+  // Horizontal pass (integral image approach for O(1) per pixel)
+  for (let y = 0; y < h; y++) {
+    let sum = 0, count = 0;
+    for (let x = 0; x < Math.min(r + 1, w); x++) { sum += src[y * w + x]; count++; }
+    for (let x = 0; x < w; x++) {
+      if (x + r + 1 < w) { sum += src[y * w + x + r + 1]; count++; }
+      if (x - r > 0) { sum -= src[y * w + x - r - 1]; count--; }
+      tmp[y * w + x] = sum / count;
+    }
+  }
+  // Vertical pass
+  for (let x = 0; x < w; x++) {
+    let sum = 0, count = 0;
+    for (let y = 0; y < Math.min(r + 1, h); y++) { sum += tmp[y * w + x]; count++; }
+    for (let y = 0; y < h; y++) {
+      if (y + r + 1 < h) { sum += tmp[(y + r + 1) * w + x]; count++; }
+      if (y - r > 0) { sum -= tmp[(y - r - 1) * w + x]; count--; }
+      dst[y * w + x] = sum / count;
+    }
+  }
+  return dst;
+}
+
+// ─── Connected Component Noise Cleanup ──────────────────────────
+function cleanSmallRegions(mask: Float32Array<ArrayBuffer>, w: number, h: number, minArea: number): Float32Array<ArrayBuffer> {
+  const out = new Float32Array(mask) as Float32Array<ArrayBuffer>;
+  const visited = new Uint8Array(w * h);
+  const threshold = 128;
+
+  // Clean both transparent islands inside foreground and foreground islands in background
+  for (let pass = 0; pass < 2; pass++) {
+    visited.fill(0);
+    const checkFn = pass === 0
+      ? (v: number) => v < threshold  // find small transparent holes
+      : (v: number) => v >= threshold; // find small foreground specks
+
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = y * w + x;
+        if (visited[idx] || !checkFn(out[idx])) continue;
+        // BFS to find connected component
+        const component: number[] = [];
+        const queue: number[] = [idx];
+        visited[idx] = 1;
+        while (queue.length > 0) {
+          const ci = queue.pop()!;
+          component.push(ci);
+          const cx = ci % w, cy = (ci - cx) / w;
+          const neighbors = [
+            cy > 0 ? ci - w : -1,
+            cy < h - 1 ? ci + w : -1,
+            cx > 0 ? ci - 1 : -1,
+            cx < w - 1 ? ci + 1 : -1,
+          ];
+          for (const ni of neighbors) {
+            if (ni >= 0 && !visited[ni] && checkFn(out[ni])) {
+              visited[ni] = 1;
+              queue.push(ni);
+            }
+          }
+        }
+        // If component is smaller than minArea, flip it
+        if (component.length < minArea) {
+          const fillVal = pass === 0 ? 255 : 0; // fill holes or remove specks
+          for (const ci of component) out[ci] = fillVal;
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// ─── Edge Color Sampling with Median Clustering ─────────────────
+function sampleEdgeColorClustered(data: Uint8ClampedArray, w: number, h: number): RGBA {
+  const samples: RGBA[] = [];
+  const step = Math.max(1, Math.floor(Math.min(w, h) / 80));
+
+  // Sample from all 4 edges (multiple rows deep for robustness)
+  for (let depth = 0; depth < 3; depth++) {
+    for (let x = 0; x < w; x += step) {
+      const topI = ((depth) * w + x) * 4;
+      const botI = ((h - 1 - depth) * w + x) * 4;
+      samples.push({ r: data[topI], g: data[topI + 1], b: data[topI + 2], a: 255 });
+      samples.push({ r: data[botI], g: data[botI + 1], b: data[botI + 2], a: 255 });
+    }
+    for (let y = 0; y < h; y += step) {
+      const leftI = (y * w + depth) * 4;
+      const rightI = (y * w + w - 1 - depth) * 4;
+      samples.push({ r: data[leftI], g: data[leftI + 1], b: data[leftI + 2], a: 255 });
+      samples.push({ r: data[rightI], g: data[rightI + 1], b: data[rightI + 2], a: 255 });
+    }
+  }
+
+  if (samples.length === 0) return { r: 255, g: 255, b: 255, a: 255 };
+
+  // K-means clustering (k=3) to find the dominant cluster
+  const k = Math.min(3, samples.length);
+  const centers: RGBA[] = [];
+  for (let i = 0; i < k; i++) {
+    centers.push(samples[Math.floor(i * samples.length / k)]);
+  }
+
+  for (let iter = 0; iter < 8; iter++) {
+    const clusters: RGBA[][] = centers.map(() => []);
+    for (const s of samples) {
+      let minD = Infinity, minIdx = 0;
+      for (let c = 0; c < k; c++) {
+        const d = colorDistance(s, centers[c]);
+        if (d < minD) { minD = d; minIdx = c; }
+      }
+      clusters[minIdx].push(s);
+    }
+    for (let c = 0; c < k; c++) {
+      if (clusters[c].length === 0) continue;
+      const sum = clusters[c].reduce(
+        (acc, p) => ({ r: acc.r + p.r, g: acc.g + p.g, b: acc.b + p.b, a: 255 }),
+        { r: 0, g: 0, b: 0, a: 255 }
+      );
+      const n = clusters[c].length;
+      centers[c] = { r: Math.round(sum.r / n), g: Math.round(sum.g / n), b: Math.round(sum.b / n), a: 255 };
+    }
+  }
+
+  // Return the center of the largest cluster
+  const clusterSizes = centers.map((c, i) =>
+    samples.filter(s => {
+      let minD = Infinity, minIdx = 0;
+      for (let j = 0; j < k; j++) {
+        const d = colorDistance(s, centers[j]);
+        if (d < minD) { minD = d; minIdx = j; }
+      }
+      return minIdx === i;
+    }).length
+  );
+  const largestIdx = clusterSizes.indexOf(Math.max(...clusterSizes));
+  return centers[largestIdx];
+}
+
+// ─── Grayscale Guide from Image Data ────────────────────────────
+function toGrayscaleGuide(data: Uint8ClampedArray, w: number, h: number): Float32Array<ArrayBuffer> {
+  const gray = new Float32Array(w * h);
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+  }
+  return gray;
+}
+
 // ─── Image → Canvas Helper ──────────────────────────────────────
-function imageToCanvas(img: HTMLImageElement): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+export function imageToCanvas(img: HTMLImageElement): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement('canvas');
   canvas.width = img.naturalWidth || img.width;
   canvas.height = img.naturalHeight || img.height;
-  const ctx = canvas.getContext('2d')!;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true })!;
   ctx.drawImage(img, 0, 0);
   return { canvas, ctx };
 }
@@ -49,69 +658,98 @@ export function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
-function canvasToDataUrl(canvas: HTMLCanvasElement): string {
+export function canvasToDataUrl(canvas: HTMLCanvasElement): string {
   return canvas.toDataURL('image/png');
 }
 
 // ─── 1. Color-Based Background Removal (Chromakey) ─────────────
 /**
- * Removes background by color similarity. Samples the dominant edge color
- * and makes all similar pixels transparent. Pure canvas, zero AI.
+ * Advanced background removal by color similarity.
+ * Uses CIE Lab perceptual color distance, clustered edge sampling,
+ * morphological cleanup, guided filter edge refinement, and
+ * connected component noise removal.
  */
 export async function colorBasedRemoveBg(
   imageSrc: string,
-  options: { tolerance?: number; edgeSoftness?: number; sampleEdgePixels?: boolean } = {}
+  options: {
+    tolerance?: number;
+    edgeSoftness?: number;
+    sampleEdgePixels?: boolean;
+    useLabColor?: boolean;
+    morphRadius?: number;
+    refineEdges?: boolean;
+    cleanNoise?: boolean;
+  } = {}
 ): Promise<string> {
-  const { tolerance = 30, edgeSoftness = 2, sampleEdgePixels = true } = options;
+  const {
+    tolerance = 30,
+    edgeSoftness = 2,
+    sampleEdgePixels = true,
+    useLabColor = true,
+    morphRadius = 1,
+    refineEdges = true,
+    cleanNoise = true,
+  } = options;
   const img = await loadImage(imageSrc);
   const { canvas, ctx } = imageToCanvas(img);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const w = canvas.width, h = canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
 
-  // Sample the dominant background color from edges
+  // Step 1: Sample dominant background color with clustering
   const bgColor = sampleEdgePixels
-    ? sampleDominantEdgeColor(data, canvas.width, canvas.height)
+    ? sampleEdgeColorClustered(data, w, h)
     : { r: data[0], g: data[1], b: data[2], a: 255 };
 
-  for (let i = 0; i < data.length; i += 4) {
-    const pixel: RGBA = { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
-    const dist = colorDistance(pixel, bgColor);
+  // Step 2: Build alpha mask using perceptual color distance
+  const labTolerance = useLabColor ? tolerance * 0.55 : tolerance;
+  const featherRange = edgeSoftness * 12;
+  let mask = new Float32Array(w * h);
 
-    if (dist < tolerance) {
-      data[i + 3] = 0; // fully transparent
-    } else if (dist < tolerance + edgeSoftness * 10) {
-      // soft edge feathering
-      const ratio = (dist - tolerance) / (edgeSoftness * 10);
-      data[i + 3] = Math.round(255 * ratio);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const pixel: RGBA = { r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] };
+      const dist = useLabColor ? deltaE76(pixel, bgColor) : colorDistance(pixel, bgColor);
+
+      if (dist < labTolerance) {
+        mask[y * w + x] = 0; // background
+      } else if (dist < labTolerance + featherRange) {
+        // Smooth cubic feathering (more natural than linear)
+        const t = (dist - labTolerance) / featherRange;
+        mask[y * w + x] = 255 * (t * t * (3 - 2 * t)); // smoothstep
+      } else {
+        mask[y * w + x] = 255; // foreground
+      }
     }
+  }
+
+  // Step 3: Morphological cleanup — close small holes, open small noise
+  if (morphRadius > 0) {
+    mask = morphClose(mask, w, h, morphRadius); // fill tiny holes in foreground
+    mask = morphOpen(mask, w, h, morphRadius);  // remove tiny foreground specks
+  }
+
+  // Step 4: Connected component analysis — remove small isolated regions
+  if (cleanNoise) {
+    const minArea = Math.max(50, Math.round(w * h * 0.0005));
+    mask = cleanSmallRegions(mask, w, h, minArea);
+  }
+
+  // Step 5: Guided filter — edge-aware alpha refinement
+  if (refineEdges) {
+    const guide = toGrayscaleGuide(data, w, h);
+    const gfRadius = Math.max(4, Math.round(Math.min(w, h) * 0.008));
+    mask = guidedFilter(guide, mask, w, h, gfRadius, 1000);
+  }
+
+  // Apply refined mask to alpha channel
+  for (let i = 0; i < w * h; i++) {
+    data[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(mask[i])));
   }
 
   ctx.putImageData(imageData, 0, 0);
   return canvasToDataUrl(canvas);
-}
-
-function sampleDominantEdgeColor(data: Uint8ClampedArray, w: number, h: number): RGBA {
-  const colors: RGBA[] = [];
-  const sample = (x: number, y: number) => {
-    const i = (y * w + x) * 4;
-    colors.push({ r: data[i], g: data[i + 1], b: data[i + 2], a: data[i + 3] });
-  };
-  // Sample top, bottom, left, right edges
-  for (let x = 0; x < w; x += Math.max(1, Math.floor(w / 50))) {
-    sample(x, 0);
-    sample(x, h - 1);
-  }
-  for (let y = 0; y < h; y += Math.max(1, Math.floor(h / 50))) {
-    sample(0, y);
-    sample(w - 1, y);
-  }
-  // Average
-  const avg = colors.reduce(
-    (acc, c) => ({ r: acc.r + c.r, g: acc.g + c.g, b: acc.b + c.b, a: 255 }),
-    { r: 0, g: 0, b: 0, a: 255 }
-  );
-  const n = colors.length;
-  return { r: Math.round(avg.r / n), g: Math.round(avg.g / n), b: Math.round(avg.b / n), a: 255 };
 }
 
 // ─── 2. Magic Wand Selection ─────────────────────────────────────
@@ -730,6 +1368,12 @@ export interface CollageTextOverlay {
 
 export type FrameStyle = 'none' | 'thin-gold' | 'double-gold' | 'luxury-dark' | 'ornate-corners' | 'shadow-float' | 'neon-glow' | 'vintage-border' | 'marble-edge';
 
+export interface CollageFrameControls {
+  hue: number;
+  thickness: number;
+  style: number;
+}
+
 export interface CollageWatermark {
   type: 'text' | 'image';
   text?: string;
@@ -761,6 +1405,7 @@ export interface CollageOptions {
   imageScale?: number;
   frameInset?: number;
   pagePadding?: number;
+  frameControls?: Partial<CollageFrameControls>;
 }
 
 export const COLLAGE_FONT_MAP: Record<string, string> = {
@@ -794,80 +1439,102 @@ export const COLLAGE_FONT_MAP: Record<string, string> = {
 function drawFrameOnCell(
   ctx: CanvasRenderingContext2D,
   x: number, y: number, w: number, h: number,
-  style: FrameStyle
+  style: FrameStyle,
+  controls?: Partial<CollageFrameControls>
 ) {
+  const hue = Math.max(0, Math.min(360, controls?.hue ?? 44));
+  const thickness = Math.max(1, Math.min(24, controls?.thickness ?? 4));
+  const styleFactor = Math.max(0, Math.min(100, controls?.style ?? 55)) / 100;
+  const accent = `hsla(${hue}, ${65 + Math.round(styleFactor * 20)}%, ${45 + Math.round(styleFactor * 18)}%, 1)`;
+  const accentLight = `hsla(${hue}, ${60 + Math.round(styleFactor * 20)}%, ${72 + Math.round(styleFactor * 14)}%, 1)`;
+  const accentSoft = `hsla(${hue}, ${45 + Math.round(styleFactor * 25)}%, ${55 + Math.round(styleFactor * 10)}%, 0.55)`;
+
   ctx.save();
   switch (style) {
     case 'thin-gold': {
-      ctx.strokeStyle = '#c9a84c';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(x + 4, y + 4, w - 8, h - 8);
+      const inset = Math.max(2, Math.round(thickness * 0.8));
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(1, Math.round(thickness * 0.8));
+      ctx.strokeRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
       break;
     }
     case 'double-gold': {
-      ctx.strokeStyle = '#c9a84c';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
-      ctx.strokeRect(x + 8, y + 8, w - 16, h - 16);
+      const outerInset = Math.max(2, Math.round(thickness * 0.6));
+      const innerInset = Math.max(outerInset + 4, Math.round(thickness * (1.5 + styleFactor)));
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(1, Math.round(thickness * 0.55));
+      ctx.strokeRect(x + outerInset, y + outerInset, w - outerInset * 2, h - outerInset * 2);
+      ctx.strokeStyle = accentLight;
+      ctx.lineWidth = Math.max(1, Math.round(thickness * 0.45));
+      ctx.strokeRect(x + innerInset, y + innerInset, w - innerInset * 2, h - innerInset * 2);
       break;
     }
     case 'luxury-dark': {
       ctx.strokeStyle = '#1a1a2e';
-      ctx.lineWidth = 6;
-      ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
-      ctx.strokeStyle = '#c9a84c';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 8, y + 8, w - 16, h - 16);
+      ctx.lineWidth = Math.max(2, Math.round(thickness * 1.2));
+      const outerInset = Math.max(1, Math.round(thickness * 0.3));
+      ctx.strokeRect(x + outerInset, y + outerInset, w - outerInset * 2, h - outerInset * 2);
+      const innerInset = Math.max(outerInset + 6, Math.round(thickness * (1.8 + styleFactor)));
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(1, Math.round(thickness * 0.35));
+      ctx.strokeRect(x + innerInset, y + innerInset, w - innerInset * 2, h - innerInset * 2);
       break;
     }
     case 'ornate-corners': {
-      const cs = Math.min(w, h) * 0.12;
-      ctx.strokeStyle = '#c9a84c';
-      ctx.lineWidth = 2;
+      const cs = Math.min(w, h) * (0.07 + styleFactor * 0.1);
+      const inset = Math.max(2, Math.round(thickness * 0.6));
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(1, Math.round(thickness * 0.45));
       // Top-left
-      ctx.beginPath(); ctx.moveTo(x + 4, y + cs + 4); ctx.lineTo(x + 4, y + 4); ctx.lineTo(x + cs + 4, y + 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + inset, y + cs + inset); ctx.lineTo(x + inset, y + inset); ctx.lineTo(x + cs + inset, y + inset); ctx.stroke();
       // Top-right
-      ctx.beginPath(); ctx.moveTo(x + w - cs - 4, y + 4); ctx.lineTo(x + w - 4, y + 4); ctx.lineTo(x + w - 4, y + cs + 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + w - cs - inset, y + inset); ctx.lineTo(x + w - inset, y + inset); ctx.lineTo(x + w - inset, y + cs + inset); ctx.stroke();
       // Bottom-right
-      ctx.beginPath(); ctx.moveTo(x + w - 4, y + h - cs - 4); ctx.lineTo(x + w - 4, y + h - 4); ctx.lineTo(x + w - cs - 4, y + h - 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + w - inset, y + h - cs - inset); ctx.lineTo(x + w - inset, y + h - inset); ctx.lineTo(x + w - cs - inset, y + h - inset); ctx.stroke();
       // Bottom-left
-      ctx.beginPath(); ctx.moveTo(x + cs + 4, y + h - 4); ctx.lineTo(x + 4, y + h - 4); ctx.lineTo(x + 4, y + h - cs - 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + cs + inset, y + h - inset); ctx.lineTo(x + inset, y + h - inset); ctx.lineTo(x + inset, y + h - cs - inset); ctx.stroke();
       break;
     }
     case 'shadow-float': {
-      ctx.shadowColor = 'rgba(0,0,0,0.4)';
-      ctx.shadowBlur = 20;
-      ctx.shadowOffsetX = 6;
-      ctx.shadowOffsetY = 6;
-      ctx.fillStyle = 'rgba(0,0,0,0)';
+      const blur = Math.max(10, Math.round(thickness * (2 + styleFactor)));
+      ctx.shadowColor = accentSoft;
+      ctx.shadowBlur = blur;
+      ctx.shadowOffsetX = Math.max(2, Math.round(thickness * 0.8));
+      ctx.shadowOffsetY = Math.max(2, Math.round(thickness * 0.8));
+      ctx.fillStyle = 'rgba(0,0,0,0.001)';
       ctx.fillRect(x, y, w, h);
       break;
     }
     case 'neon-glow': {
-      ctx.shadowColor = '#00f0ff';
-      ctx.shadowBlur = 15;
-      ctx.strokeStyle = '#00f0ff';
-      ctx.lineWidth = 2;
-      ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+      const inset = Math.max(2, Math.round(thickness * 0.6));
+      ctx.shadowColor = accentLight;
+      ctx.shadowBlur = Math.max(6, Math.round(thickness * (1.8 + styleFactor)));
+      ctx.strokeStyle = accentLight;
+      ctx.lineWidth = Math.max(1, Math.round(thickness * 0.5));
+      ctx.strokeRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
       ctx.shadowBlur = 0;
       break;
     }
     case 'vintage-border': {
-      ctx.strokeStyle = '#8b7355';
-      ctx.lineWidth = 4;
-      ctx.setLineDash([12, 4]);
-      ctx.strokeRect(x + 5, y + 5, w - 10, h - 10);
+      const inset = Math.max(2, Math.round(thickness * 0.85));
+      ctx.strokeStyle = accent;
+      ctx.lineWidth = Math.max(1, Math.round(thickness * 0.65));
+      const dashA = Math.max(6, Math.round(8 + styleFactor * 14));
+      const dashB = Math.max(3, Math.round(3 + styleFactor * 8));
+      ctx.setLineDash([dashA, dashB]);
+      ctx.strokeRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
       ctx.setLineDash([]);
       break;
     }
     case 'marble-edge': {
+      const inset = Math.max(2, Math.round(thickness * 0.55));
       const grad = ctx.createLinearGradient(x, y, x + w, y + h);
-      grad.addColorStop(0, '#e8e0d4');
-      grad.addColorStop(0.5, '#c9a84c');
-      grad.addColorStop(1, '#e8e0d4');
+      grad.addColorStop(0, accentLight);
+      grad.addColorStop(0.5, accent);
+      grad.addColorStop(1, accentLight);
       ctx.strokeStyle = grad;
-      ctx.lineWidth = 5;
-      ctx.strokeRect(x + 3, y + 3, w - 6, h - 6);
+      ctx.lineWidth = Math.max(2, Math.round(thickness * 0.9));
+      ctx.strokeRect(x + inset, y + inset, w - inset * 2, h - inset * 2);
       break;
     }
   }
@@ -955,6 +1622,7 @@ export async function generateCollage(
     imageScale = 1,
     frameInset = 0,
     pagePadding = 0,
+    frameControls,
   } = options;
   const canvas = document.createElement('canvas');
   canvas.width = width;
@@ -1054,7 +1722,7 @@ export async function generateCollage(
 
     // Frame on each cell
     if (frameStyle && frameStyle !== 'none') {
-      drawFrameOnCell(ctx, rx, ry, rw, rh, frameStyle);
+      drawFrameOnCell(ctx, rx, ry, rw, rh, frameStyle, frameControls);
     }
   }
 
@@ -1646,30 +2314,77 @@ function roundedClip(ctx: CanvasRenderingContext2D, x: number, y: number, w: num
 
 // ─── 12. White Background Removal ──────────────────────────────
 /**
- * Specifically optimized for white/light backgrounds (e-commerce product photos).
- * Uses luminance threshold instead of color distance.
+ * Advanced white/light background removal optimized for e-commerce.
+ * Uses luminance + saturation analysis, morphological cleanup,
+ * guided filter edge refinement, and connected component noise removal.
  */
 export async function removeWhiteBg(
   imageSrc: string,
-  options: { threshold?: number; feather?: number } = {}
+  options: {
+    threshold?: number;
+    feather?: number;
+    morphRadius?: number;
+    refineEdges?: boolean;
+    cleanNoise?: boolean;
+  } = {}
 ): Promise<string> {
-  const { threshold = 240, feather = 15 } = options;
+  const {
+    threshold = 240,
+    feather = 15,
+    morphRadius = 1,
+    refineEdges = true,
+    cleanNoise = true,
+  } = options;
   const img = await loadImage(imageSrc);
   const { canvas, ctx } = imageToCanvas(img);
-  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const w = canvas.width, h = canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
   const data = imageData.data;
 
-  for (let i = 0; i < data.length; i += 4) {
-    const r = data[i], g = data[i + 1], b = data[i + 2];
-    const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
-    const saturation = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+  // Step 1: Build alpha mask based on luminance + saturation
+  let mask = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+      const saturation = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
 
-    if (luminance > threshold && saturation < 0.15) {
-      data[i + 3] = 0;
-    } else if (luminance > threshold - feather && saturation < 0.25) {
-      const ratio = (threshold - luminance) / feather;
-      data[i + 3] = Math.round(255 * Math.max(0, Math.min(1, ratio)));
+      if (luminance > threshold && saturation < 0.15) {
+        mask[y * w + x] = 0;
+      } else if (luminance > threshold - feather && saturation < 0.25) {
+        const t = (threshold - luminance) / feather;
+        // Smoothstep feathering
+        const s = Math.max(0, Math.min(1, t));
+        mask[y * w + x] = 255 * (s * s * (3 - 2 * s));
+      } else {
+        mask[y * w + x] = 255;
+      }
     }
+  }
+
+  // Step 2: Morphological cleanup
+  if (morphRadius > 0) {
+    mask = morphClose(mask, w, h, morphRadius);
+    mask = morphOpen(mask, w, h, morphRadius);
+  }
+
+  // Step 3: Connected component noise cleanup
+  if (cleanNoise) {
+    const minArea = Math.max(50, Math.round(w * h * 0.0005));
+    mask = cleanSmallRegions(mask, w, h, minArea);
+  }
+
+  // Step 4: Guided filter edge refinement
+  if (refineEdges) {
+    const guide = toGrayscaleGuide(data, w, h);
+    const gfRadius = Math.max(4, Math.round(Math.min(w, h) * 0.008));
+    mask = guidedFilter(guide, mask, w, h, gfRadius, 800);
+  }
+
+  // Apply mask
+  for (let i = 0; i < w * h; i++) {
+    data[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(mask[i])));
   }
 
   ctx.putImageData(imageData, 0, 0);
@@ -1739,4 +2454,251 @@ export async function splitImage(imageSrc: string, options: SplitOptions): Promi
   }
 
   return results;
+}
+
+// ─── 13. Smart Background Removal (Comprehensive Non-AI) ───────
+/**
+ * Most advanced non-AI background removal. Combines:
+ * 1. CIEDE2000 perceptual color distance (state-of-the-art)
+ * 2. Multi-component GMM (K=5) for FG/BG classification (GrabCut-inspired)
+ * 3. Otsu's automatic threshold for optimal mask binarization
+ * 4. Morphological operations for mask cleanup
+ * 5. Bilateral filter for edge-preserving mask smoothing
+ * 6. Guided filter for edge-aware alpha matting
+ * 7. Connected component analysis for noise removal
+ * 8. Color decontamination / spill removal at semi-transparent edges
+ *
+ * Best results on product photos with relatively uniform backgrounds.
+ */
+export type SmartBgMode = 'auto' | 'white' | 'color' | 'gradient';
+
+export async function smartRemoveBg(
+  imageSrc: string,
+  options: {
+    mode?: SmartBgMode;
+    sensitivity?: number;     // 0-100, how aggressively to remove bg
+    edgeDetail?: number;      // 0-100, edge refinement quality
+    noiseClean?: number;      // 0-100, small region cleanup aggressiveness
+    morphStrength?: number;   // 0-3, morphological radius
+    foregroundBoost?: boolean; // boost foreground contrast at edges
+    useDE2000?: boolean;      // use CIEDE2000 instead of Delta E76 (slower but more accurate)
+    spillRemoval?: number;    // 0-100, color decontamination strength
+    autoThreshold?: boolean;  // use Otsu's automatic thresholding
+    bilateralSmooth?: number; // 0-100, bilateral filter smoothing
+  } = {}
+): Promise<string> {
+  const {
+    mode = 'auto',
+    sensitivity = 50,
+    edgeDetail = 70,
+    noiseClean = 50,
+    morphStrength = 1,
+    foregroundBoost = true,
+    useDE2000 = true,
+    spillRemoval = 60,
+    autoThreshold = true,
+    bilateralSmooth = 30,
+  } = options;
+
+  const img = await loadImage(imageSrc);
+  const { canvas, ctx } = imageToCanvas(img);
+  const w = canvas.width, h = canvas.height;
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  const totalPixels = w * h;
+
+  // ── Phase 1: Analyze background type ──
+  const bgColor = sampleEdgeColorClustered(data, w, h);
+  const bgLuminance = 0.299 * bgColor.r + 0.587 * bgColor.g + 0.114 * bgColor.b;
+
+  const detectedMode = mode === 'auto'
+    ? (bgLuminance > 220 ? 'white'
+       : analyzeGradientBackground(data, w, h) ? 'gradient'
+       : 'color')
+    : mode;
+
+  // Choose color distance function
+  const colorDist = useDE2000 ? deltaE2000 : deltaE76;
+
+  // ── Phase 2: Build initial confidence mask ──
+  const confidence = new Float32Array(totalPixels);
+  const toleranceScale = 1 + (50 - sensitivity) / 50;
+
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = y * w + x;
+      const i = idx * 4;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      const pixel: RGBA = { r, g, b, a: 255 };
+
+      let bgScore: number;
+
+      if (detectedMode === 'white') {
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        const sat = (Math.max(r, g, b) - Math.min(r, g, b)) / 255;
+        const whiteThresh = 220 * toleranceScale;
+        if (lum > whiteThresh && sat < 0.12 * toleranceScale) {
+          bgScore = 0;
+        } else if (lum > whiteThresh - 25 && sat < 0.22 * toleranceScale) {
+          bgScore = ((whiteThresh - lum) / 25) * 0.5;
+        } else {
+          bgScore = 1;
+        }
+      } else if (detectedMode === 'gradient') {
+        const localBg = estimateLocalBgColor(data, w, h, x, y);
+        const dE = colorDist(pixel, localBg);
+        const thresh = 18 * toleranceScale;
+        bgScore = Math.min(1, Math.max(0, (dE - thresh * 0.5) / (thresh * 0.8)));
+      } else {
+        const dE = colorDist(pixel, bgColor);
+        const thresh = 16 * toleranceScale;
+        bgScore = Math.min(1, Math.max(0, (dE - thresh * 0.6) / (thresh * 0.6)));
+      }
+
+      confidence[idx] = bgScore * 255;
+    }
+  }
+
+  // ── Phase 2.5: Otsu auto-threshold for initial mask ──
+  let mask = new Float32Array(confidence);
+  if (autoThreshold) {
+    const otsuThresh = otsuThreshold(mask, totalPixels);
+    // Remap mask using Otsu threshold for better initial separation
+    for (let idx = 0; idx < totalPixels; idx++) {
+      if (mask[idx] < otsuThresh * 0.6) mask[idx] = Math.min(mask[idx], 40);
+      else if (mask[idx] > otsuThresh * 1.3) mask[idx] = Math.max(mask[idx], 220);
+    }
+  }
+
+  // ── Phase 3: Multi-component GMM refinement ──
+  const fgGMM = new GaussianMixtureModel(5);
+  const bgGMM = new GaussianMixtureModel(5);
+  const assignments = new Int8Array(totalPixels);
+
+  for (let iter = 0; iter < 5; iter++) {
+    const gmmThreshold = autoThreshold ? otsuThreshold(mask, totalPixels) : 128;
+
+    // Assign pixels to GMM components
+    for (let idx = 0; idx < totalPixels; idx++) {
+      const i = idx * 4;
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      if (mask[idx] > gmmThreshold) {
+        assignments[idx] = fgGMM.assignComponent(r, g, b) as unknown as number;
+      } else {
+        assignments[idx] = bgGMM.assignComponent(r, g, b) as unknown as number;
+      }
+    }
+
+    // Learn GMM parameters from assignments
+    fgGMM.learn(data, assignments, mask, w, h, 'fg', gmmThreshold);
+    bgGMM.learn(data, assignments, mask, w, h, 'bg', gmmThreshold);
+
+    // Reclassify unknown pixels using GMM probabilities
+    for (let idx = 0; idx < totalPixels; idx++) {
+      if (mask[idx] >= 40 && mask[idx] <= 215) {
+        const i = idx * 4;
+        const r = data[i], g = data[i + 1], b = data[i + 2];
+        const fgProb = fgGMM.probability(r, g, b);
+        const bgProb = bgGMM.probability(r, g, b);
+        const ratio = fgProb / (fgProb + bgProb + 1e-10);
+        mask[idx] = 255 * ratio;
+      }
+    }
+  }
+
+  // ── Phase 4: Morphological operations ──
+  const mRadius = Math.max(0, Math.min(3, Math.round(morphStrength)));
+  if (mRadius > 0) {
+    mask = morphClose(mask, w, h, mRadius);
+    mask = morphOpen(mask, w, h, mRadius);
+  }
+
+  // ── Phase 4.5: Bilateral filter for edge-preserving smooth ──
+  if (bilateralSmooth > 0) {
+    const spatialSigma = 1 + bilateralSmooth / 25; // 1-5
+    const rangeSigma = 20 + bilateralSmooth * 0.8;  // 20-100
+    mask = bilateralFilterMask(mask, w, h, spatialSigma, rangeSigma);
+  }
+
+  // ── Phase 5: Connected component noise removal ──
+  if (noiseClean > 0) {
+    const minArea = Math.max(20, Math.round(totalPixels * (noiseClean / 10000)));
+    mask = cleanSmallRegions(mask, w, h, minArea);
+  }
+
+  // ── Phase 6: Guided filter edge refinement ──
+  if (edgeDetail > 0) {
+    const guide = toGrayscaleGuide(data, w, h);
+    const gfRadius = Math.max(2, Math.round(Math.min(w, h) * (edgeDetail / 8000)));
+    const eps = 2000 - edgeDetail * 18;
+    mask = guidedFilter(guide, mask, w, h, gfRadius, Math.max(100, eps));
+
+    if (foregroundBoost) {
+      for (let idx = 0; idx < totalPixels; idx++) {
+        if (mask[idx] > 20 && mask[idx] < 235) {
+          const t = mask[idx] / 255;
+          const boosted = 1 / (1 + Math.exp(-12 * (t - 0.5)));
+          mask[idx] = 255 * boosted;
+        }
+      }
+    }
+  }
+
+  // ── Phase 7: Apply mask ──
+  for (let i = 0; i < totalPixels; i++) {
+    data[i * 4 + 3] = Math.max(0, Math.min(255, Math.round(mask[i])));
+  }
+
+  // ── Phase 8: Color decontamination / spill removal ──
+  if (spillRemoval > 0) {
+    decontaminateColors(data, w, h, bgColor, spillRemoval / 100);
+  }
+
+  ctx.putImageData(imageData, 0, 0);
+  return canvasToDataUrl(canvas);
+}
+
+/** Check if background has a gradient pattern */
+function analyzeGradientBackground(data: Uint8ClampedArray, w: number, h: number): boolean {
+  // Sample colors from corners and center of edges
+  const corners = [
+    { x: 2, y: 2 },
+    { x: w - 3, y: 2 },
+    { x: 2, y: h - 3 },
+    { x: w - 3, y: h - 3 },
+  ];
+  const colors = corners.map(({ x, y }) => {
+    const i = (y * w + x) * 4;
+    return { r: data[i], g: data[i + 1], b: data[i + 2], a: 255 } as RGBA;
+  });
+  // If corners differ significantly, it's likely a gradient
+  let maxDist = 0;
+  for (let i = 0; i < colors.length; i++) {
+    for (let j = i + 1; j < colors.length; j++) {
+      maxDist = Math.max(maxDist, deltaE76(colors[i], colors[j]));
+    }
+  }
+  return maxDist > 12 && maxDist < 60; // gradient has variation but not extreme
+}
+
+/** Estimate local bg color for gradient backgrounds via bilinear interpolation of corners */
+function estimateLocalBgColor(data: Uint8ClampedArray, w: number, h: number, px: number, py: number): RGBA {
+  const sample = (x: number, y: number) => {
+    const cx = Math.min(w - 1, Math.max(0, x));
+    const cy = Math.min(h - 1, Math.max(0, y));
+    const i = (cy * w + cx) * 4;
+    return { r: data[i], g: data[i + 1], b: data[i + 2], a: 255 };
+  };
+  // Sample from multiple edge depths
+  const tl = sample(2, 2), tr = sample(w - 3, 2);
+  const bl = sample(2, h - 3), br = sample(w - 3, h - 3);
+  const tx = px / w, ty = py / h;
+  const top = { r: tl.r + (tr.r - tl.r) * tx, g: tl.g + (tr.g - tl.g) * tx, b: tl.b + (tr.b - tl.b) * tx };
+  const bot = { r: bl.r + (br.r - bl.r) * tx, g: bl.g + (br.g - bl.g) * tx, b: bl.b + (br.b - bl.b) * tx };
+  return {
+    r: Math.round(top.r + (bot.r - top.r) * ty),
+    g: Math.round(top.g + (bot.g - top.g) * ty),
+    b: Math.round(top.b + (bot.b - top.b) * ty),
+    a: 255,
+  };
 }
