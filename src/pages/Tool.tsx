@@ -782,329 +782,41 @@ const ToolInner = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-8">
-        <div className="flex flex-col lg:flex-row gap-4 lg:gap-8">
-          {/* Canvas */}
-          <div className="flex-1 space-y-6">
-            {originalImage ? (
-              <div className="relative">
-                <ImageCanvas
-                  originalImage={originalImage}
-                  resultImage={resultImage}
-                  isProcessing={isProcessing || isEnhancing}
-                  adjustments={adjustments}
-                  liveFilterCss={liveFilterCss}
-                />
-                <FloatingSaveAction
-                  visible={!!originalImage && hasUnsavedChanges && !!user}
-                  onSaveNew={handleFloatingSaveNew}
-                  onReplace={handleFloatingReplace}
-                  isSaving={isSaving || localApplying}
-                />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <ImageUploader onImageSelect={handleImageSelect} />
-                <div className="flex items-center justify-center">
-                  <button
-                    onClick={() => setShowPdfProcessor(true)}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 font-accent text-sm font-semibold text-foreground transition-all hover:bg-secondary hover:border-primary"
-                  >
-                    <FileText className="h-4 w-4 text-primary" />
-                    העלאת קובץ PDF
-                  </button>
-                </div>
-                {showPdfProcessor && (
-                  <Suspense fallback={<LazyFallback />}>
-                    <PdfProcessor
-                      onSelectPage={(dataUrl) => {
-                        handleImageSelect(dataUrl);
-                        setShowPdfProcessor(false);
-                      }}
-                      onClose={() => setShowPdfProcessor(false)}
-                      backgroundPrompt={customPrompt.trim() || activePrompt}
-                    />
-                  </Suspense>
-                )}
-              </div>
-            )}
-
-            {originalImage && (
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Undo / Redo */}
-                <div className="flex items-center gap-1 rounded-lg border border-border bg-card">
-                  <button
-                    onClick={() => dispatch({ type: "UNDO" })}
-                    disabled={undoStack.length === 0}
-                    className="flex h-9 w-9 items-center justify-center rounded-r-lg text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-                    title="בטל (Ctrl+Z)"
-                  >
-                    <Undo2 className="h-4 w-4" />
-                  </button>
-                  <div className="h-5 w-px bg-border" />
-                  <button
-                    onClick={() => dispatch({ type: "REDO" })}
-                    disabled={redoStack.length === 0}
-                    className="flex h-9 w-9 items-center justify-center rounded-l-lg text-muted-foreground transition-colors hover:text-foreground disabled:opacity-30"
-                    title="בצע שוב (Ctrl+Shift+Z)"
-                  >
-                    <Redo2 className="h-4 w-4" />
-                  </button>
-                </div>
-
-                {!multiSelectMode ? (
-                  <button
-                    onClick={handleProcess}
-                    disabled={!aiEnabled || isProcessing || (!activePrompt && !customPrompt.trim())}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2.5 sm:px-6 sm:py-3 font-display text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed ${
-                      selectedPresetType === "scene"
-                        ? "bg-gradient-to-l from-emerald-500 to-teal-600 text-white"
-                        : preciseMode
-                          ? "bg-gradient-to-l from-amber-500 to-accent text-white"
-                          : "bg-accent text-accent-foreground"
-                    }`}
-                  >
-                    <Sparkles className="h-4 w-4" />
-                    {isProcessing ? "מעבד..." : selectedPresetType === "scene" ? "הצב בסצנה" : preciseMode ? "החלף רקע (מדויק)" : "החלף רקע"}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleMultiProcess}
-                    disabled={!aiEnabled || batchProcessing || selectedPresetIds.length === 0}
-                    className="flex items-center gap-2 rounded-lg bg-gradient-to-l from-accent to-primary px-6 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <Layers className="h-4 w-4" />
-                    {batchProcessing
-                      ? `מעבד ${batchProgress.current}/${batchProgress.total}...`
-                      : `החלף ${selectedPresetIds.length} רקעים`}
-                  </button>
-                )}
-
-                <button
-                  onClick={() => {
-                    dispatch({ type: "SET_MULTI_SELECT_MODE", payload: !multiSelectMode });
-                  }}
-                  className={`flex items-center gap-2 rounded-lg px-5 py-3 font-display text-sm font-semibold transition-all ${
-                    multiSelectMode
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border bg-card text-foreground hover:bg-secondary"
-                  }`}
-                >
-                  <Layers className="h-4 w-4" />
-                  {multiSelectMode ? "בחירה מרובה ✓" : "בחירה מרובה"}
-                </button>
-
-                <button
-                  onClick={() => dispatch({ type: "SET_PRECISE_MODE", payload: !preciseMode })}
-                  className={`flex items-center gap-2 rounded-lg px-5 py-3 font-display text-sm font-semibold transition-all ${
-                    preciseMode
-                      ? "bg-amber-500 text-white ring-2 ring-amber-300"
-                      : "border border-border bg-card text-foreground hover:bg-secondary"
-                  }`}
-                  title="מצב מדויק: Pipeline דו-שלבי שמבטיח שהמוצרים לא ישתנו"
-                >
-                  <FlaskConical className="h-4 w-4" />
-                  {preciseMode ? "מצב מדויק ✓" : "מצב מדויק"}
-                </button>
-
-                <button
-                  onClick={handleEnhance}
-                  disabled={!aiEnabled || isEnhancing || isProcessing}
-                  className="flex items-center gap-2 rounded-lg bg-primary px-5 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Wand2 className="h-4 w-4" />
-                  {isEnhancing ? "משפר..." : "שפר איכות"}
-                </button>
-
-                {resultImage && (
-                  <button
-                  onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "mockup", value: true } })}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
-                  >
-                    <Frame className="h-4 w-4" />
-                    מוקאפ
-                  </button>
-                )}
-
-                {resultImage && (
-                  <button
-                    onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "social", value: true } })}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    תבניות
-                  </button>
-                )}
-
-                {resultImage && (
-                  <button
-                    onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "share", value: true } })}
-                    className="flex items-center gap-2 rounded-lg border border-gold/30 bg-gold/5 px-5 py-3 font-display text-sm font-semibold text-gold transition-all hover:bg-gold/10"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    שתף + QR
-                  </button>
-                )}
-
-                {resultImage && user && (
-                  <button
-                    onClick={() => { setSaveNewName(suggestedName || ""); setShowSaveDialog(true); }}
-                    className="flex items-center gap-2 rounded-lg bg-primary px-5 py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110"
-                  >
-                    <Save className="h-4 w-4" />
-                    שמור לגלריה
-                  </button>
-                )}
-
-                {resultImage && (
-                  <button
-                    onClick={() => {
-                      dispatch({ type: "ADD_COMPARISON_IMAGE", payload: { image: resultImage, label: suggestedName || selectedPresetName || "גרסה" } });
-                      dispatch({ type: "TOGGLE_COMPARISON", payload: true });
-                    }}
-                    className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
-                  >
-                    <GitCompare className="h-4 w-4" />
-                    השוואה
-                    {comparisonImages.length > 0 && (
-                      <span className="rounded-full bg-primary/10 px-1.5 py-0.5 font-accent text-[10px] font-bold text-primary">{comparisonImages.length}</span>
-                    )}
-                  </button>
-                )}
-
-                <button
-                  onClick={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "batch", value: true } })}
-                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-5 py-3 font-display text-sm font-semibold text-foreground transition-all hover:bg-secondary"
-                >
-                  <Layers className="h-4 w-4" />
-                  עיבוד מרובה
-                </button>
-
-                <button
-                  onClick={() => {
-                    dispatch({ type: "RESET_IMAGE" });
-                  }}
-                  className="flex items-center gap-2 font-body text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <UploadIcon className="h-4 w-4" />
-                  תמונה חדשה
-                </button>
-              </div>
-            )}
-
-            {/* Recent results */}
-            {user && (
-              <ResultsStrip
-                onSelectImage={(url) => dispatch({ type: "SET_RESULT_IMAGE", payload: url })}
-                currentResultUrl={resultImage}
-              />
-            )}
-
-            {/* Batch results grid */}
-            {batchResults.length > 0 && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-display text-sm font-bold text-foreground">
-                    תוצאות — {batchResults.length} רקעים
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5">
-                      <span className={`font-body text-[11px] ${aiEnabled ? "text-muted-foreground" : "text-primary font-semibold"}`}>ללא AI</span>
-                      <Switch checked={aiEnabled} onCheckedChange={setAiMode} />
-                      <span className={`font-body text-[11px] ${aiEnabled ? "text-primary font-semibold" : "text-muted-foreground"}`}>AI</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        downloadImagesAsZip(batchResults).then(() => toast.success("ZIP הורד בהצלחה!")).catch(() => toast.error("שגיאה בהורדה"));
-                      }}
-                      className="font-accent text-xs text-primary hover:text-primary/80 font-semibold"
-                    >
-                      📦 הורד ZIP
-                    </button>
-                    <button
-                      onClick={() => dispatch({ type: "SET_BATCH_RESULTS", payload: [] })}
-                      className="font-accent text-xs text-muted-foreground hover:text-foreground"
-                    >
-                      נקה
-                    </button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {batchResults.map((r, i) => (
-                    <div
-                      key={i}
-                      className="group relative rounded-xl border border-border overflow-hidden bg-card cursor-pointer hover:border-gold/50 hover:shadow-md transition-all"
-                      onClick={() => dispatch({ type: "SET_RESULT_IMAGE", payload: r.image })}
-                    >
-                      <div className="aspect-square overflow-hidden">
-                        <img src={r.image} alt={r.name} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" />
-                      </div>
-                      <div className="p-2 text-center">
-                        <p className="font-display text-xs font-semibold text-foreground truncate">{r.name}</p>
-                      </div>
-                      <div className="absolute top-1.5 right-1.5 rounded-full bg-gold/90 px-2 py-0.5 font-accent text-[10px] font-bold text-gold-foreground">
-                        {i + 1}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {suggestedName && resultImage && (
-              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-4 py-2.5">
-                <Tag className="h-4 w-4 text-primary" />
-                <div className="flex flex-col flex-1">
-                  <span className="font-body text-xs text-muted-foreground">שם מקצועי מוצע למוצר:</span>
-                  <EditableLabel
-                    hebrewName={suggestedName}
-                    englishName={selectedPresetName || suggestedName}
-                    onSave={(he, en) => {
-                      dispatch({ type: "SET_SUGGESTED_NAME", payload: he });
-                      dispatch({ type: "SET_CUSTOM_PROMPT", payload: "" });
-                      dispatch({ type: "APPLY_BACKGROUND", payload: { prompt: state.activePrompt, name: en } });
-                    }}
-                    size="md"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sidebar */}
+      <main className="mx-auto max-w-7xl px-4 sm:px-6 py-4 sm:py-6">
+        <div className="flex flex-col lg:flex-row gap-4 lg:gap-6">
+          {/* LEFT: Sidebar — tabs + content */}
           {originalImage && (
-            <div className="w-full lg:w-80 shrink-0">
-              <div className="sticky top-8 space-y-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
-                {/* Tabs */}
-              <div className="overflow-x-auto scrollbar-hide border-b border-border">
+            <div className="w-full lg:w-[340px] shrink-0 order-2 lg:order-1">
+              <div className="sticky top-4 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+                {/* Tab grid — 3 columns, big & clear */}
+                <div className="grid grid-cols-3 gap-px bg-border/50 border-b border-border">
                   {[
-                    { key: "backgrounds" as const, label: "רקעים", icon: <ImageIcon className="h-4 w-4" /> },
-                    { key: "smart" as const, label: "חכם", icon: <Brain className="h-4 w-4" /> },
-                    { key: "nonai" as const, label: "Pro ללא AI", icon: <Wrench className="h-4 w-4" /> },
-                    { key: "filters" as const, label: "פילטרים", icon: <SlidersHorizontal className="h-4 w-4" /> },
-                    { key: "advanced" as const, label: "מתקדם", icon: <Settings2 className="h-4 w-4" /> },
-                    { key: "crop" as const, label: "חיתוך", icon: <Crop className="h-4 w-4" /> },
-                    { key: "tools" as const, label: "כלים", icon: <Wand2 className="h-4 w-4" /> },
-                    { key: "adjust" as const, label: "התאמות", icon: <Sun className="h-4 w-4" /> },
-                    { key: "export" as const, label: "ייצוא", icon: <Download className="h-4 w-4" /> },
+                    { key: "backgrounds" as const, label: "רקעים", icon: <ImageIcon className="h-5 w-5" /> },
+                    { key: "smart" as const, label: "חכם", icon: <Brain className="h-5 w-5" /> },
+                    { key: "nonai" as const, label: "Pro ללא AI", icon: <Wrench className="h-5 w-5" /> },
+                    { key: "filters" as const, label: "פילטרים", icon: <SlidersHorizontal className="h-5 w-5" /> },
+                    { key: "advanced" as const, label: "מתקדם", icon: <Settings2 className="h-5 w-5" /> },
+                    { key: "crop" as const, label: "חיתוך", icon: <Crop className="h-5 w-5" /> },
+                    { key: "tools" as const, label: "כלים", icon: <Wand2 className="h-5 w-5" /> },
+                    { key: "adjust" as const, label: "התאמות", icon: <Sun className="h-5 w-5" /> },
+                    { key: "export" as const, label: "ייצוא", icon: <Download className="h-5 w-5" /> },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: tab.key })}
-                      className={`shrink-0 whitespace-nowrap flex-1 py-3 px-3 font-body text-[11px] font-semibold leading-normal tracking-[0.01em] transition-colors ${
+                      className={`flex flex-col items-center justify-center gap-1 py-3 px-1 font-body text-xs font-semibold transition-all ${
                         activeTab === tab.key
-                          ? "text-primary border-b-2 border-primary bg-primary/5"
-                          : "text-muted-foreground hover:text-foreground"
+                          ? "bg-primary/10 text-primary border-b-2 border-primary"
+                          : "bg-card text-muted-foreground hover:bg-secondary hover:text-foreground"
                       }`}
                     >
-                      <span className="inline-flex items-center gap-1.5">
-                        <span className="text-primary">{tab.icon}</span>
-                        <span>{tab.label}</span>
-                      </span>
+                      <span className={activeTab === tab.key ? "text-primary" : "text-primary/60"}>{tab.icon}</span>
+                      <span>{tab.label}</span>
                     </button>
                   ))}
                 </div>
 
-                <div className="p-3 sm:p-5 max-h-[70vh] overflow-y-auto">
+                <div className="p-3 sm:p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
                   {/* Tooltip Help Button */}
                   <div className="flex justify-end mb-2">
                     <TooltipHelpButton page={activeTab} />
