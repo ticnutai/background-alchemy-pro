@@ -3,7 +3,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import { Dialog, DialogClose, DialogContent, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2, Move, X } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2, Move, X, Lock, Unlock, Hand } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -129,6 +129,7 @@ const ToolInner = () => {
   const [imageScaleYPercent, setImageScaleYPercent] = useState(100);
   const [lockPageAspect, setLockPageAspect] = useState(false);
   const [lockImageAspect, setLockImageAspect] = useState(false);
+  const [panMode, setPanMode] = useState(false);
   const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
   const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
   const [customWidthCm, setCustomWidthCm] = useState("21");
@@ -1364,6 +1365,24 @@ const ToolInner = () => {
                   >
                     <Eye className="h-4 w-4" />
                   </button>
+                  <button
+                    onClick={() => {
+                      const next = !(lockPageAspect && lockImageAspect);
+                      setLockPageAspect(next);
+                      setLockImageAspect(next);
+                    }}
+                    className={`absolute left-14 top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border bg-background/90 shadow ${lockPageAspect && lockImageAspect ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                    title={lockPageAspect && lockImageAspect ? "כיבוי נעילת יחס" : "הפעלת נעילת יחס"}
+                  >
+                    {lockPageAspect && lockImageAspect ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                  </button>
+                  <button
+                    onClick={() => setPanMode((v) => !v)}
+                    className={`absolute left-[6.75rem] top-3 z-30 flex h-9 w-9 items-center justify-center rounded-lg border bg-background/90 shadow ${panMode ? "border-primary text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
+                    title={panMode ? "מצב יד פעיל" : "הפעלת מצב יד"}
+                  >
+                    <Hand className="h-4 w-4" />
+                  </button>
                   <ImageCanvas
                     originalImage={originalImage}
                     resultImage={resultImage}
@@ -1378,6 +1397,7 @@ const ToolInner = () => {
                     imageFitMode={imageFitMode}
                     lockPageAspect={lockPageAspect}
                     lockImageAspect={lockImageAspect}
+                    panMode={panMode}
                     onPageWidthChange={setPageWidthPercent}
                     onPageHeightChange={setPageHeightPercent}
                     onImageScaleXChange={setImageScaleXPercent}

@@ -19,6 +19,7 @@ interface ImageCanvasProps {
   imageFitMode?: "contain" | "cover";
   lockPageAspect?: boolean;
   lockImageAspect?: boolean;
+  panMode?: boolean;
   onPageWidthChange?: (next: number) => void;
   onPageHeightChange?: (next: number) => void;
   onImageScaleXChange?: (next: number) => void;
@@ -55,6 +56,7 @@ const ImageCanvas = memo(({
   imageFitMode = "contain",
   lockPageAspect = false,
   lockImageAspect = false,
+  panMode = false,
   onPageWidthChange,
   onPageHeightChange,
   onImageScaleXChange,
@@ -66,6 +68,9 @@ const ImageCanvas = memo(({
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef({ x: 0, y: 0, offsetX: 0, offsetY: 0 });
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const dragModeRef = useRef<null | "page-left" | "page-right" | "page-top" | "page-bottom" | "image-x" | "image-y">(null);
   const dragStartXRef = useRef(0);
   const dragStartYRef = useRef(0);
@@ -96,6 +101,12 @@ const ImageCanvas = memo(({
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      if (isPanningRef.current) {
+        const dx = e.clientX - panStartRef.current.x;
+        const dy = e.clientY - panStartRef.current.y;
+        setPanOffset({ x: panStartRef.current.offsetX + dx, y: panStartRef.current.offsetY + dy });
+        return;
+      }
       if (!dragModeRef.current || !stageRef.current) return;
       const dx = e.clientX - dragStartXRef.current;
       const dy = e.clientY - dragStartYRef.current;
@@ -139,6 +150,12 @@ const ImageCanvas = memo(({
     };
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (isPanningRef.current && e.touches.length > 0) {
+        const dx = e.touches[0].clientX - panStartRef.current.x;
+        const dy = e.touches[0].clientY - panStartRef.current.y;
+        setPanOffset({ x: panStartRef.current.offsetX + dx, y: panStartRef.current.offsetY + dy });
+        return;
+      }
       if (!dragModeRef.current || !stageRef.current || e.touches.length === 0) return;
       const dx = e.touches[0].clientX - dragStartXRef.current;
       const dy = e.touches[0].clientY - dragStartYRef.current;
@@ -183,6 +200,7 @@ const ImageCanvas = memo(({
 
     const stopDrag = () => {
       dragModeRef.current = null;
+      isPanningRef.current = false;
     };
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -196,6 +214,18 @@ const ImageCanvas = memo(({
       window.removeEventListener("touchend", stopDrag);
     };
   }, [lockImageAspect, lockPageAspect, onImageScaleXChange, onImageScaleYChange, onPageHeightChange, onPageWidthChange]);
+
+  const startPan = (clientX: number, clientY: number, target: EventTarget | null) => {
+    if (!panMode) return;
+    if (target instanceof Element && target.closest("button, input, a")) return;
+    isPanningRef.current = true;
+    panStartRef.current = {
+      x: clientX,
+      y: clientY,
+      offsetX: panOffset.x,
+      offsetY: panOffset.y,
+    };
+  };
 
   const startDragHandle = (
     mode: "page-left" | "page-right" | "page-top" | "page-bottom" | "image-x" | "image-y",
@@ -264,19 +294,24 @@ const ImageCanvas = memo(({
         style={{ width: `${pageWidthPercent}%`, aspectRatio: `${ratio}` }}
       >
         <div className="absolute inset-0 overflow-hidden">
-          <div className="h-full w-full origin-center transition-transform duration-150" style={{ transform: `scaleX(${imageScaleXPercent / 100}) scaleY(${imageScaleYPercent / 100})` }}>
+          <div
+            className={`h-full w-full origin-center transition-transform duration-150 ${panMode ? "cursor-grab active:cursor-grabbing" : ""}`}
+            style={{ transform: `translate(${panOffset.x}px, ${panOffset.y}px) scaleX(${imageScaleXPercent / 100}) scaleY(${imageScaleYPercent / 100})` }}
+            onMouseDown={(e) => startPan(e.clientX, e.clientY, e.target)}
+            onTouchStart={(e) => startPan(e.touches[0].clientX, e.touches[0].clientY, e.target)}
+          >
       {resultImage ? (
         <>
           {localMode === "slider" && (
             <div
               ref={containerRef}
-              className="relative h-full cursor-col-resize select-none"
-              onMouseMove={(e) => handleMove(e.clientX)}
-              onMouseDown={handleMouseDown}
+              className={`relative h-full select-none ${panMode ? "cursor-grab" : "cursor-col-resize"}`}
+              onMouseMove={(e) => { if (!panMode) handleMove(e.clientX); }}
+              onMouseDown={() => { if (!panMode) handleMouseDown(); }}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseUp}
-              onTouchMove={(e) => handleMove(e.touches[0].clientX)}
-              onTouchStart={handleMouseDown}
+              onTouchMove={(e) => { if (!panMode) handleMove(e.touches[0].clientX); }}
+              onTouchStart={() => { if (!panMode) handleMouseDown(); }}
               onTouchEnd={handleMouseUp}
             >
               <img src={resultImage} alt="Result" className={mediaClass} style={{ filter: combinedFilter }} />
