@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
   },
   build: {
     rollupOptions: {
+      external: [],
       output: {
         manualChunks: {
           // Vendor chunks — loaded once, cached long-term

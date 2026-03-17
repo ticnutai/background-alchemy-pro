@@ -5,6 +5,7 @@ import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Image, SlidersHorizontal, Layers, Crop, Download, X } from "lucide-react";
+import { RotateCcw, Image, SlidersHorizontal, Layers, Crop, Download, X } from "lucide-react";
 import {
   addFilmGrain,
   colorBasedRemoveBg,
@@ -105,7 +106,17 @@ export default function NonAiLabPanel({ currentImage, onResult, onNavigate }: No
       )}
       <div className="flex items-center justify-between">
         <Label className="text-sm font-semibold">Non-AI Pro Lab</Label>
-        <Badge variant="secondary">ללא AI</Badge>
+        <div className="flex items-center gap-2">
+          {(edgeStrength !== 1.1 || denoiseRadius !== 1 || posterizeLevels !== 6 || filmGrain !== 0.08 || sharpness !== 1.2) && (
+            <button
+              onClick={() => { setEdgeStrength(1.1); setDenoiseRadius(1); setPosterizeLevels(6); setFilmGrain(0.08); setSharpness(1.2); }}
+              className="flex items-center gap-1 font-body text-xs text-primary hover:underline"
+            >
+              <RotateCcw className="h-3 w-3" /> איפוס הכל
+            </button>
+          )}
+          <Badge variant="secondary">ללא AI</Badge>
+        </div>
       </div>
 
       {/* ── Smart Background Removal ── */}
@@ -323,7 +334,12 @@ export default function NonAiLabPanel({ currentImage, onResult, onNavigate }: No
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>זיהוי קצוות (Sobel)</span>
-          <span>{edgeStrength.toFixed(2)}</span>
+          <div className="flex items-center gap-1">
+            <span>{edgeStrength.toFixed(2)}</span>
+            {edgeStrength !== 1.1 && (
+              <button onClick={() => setEdgeStrength(1.1)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[edgeStrength]} onValueChange={([v]) => setEdgeStrength(v)} min={0.4} max={2.8} step={0.1} />
         <Button disabled={busy} variant="outline" className="w-full" onClick={() => run("זיהוי קצוות", () => sobelEdgeDetect(currentImage, { strength: edgeStrength }))}>
@@ -334,7 +350,12 @@ export default function NonAiLabPanel({ currentImage, onResult, onNavigate }: No
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>הפחתת רעש (Median)</span>
-          <span>רדיוס {denoiseRadius}</span>
+          <div className="flex items-center gap-1">
+            <span>רדיוס {denoiseRadius}</span>
+            {denoiseRadius !== 1 && (
+              <button onClick={() => setDenoiseRadius(1)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[denoiseRadius]} onValueChange={([v]) => setDenoiseRadius(v)} min={1} max={3} step={1} />
         <Button disabled={busy} variant="outline" className="w-full" onClick={() => run("הפחתת רעש", () => medianDenoise(currentImage, { radius: denoiseRadius }))}>
@@ -345,7 +366,12 @@ export default function NonAiLabPanel({ currentImage, onResult, onNavigate }: No
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>Posterize</span>
-          <span>{posterizeLevels} רמות</span>
+          <div className="flex items-center gap-1">
+            <span>{posterizeLevels} רמות</span>
+            {posterizeLevels !== 6 && (
+              <button onClick={() => setPosterizeLevels(6)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[posterizeLevels]} onValueChange={([v]) => setPosterizeLevels(v)} min={2} max={14} step={1} />
         <Button disabled={busy} variant="outline" className="w-full" onClick={() => run("Posterize", () => posterizeImage(currentImage, { levels: posterizeLevels }))}>
@@ -356,7 +382,12 @@ export default function NonAiLabPanel({ currentImage, onResult, onNavigate }: No
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>Film Grain</span>
-          <span>{Math.round(filmGrain * 100)}%</span>
+          <div className="flex items-center gap-1">
+            <span>{Math.round(filmGrain * 100)}%</span>
+            {filmGrain !== 0.08 && (
+              <button onClick={() => setFilmGrain(0.08)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[filmGrain]} onValueChange={([v]) => setFilmGrain(v)} min={0.01} max={0.25} step={0.01} />
         <Button disabled={busy} variant="outline" className="w-full" onClick={() => run("Film Grain", () => addFilmGrain(currentImage, { amount: filmGrain }))}>
@@ -376,7 +407,12 @@ export default function NonAiLabPanel({ currentImage, onResult, onNavigate }: No
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs">
           <span>עוצמת חידוד</span>
-          <span>{sharpness.toFixed(1)}</span>
+          <div className="flex items-center gap-1">
+            <span>{sharpness.toFixed(1)}</span>
+            {sharpness !== 1.2 && (
+              <button onClick={() => setSharpness(1.2)} className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors" title="איפוס"><RotateCcw className="h-2.5 w-2.5" /></button>
+            )}
+          </div>
         </div>
         <Slider value={[sharpness]} onValueChange={([v]) => setSharpness(v)} min={0.4} max={2.6} step={0.1} />
       </div>

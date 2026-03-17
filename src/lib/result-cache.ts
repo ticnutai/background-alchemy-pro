@@ -1,47 +1,85 @@
-/** Simple in-memory cache for processed image results to avoid re-processing */
-const cache = new Map<string, string>();
+/**
+ * Two-tier cache: fast in-memory LRU + persistent IndexedDB for AI results.
+ * In-memory = instant for slider-driven filter results.
+ * IndexedDB = survives refresh for expensive AI operations.
+ */
+import { getPersistentCache, setPersistentCache, clearPersistentCache, makeCacheKey } from "./persistent-cache";
 
-function fnv1aHash(str: string): number {
-  let h = 0x811c9dc5;
-  for (let i = 0; i < str.length; i++) {
-    h ^= str.charCodeAt(i);
-    h = Math.imul(h, 0x01000193);
+// ─── In-memory LRU ───────────────────────────────────────────
+const MAX_MEMORY = 30;
+const memoryCache = new Map<string, string>();
+
+function touchMemory(key: string, value: string): void {
+  // Move to end (most recently used)
+  memoryCache.delete(key);
+  memoryCache.set(key, value);
+  // Evict oldest
+  if (memoryCache.size > MAX_MEMORY) {
+    const firstKey = memoryCache.keys().next().value;
+    if (firstKey) memoryCache.delete(firstKey);
   }
-  return h >>> 0;
 }
 
-function makeKey(imageBase64: string, action: string, params: Record<string, unknown>): string {
-  const paramsStr = JSON.stringify(params);
-  const mid = Math.floor(imageBase64.length / 2);
-  const sample = imageBase64.slice(0, 500) + imageBase64.slice(mid, mid + 500) + imageBase64.slice(-500);
-  const raw = `${sample}|${action}|${paramsStr}`;
-  return `${action}_${fnv1aHash(raw)}`;
-}
+// AI actions that are expensive and worth persisting
+const PERSIST_ACTIONS = new Set([
+  "remove-bg", "replace-bg", "upscale", "relight", "inpaint",
+  "segment", "generate-bg", "cloudinary",
+]);
+
+// ─── Public API (drop-in replacement) ────────────────────────
 
 export function getCachedResult(
   imageBase64: string,
   action: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
 ): string | null {
-  const key = makeKey(imageBase64, action, params);
-  return cache.get(key) ?? null;
+  const key = makeCacheKey(imageBase64, action, params);
+  return memoryCache.get(key) ?? null;
+}
+
+/**
+ * Async version that also checks IndexedDB for AI results.
+ * Use this for AI operations; use getCachedResult for local filters.
+ */
+export async function getCachedResultAsync(
+  imageBase64: string,
+  action: string,
+  params: Record<string, unknown>,
+): Promise<string | null> {
+  const key = makeCacheKey(imageBase64, action, params);
+  // Memory first
+  const mem = memoryCache.get(key);
+  if (mem) {
+    touchMemory(key, mem);
+    return mem;
+  }
+  // IndexedDB for AI actions
+  if (PERSIST_ACTIONS.has(action)) {
+    const persisted = await getPersistentCache(imageBase64, action, params);
+    if (persisted) {
+      touchMemory(key, persisted); // Promote to memory
+      return persisted;
+    }
+  }
+  return null;
 }
 
 export function setCachedResult(
   imageBase64: string,
   action: string,
   params: Record<string, unknown>,
-  resultBase64: string
+  resultBase64: string,
 ): void {
-  const key = makeKey(imageBase64, action, params);
-  cache.set(key, resultBase64);
-  // Limit cache size to 20 entries
-  if (cache.size > 20) {
-    const firstKey = cache.keys().next().value;
-    if (firstKey) cache.delete(firstKey);
+  const key = makeCacheKey(imageBase64, action, params);
+  touchMemory(key, resultBase64);
+
+  // Persist AI results to IndexedDB (fire and forget)
+  if (PERSIST_ACTIONS.has(action)) {
+    setPersistentCache(imageBase64, action, params, resultBase64).catch(() => {});
   }
 }
 
 export function clearResultCache(): void {
-  cache.clear();
+  memoryCache.clear();
+  clearPersistentCache().catch(() => {});
 }
