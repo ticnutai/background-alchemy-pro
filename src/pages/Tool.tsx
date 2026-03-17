@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useMemo, lazy, Suspense } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef, lazy, Suspense } from "react";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogOverlay, DialogPortal, DialogTitle } from "@/components/ui/dialog";
 import EditableLabel from "@/components/EditableLabel";
 import { useNavigate, Link, useLocation, useSearchParams } from "react-router-dom";
-import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2 } from "lucide-react";
+import { Sparkles, Shield, Wand2, Upload as UploadIcon, Tag, Eye, Layers, Clock, LogOut, LogIn, Share2, Brain, Home, ArrowRight, FlaskConical, Settings, Save, Undo2, Redo2, GitCompare, Crop, SlidersHorizontal, Frame, FileText, Settings2, Sun, Download, ImageIcon, Wrench, Ruler, Maximize2, Minimize2, Move, X } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
@@ -126,6 +126,16 @@ const ToolInner = () => {
   const [pageAspectRatio, setPageAspectRatio] = useState("4/3");
   const [imageScalePercent, setImageScalePercent] = useState(100);
   const [imageFitMode, setImageFitMode] = useState<"contain" | "cover">("contain");
+  const [layoutDialogPos, setLayoutDialogPos] = useState({ x: 120, y: 90 });
+  const [customWidthCm, setCustomWidthCm] = useState("21");
+  const [customHeightCm, setCustomHeightCm] = useState("29.7");
+  const dragStateRef = useRef<{ dragging: boolean; startX: number; startY: number; startLeft: number; startTop: number }>({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startLeft: 120,
+    startTop: 90,
+  });
   const { aiEnabled, setAiMode } = useAiMode(true);
 
   const pagePresets = [
@@ -134,6 +144,71 @@ const ToolInner = () => {
     { id: "3/4", label: "פורטרט" },
     { id: "16/9", label: "רחב" },
   ];
+
+  const printPresetsCm = [
+    { id: "A4-P", label: "A4 אנכי", w: 21, h: 29.7 },
+    { id: "A4-L", label: "A4 רוחבי", w: 29.7, h: 21 },
+    { id: "A3-P", label: "A3 אנכי", w: 29.7, h: 42 },
+    { id: "A3-L", label: "A3 רוחבי", w: 42, h: 29.7 },
+    { id: "A0-P", label: "A0 אנכי", w: 84.1, h: 118.9 },
+    { id: "A0-L", label: "A0 רוחבי", w: 118.9, h: 84.1 },
+  ];
+
+  const startLayoutDialogDrag = (clientX: number, clientY: number) => {
+    dragStateRef.current = {
+      dragging: true,
+      startX: clientX,
+      startY: clientY,
+      startLeft: layoutDialogPos.x,
+      startTop: layoutDialogPos.y,
+    };
+  };
+
+  const applyCustomCmSize = () => {
+    const w = Number(customWidthCm);
+    const h = Number(customHeightCm);
+    if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
+      toast.error("יש להזין מידות ס״מ תקינות");
+      return;
+    }
+    setPageAspectRatio(`${w}/${h}`);
+    toast.success(`יחס דף הוגדר לפי ${w}x${h} ס"מ`);
+  };
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent) => {
+      if (!dragStateRef.current.dragging) return;
+      const dx = e.clientX - dragStateRef.current.startX;
+      const dy = e.clientY - dragStateRef.current.startY;
+      setLayoutDialogPos({
+        x: Math.max(8, dragStateRef.current.startLeft + dx),
+        y: Math.max(8, dragStateRef.current.startTop + dy),
+      });
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (!dragStateRef.current.dragging || e.touches.length === 0) return;
+      const dx = e.touches[0].clientX - dragStateRef.current.startX;
+      const dy = e.touches[0].clientY - dragStateRef.current.startY;
+      setLayoutDialogPos({
+        x: Math.max(8, dragStateRef.current.startLeft + dx),
+        y: Math.max(8, dragStateRef.current.startTop + dy),
+      });
+    };
+    const onUp = () => {
+      dragStateRef.current.dragging = false;
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("touchend", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("touchend", onUp);
+    };
+  }, [layoutDialogPos.x, layoutDialogPos.y]);
 
   const {
     originalImage, resultImage, adjustments, referenceImages,
@@ -1370,16 +1445,32 @@ const ToolInner = () => {
         {/* Dev Settings */}
         <DevSettingsDialog open={showDevSettings} onClose={() => dispatch({ type: "TOGGLE_MODAL", payload: { modal: "devSettings", value: false } })} />
 
-        <Dialog open={showLayoutDialog} onOpenChange={setShowLayoutDialog}>
-          <DialogContent className="max-w-lg border-border" dir="rtl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 font-display text-base font-bold">
-                <Ruler className="h-4 w-4 text-primary" />
-                מערכת גודל דף ותמונה
-              </DialogTitle>
-            </DialogHeader>
+        <Dialog open={showLayoutDialog} onOpenChange={setShowLayoutDialog} modal={false}>
+          <DialogPortal>
+            <DialogOverlay className="bg-transparent pointer-events-none" />
+            <div
+              className="fixed z-50 w-[min(92vw,640px)] rounded-lg border border-border bg-background p-4 shadow-2xl"
+              style={{ left: layoutDialogPos.x, top: layoutDialogPos.y }}
+              dir="rtl"
+            >
+              <div
+                className="mb-3 flex cursor-move items-center justify-between border-b border-border pb-2"
+                onMouseDown={(e) => startLayoutDialogDrag(e.clientX, e.clientY)}
+                onTouchStart={(e) => startLayoutDialogDrag(e.touches[0].clientX, e.touches[0].clientY)}
+              >
+                <DialogTitle className="flex items-center gap-2 font-display text-base font-bold">
+                  <Move className="h-4 w-4 text-muted-foreground" />
+                  <Ruler className="h-4 w-4 text-primary" />
+                  מערכת גודל דף ותמונה
+                </DialogTitle>
+                <DialogClose asChild>
+                  <button className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground" title="סגירה">
+                    <X className="h-4 w-4" />
+                  </button>
+                </DialogClose>
+              </div>
 
-            <div className="space-y-4">
+              <div className="space-y-4">
               <div className="space-y-2">
                 <p className="font-body text-xs text-muted-foreground">תבנית דף</p>
                 <div className="grid grid-cols-4 gap-2">
@@ -1392,6 +1483,56 @@ const ToolInner = () => {
                       {preset.label}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-body text-xs text-muted-foreground">מידות הדפסה (A-series)</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {printPresetsCm.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => {
+                        setPageAspectRatio(`${preset.w}/${preset.h}`);
+                        setCustomWidthCm(String(preset.w));
+                        setCustomHeightCm(String(preset.h));
+                      }}
+                      className="rounded-lg border border-border px-2 py-2 font-accent text-xs text-foreground hover:border-primary/50"
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="font-body text-xs text-muted-foreground">הזנת ס"מ ידנית</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min={1}
+                    step="0.1"
+                    value={customWidthCm}
+                    onChange={(e) => setCustomWidthCm(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="רוחב ס״מ"
+                  />
+                  <span className="text-xs text-muted-foreground">X</span>
+                  <input
+                    type="number"
+                    min={1}
+                    step="0.1"
+                    value={customHeightCm}
+                    onChange={(e) => setCustomHeightCm(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                    placeholder="גובה ס״מ"
+                  />
+                  <button
+                    onClick={applyCustomCmSize}
+                    className="shrink-0 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
+                  >
+                    החל
+                  </button>
                 </div>
               </div>
 
@@ -1467,6 +1608,8 @@ const ToolInner = () => {
                     setPageAspectRatio("4/3");
                     setImageScalePercent(100);
                     setImageFitMode("contain");
+                    setCustomWidthCm("21");
+                    setCustomHeightCm("29.7");
                   }}
                   className="mr-auto rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground"
                 >
@@ -1474,7 +1617,8 @@ const ToolInner = () => {
                 </button>
               </div>
             </div>
-          </DialogContent>
+            </div>
+          </DialogPortal>
         </Dialog>
 
         {/* Save to Gallery Dialog */}
