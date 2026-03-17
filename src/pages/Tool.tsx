@@ -1074,29 +1074,29 @@ const ToolInner = () => {
             <div className="w-full lg:w-80 shrink-0">
               <div className="sticky top-8 space-y-0 rounded-xl border border-border bg-card shadow-sm overflow-hidden">
                 {/* Tabs */}
-                <div className="overflow-x-auto scrollbar-hide border-b border-border">
+              <div className="overflow-x-auto scrollbar-hide border-b border-border">
                   {[
-                    { key: "backgrounds" as const, label: "רקעים", icon: "" },
-                    { key: "smart" as const, label: "חכם", icon: "🧠" },
-                    { key: "nonai" as const, label: "Pro ללא AI", icon: "⚙️" },
-                    { key: "filters" as const, label: "פילטרים", icon: "⚡" },
-                    { key: "advanced" as const, label: "מתקדם", icon: "🎛️" },
-                    { key: "crop" as const, label: "חיתוך", icon: "✂️" },
-                    { key: "tools" as const, label: "כלים", icon: "" },
-                    { key: "adjust" as const, label: "התאמות", icon: "" },
-                    { key: "export" as const, label: "ייצוא", icon: "" },
+                    { key: "backgrounds" as const, label: "רקעים", icon: <ImageIcon className="h-4 w-4" /> },
+                    { key: "smart" as const, label: "חכם", icon: <Brain className="h-4 w-4" /> },
+                    { key: "nonai" as const, label: "Pro ללא AI", icon: <Wrench className="h-4 w-4" /> },
+                    { key: "filters" as const, label: "פילטרים", icon: <SlidersHorizontal className="h-4 w-4" /> },
+                    { key: "advanced" as const, label: "מתקדם", icon: <Settings2 className="h-4 w-4" /> },
+                    { key: "crop" as const, label: "חיתוך", icon: <Crop className="h-4 w-4" /> },
+                    { key: "tools" as const, label: "כלים", icon: <Wand2 className="h-4 w-4" /> },
+                    { key: "adjust" as const, label: "התאמות", icon: <Sun className="h-4 w-4" /> },
+                    { key: "export" as const, label: "ייצוא", icon: <Download className="h-4 w-4" /> },
                   ].map((tab) => (
                     <button
                       key={tab.key}
                       onClick={() => dispatch({ type: "SET_ACTIVE_TAB", payload: tab.key })}
-                      className={`shrink-0 whitespace-nowrap flex-1 py-3 px-2 font-body text-[11px] font-semibold leading-normal tracking-[0.01em] transition-colors ${
+                      className={`shrink-0 whitespace-nowrap flex-1 py-3 px-3 font-body text-[11px] font-semibold leading-normal tracking-[0.01em] transition-colors ${
                         activeTab === tab.key
                           ? "text-primary border-b-2 border-primary bg-primary/5"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
                       <span className="inline-flex items-center gap-1.5">
-                        {tab.icon && <span aria-hidden="true">{tab.icon}</span>}
+                        <span className="text-primary">{tab.icon}</span>
                         <span>{tab.label}</span>
                       </span>
                     </button>
