@@ -32,9 +32,17 @@ const ImageUploader = ({ onImageSelect }: ImageUploaderProps) => {
     (e: React.DragEvent) => {
       e.preventDefault();
       const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+      if (file) { handleFile(file); return; }
+      // Support dataURL drops — e.g. dragging extracted elements
+      const uri =
+        e.dataTransfer.getData("text/uri-list") ||
+        e.dataTransfer.getData("text/plain");
+      if (uri && uri.startsWith("data:image/")) {
+        onImageSelect(uri);
+        toast.success("אלמנט נטען כתמונה");
+      }
     },
-    [handleFile]
+    [handleFile, onImageSelect]
   );
 
   const handleChange = useCallback(
