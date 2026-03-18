@@ -96,14 +96,14 @@ export function initTelemetry() {
   try {
     po.observe({ type: "largest-contentful-paint", buffered: true });
     po.observe({ type: "first-contentful-paint", buffered: true });
-    po.observe({ type: "event", durationThreshold: 40, buffered: true });
+    po.observe({ type: "event", buffered: true } as PerformanceObserverInit);
   } catch {
     // Browser does not support one of the observers.
   }
 
   let clsValue = 0;
   const clsObserver = new PerformanceObserver((list) => {
-    for (const entry of list.getEntries() as LayoutShift[]) {
+    for (const entry of list.getEntries() as (PerformanceEntry & { hadRecentInput: boolean; value: number })[]) {
       if (!entry.hadRecentInput) clsValue += entry.value;
     }
   });
