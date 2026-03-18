@@ -892,7 +892,7 @@ const ToolInner = () => {
           dispatch({ type: "SET_ORIGINAL_IMAGE", payload: editImageUrl });
         });
     }
-  }, [searchParams]);
+  }, [searchParams, dispatch, originalImage]);
 
   const handleImageSelect = useCallback((base64: string) => {
     dispatch({ type: "SET_ORIGINAL_IMAGE", payload: base64 });
@@ -1021,8 +1021,8 @@ const ToolInner = () => {
       } else if (selectedPresetName) {
         dispatch({ type: "SET_SUGGESTED_NAME", payload: selectedPresetName });
       }
-    } catch (err) {
-      toast.error(err.message || "שגיאה בעיבוד התמונה");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד התמונה");
     } finally {
       dispatch({ type: "SET_PROCESSING", payload: false });
     }
@@ -1097,8 +1097,8 @@ const ToolInner = () => {
       if (data?.error) throw new Error(data.error);
       dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
       toast.success("התמונה שופרה!");
-    } catch (err) {
-      toast.error(err.message || "שגיאה בשיפור התמונה");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בשיפור התמונה");
     } finally {
       dispatch({ type: "SET_ENHANCING", payload: false });
     }
@@ -1466,8 +1466,8 @@ const ToolInner = () => {
           }
         }
       }
-    } catch (err) {
-      toast.error(err.message || "שגיאה בשמירה");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בשמירה");
     } finally {
       setIsSaving(false);
       setShowSaveDialog(false);
@@ -1570,6 +1570,7 @@ const ToolInner = () => {
     showComparison,
     sizeDpi,
     sizeUnit,
+    suggestedName,
   ]);
 
   // Keep ref current so timer always calls the latest version
@@ -1588,8 +1589,9 @@ const ToolInner = () => {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed?.tool?.originalImage) setShowRestorePrompt(true);
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    } catch {
+      // corrupt auto-save data — ignore
+    }
   }, []);
 
   // Extract color palette when original image changes
@@ -1602,6 +1604,7 @@ const ToolInner = () => {
     return () => { cancelled = true; };
   }, [originalImage]);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- snapshot is deserialized JSON with dynamic shape
   const applyProjectSnapshot = useCallback((snapshot: any) => {
     if (!snapshot?.tool?.originalImage) {
       toast.error("קובץ פרויקט לא תקין");
@@ -1696,7 +1699,9 @@ const ToolInner = () => {
               try {
                 const raw = localStorage.getItem(autoSaveStorageKey);
                 if (raw) applyProjectSnapshot(JSON.parse(raw));
-              } catch {}
+              } catch {
+                // corrupt auto-save — ignore
+              }
               setShowRestorePrompt(false);
             }}
             className="rounded bg-white/20 px-3 py-1 text-xs font-bold hover:bg-white/30"
@@ -2011,8 +2016,8 @@ const ToolInner = () => {
                                   if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as unknown as Record<string, unknown>, data.resultImage);
                                   setLiveFilterCss("");
                                 }
-                              } catch (err) {
-                                toast.error(err.message || "שגיאה בעיבוד");
+                              } catch (err: unknown) {
+                                toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד");
                               } finally {
                                 setFilterProcessing(false);
                               }
@@ -2038,8 +2043,8 @@ const ToolInner = () => {
                                     applyFilterResult(data.resultImage, "שכבות פילטר");
                                     setLiveFilterCss("");
                                   }
-                                } catch (err) {
-                                  toast.error(err.message || "שגיאה בעיבוד");
+                                } catch (err: unknown) {
+                                  toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד");
                                 } finally {
                                   setFilterProcessing(false);
                                 }
@@ -2066,8 +2071,8 @@ const ToolInner = () => {
                                   if (data?.resultImage) {
                                     applyFilterResult(data.resultImage, "העברת פלטה");
                                   }
-                                } catch (err) {
-                                  toast.error(err.message || "שגיאה בהעברת צבע");
+                                } catch (err: unknown) {
+                                  toast.error(err instanceof Error ? err.message : "שגיאה בהעברת צבע");
                                 } finally {
                                   setFilterProcessing(false);
                                 }
@@ -2082,7 +2087,7 @@ const ToolInner = () => {
                               onApply={async (region, filterType, intensity, maskDataUrl) => {
                                 setFilterProcessing(true);
                                 const currentImg = resultImage || originalImage;
-                                const params: Record<string, any> = { region, filterType, intensity };
+                                const params: Record<string, string | number | undefined> = { region, filterType, intensity };
                                 if (region === "custom" && maskDataUrl) {
                                   params.maskImage = maskDataUrl;
                                 }
@@ -2103,8 +2108,8 @@ const ToolInner = () => {
                                     applyFilterResult(data.resultImage, region === "custom" ? "פילטר אזורי מותאם" : "פילטר אזורי");
                                     if (currentImg) setCachedResult(currentImg, "regional-mask", params, data.resultImage);
                                   }
-                                } catch (err: any) {
-                                  toast.error(err.message || "שגיאה בעיבוד");
+                                } catch (err: unknown) {
+                                  toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד");
                                 } finally {
                                   setFilterProcessing(false);
                                 }

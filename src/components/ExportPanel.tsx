@@ -126,8 +126,8 @@ const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: Expo
               });
               toast.success(`אופטימיזציה הושלמה! (${(result.bytes / 1024).toFixed(0)}KB)`);
               window.open(result.optimizedUrl, "_blank");
-            } catch (err) {
-              toast.error(err.message || "שגיאה באופטימיזציה");
+            } catch (err: unknown) {
+              toast.error(err instanceof Error ? err.message : "שגיאה באופטימיזציה");
             } finally {
               setIsOptimizing(false);
             }
@@ -146,8 +146,8 @@ const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: Expo
               const result = await upscaleImage(resultImage, 4);
               onResult(result.resultImage);
               toast.success("התמונה הוגדלה פי 4! (Real-ESRGAN)");
-            } catch (err) {
-              toast.error(err.message || "שגיאה בהגדלה");
+            } catch (err: unknown) {
+              toast.error(err instanceof Error ? err.message : "שגיאה בהגדלה");
             } finally {
               setIsUpscaling(false);
             }
