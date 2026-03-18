@@ -103,7 +103,7 @@ export function initTelemetry() {
 
   let clsValue = 0;
   const clsObserver = new PerformanceObserver((list) => {
-    for (const entry of list.getEntries() as LayoutShift[]) {
+    for (const entry of list.getEntries() as (PerformanceEntry & { hadRecentInput: boolean; value: number })[]) {
       if (!entry.hadRecentInput) clsValue += entry.value;
     }
   });

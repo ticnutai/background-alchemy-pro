@@ -197,7 +197,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
               if (!box) continue;
               // Support both [x1,y1,x2,y2] and {x,y,w,h} formats
               const rect: [number, number, number, number] = Array.isArray(box)
-                ? box
+                ? [box[0] as number, box[1] as number, box[2] as number, box[3] as number]
                 : [box.x, box.y, box.x + box.w, box.y + box.h];
               // Detect if normalised (all values 0-1)
               const isNorm = rect.every((v) => v <= 1);
