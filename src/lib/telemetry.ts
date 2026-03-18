@@ -96,7 +96,7 @@ export function initTelemetry() {
   try {
     po.observe({ type: "largest-contentful-paint", buffered: true });
     po.observe({ type: "first-contentful-paint", buffered: true });
-    po.observe({ type: "event", durationThreshold: 40, buffered: true });
+    po.observe({ type: "event", buffered: true } as PerformanceObserverInit);
   } catch {
     // Browser does not support one of the observers.
   }
