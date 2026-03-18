@@ -31,6 +31,7 @@ serve(async (req) => {
     // Step 2: Composite the original product INTO the scene
 
     // ---- STEP 1: Generate the scene ----
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const sceneContent: any[] = [];
 
     if (referenceImages && referenceImages.length > 0) {

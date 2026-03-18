@@ -137,8 +137,8 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
         onResult(data.resultImage);
         toast.success("הפעולה בוצעה בהצלחה!");
       }
-    } catch (err) {
-      toast.error(err.message || "שגיאה בעיבוד");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד");
     } finally {
       setProcessing(false);
     }
@@ -488,8 +488,8 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                     const result = await removeBgPrecise(currentImage);
                     onResult(result.resultImage);
                     toast.success("הרקע הוסר בהצלחה! (BRIA RMBG 2.0)");
-                  } catch (err) {
-                    toast.error(err.message || "שגיאה בהסרת הרקע");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "שגיאה בהסרת הרקע");
                   } finally {
                     setProcessing(false);
                   }
@@ -533,8 +533,8 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                     const result = await upscaleImage(currentImage, upscaleScale);
                     onResult(result.resultImage);
                     toast.success(`התמונה הוגדלה פי ${result.scale}!`);
-                  } catch (err) {
-                    toast.error(err.message || "שגיאה בהגדלה");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "שגיאה בהגדלה");
                   } finally {
                     setProcessing(false);
                   }
@@ -590,8 +590,8 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                     const result = await relightImage(currentImage, prompt);
                     onResult(result.resultImage);
                     toast.success("התאורה שונתה בהצלחה!");
-                  } catch (err) {
-                    toast.error(err.message || "שגיאה בשינוי תאורה");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "שגיאה בשינוי תאורה");
                   } finally {
                     setProcessing(false);
                   }
@@ -626,8 +626,8 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                     const result = await inpaintRemove(currentImage);
                     onResult(result.resultImage);
                     toast.success("האלמנטים הוסרו בהצלחה!");
-                  } catch (err) {
-                    toast.error(err.message || "שגיאה במחיקה");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "שגיאה במחיקה");
                   } finally {
                     setProcessing(false);
                   }
@@ -687,8 +687,8 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                     const result = await generateBgSdxl(currentImage, sdxlPrompt, undefined, sdxlStrength);
                     onResult(result.resultImage);
                     toast.success("הרקע נוצר בהצלחה! (SDXL)");
-                  } catch (err) {
-                    toast.error(err.message || "שגיאה ביצירת רקע");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "שגיאה ביצירת רקע");
                   } finally {
                     setProcessing(false);
                   }
@@ -731,8 +731,8 @@ const AdvancedToolsPanel = ({ originalImage, resultImage, onResult }: AdvancedTo
                         onResult(outputUrl);
                       }
                     }
-                  } catch (err) {
-                    toast.error(err.message || "שגיאה בסגמנטציה");
+                  } catch (err: unknown) {
+                    toast.error(err instanceof Error ? err.message : "שגיאה בסגמנטציה");
                   } finally {
                     setProcessing(false);
                   }

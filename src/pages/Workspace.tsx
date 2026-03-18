@@ -10,7 +10,7 @@ import {
 import ImageHoverMenu from "@/components/ImageHoverMenu";
 import { supabase } from "@/integrations/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
-import studioLogo from "@/assets/studio-logo.png";
+import studioLogo from "@/assets/studio-logo.webp";
 import { toast } from "sonner";
 import type { User } from "@supabase/supabase-js";
 

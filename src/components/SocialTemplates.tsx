@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import { toast } from "sonner";
 import { Download, X, Palette, Type, Move } from "lucide-react";
-import studioLogo from "@/assets/studio-logo.png";
+import studioLogo from "@/assets/studio-logo.webp";
 
 interface SocialTemplatesProps {
   imageUrl: string;

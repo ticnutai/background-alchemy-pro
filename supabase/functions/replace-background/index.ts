@@ -95,6 +95,7 @@ OUTPUT: The exact same products with ONLY the background changed.`;
     }
 
     // Build content array with main image + reference images
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const content: any[] = [
       { type: "text", text: prompt },
       { type: "image_url", image_url: { url: imageBase64 } },

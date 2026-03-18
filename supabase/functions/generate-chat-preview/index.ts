@@ -18,6 +18,7 @@ serve(async (req) => {
       });
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const userContent: any[] = [
       {
         type: "text",

@@ -31,6 +31,7 @@ serve(async (req) => {
     // Step 2: Use Gemini to composite the original products onto the new background
     
     // ---- STEP 1: Generate the background ----
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const bgContent: any[] = [];
     
     if (referenceImages && referenceImages.length > 0) {

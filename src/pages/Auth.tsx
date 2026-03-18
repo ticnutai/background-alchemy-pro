@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import studioLogo from "@/assets/studio-logo.png";
+import studioLogo from "@/assets/studio-logo.webp";
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);

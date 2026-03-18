@@ -98,7 +98,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
       });
       setPages(extracted.map(p => ({ ...p, status: "pending" as const })));
       toast.success(`חולצו ${extracted.length} עמודים בהצלחה`);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("PDF extraction error:", err);
       toast.error("שגיאה בחילוץ עמודי ה-PDF");
     } finally {
@@ -147,10 +147,10 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
         setPages(prev => prev.map((p, idx) =>
           idx === pageIndex ? { ...p, processed: data.resultImage, status: "done" } : p
         ));
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error(`Error processing page ${page.pageNumber}:`, err);
         setPages(prev => prev.map((p, idx) =>
-          idx === pageIndex ? { ...p, status: "error", error: err?.message || "שגיאה" } : p
+          idx === pageIndex ? { ...p, status: "error", error: err instanceof Error ? err.message : "שגיאה" } : p
         ));
       }
 
@@ -180,7 +180,7 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
       const blob = buildPdfFromImages(imgs, `${fileName}_processed.pdf`);
       downloadBlob(blob, `${fileName}_processed.pdf`);
       toast.success("ה-PDF הורד בהצלחה");
-    } catch (err: any) {
+    } catch (err: unknown) {
       toast.error("שגיאה ביצירת PDF");
     }
   }, [pages, fileName]);
@@ -271,9 +271,9 @@ const PdfProcessor = ({ onSelectPage, onClose, backgroundPrompt }: PdfProcessorP
       setShowSaveOptions(false);
       setSelectMode(false);
       setSelectedPages(new Set());
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Save error:", err);
-      toast.error(`שגיאה בשמירה: ${err.message}`);
+      toast.error(`שגיאה בשמירה: ${err instanceof Error ? err.message : "שגיאה"}`);
     } finally {
       setSaving(false);
     }

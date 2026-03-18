@@ -41,6 +41,8 @@ import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
 import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
+import { extractColorPalette } from "@/lib/smart-image-tools";
+import { buildFramePath, drawFrameOnCanvas, convertToCm, convertFromCm, formatUnitValue } from "@/lib/frame-utils";
 import type { User } from "@supabase/supabase-js";
 import { Switch } from "@/components/ui/switch";
 
@@ -101,162 +103,6 @@ const LazyFallback = () => (
   </div>
 );
 
-const buildFramePath = (
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  inset: number,
-  shape: FrameShape,
-  radiusPercent: number,
-) => {
-  const w = Math.max(1, width - inset * 2);
-  const h = Math.max(1, height - inset * 2);
-  const cx = width / 2;
-  const cy = height / 2;
-  const r = Math.min(w, h) * (Math.max(0, Math.min(50, radiusPercent)) / 100);
-  const left = inset;
-  const top = inset;
-  const right = inset + w;
-  const bottom = inset + h;
-
-  ctx.beginPath();
-  if (shape === "circle") {
-    const rad = Math.max(1, Math.min(w, h) / 2);
-    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-    return;
-  }
-  if (shape === "diamond") {
-    ctx.moveTo(cx, top);
-    ctx.lineTo(right, cy);
-    ctx.lineTo(cx, bottom);
-    ctx.lineTo(left, cy);
-    ctx.closePath();
-    return;
-  }
-  if (shape === "hexagon") {
-    const dx = w * 0.25;
-    ctx.moveTo(left + dx, top);
-    ctx.lineTo(right - dx, top);
-    ctx.lineTo(right, cy);
-    ctx.lineTo(right - dx, bottom);
-    ctx.lineTo(left + dx, bottom);
-    ctx.lineTo(left, cy);
-    ctx.closePath();
-    return;
-  }
-  if (shape === "octagon") {
-    const dx = w * 0.22;
-    const dy = h * 0.22;
-    ctx.moveTo(left + dx, top);
-    ctx.lineTo(right - dx, top);
-    ctx.lineTo(right, top + dy);
-    ctx.lineTo(right, bottom - dy);
-    ctx.lineTo(right - dx, bottom);
-    ctx.lineTo(left + dx, bottom);
-    ctx.lineTo(left, bottom - dy);
-    ctx.lineTo(left, top + dy);
-    ctx.closePath();
-    return;
-  }
-
-  const rr = shape === "pill" ? Math.min(w, h) / 2 : Math.min(r, w / 2, h / 2);
-  if (shape === "rounded" || shape === "pill") {
-    ctx.moveTo(left + rr, top);
-    ctx.lineTo(right - rr, top);
-    ctx.quadraticCurveTo(right, top, right, top + rr);
-    ctx.lineTo(right, bottom - rr);
-    ctx.quadraticCurveTo(right, bottom, right - rr, bottom);
-    ctx.lineTo(left + rr, bottom);
-    ctx.quadraticCurveTo(left, bottom, left, bottom - rr);
-    ctx.lineTo(left, top + rr);
-    ctx.quadraticCurveTo(left, top, left + rr, top);
-    ctx.closePath();
-    return;
-  }
-
-  ctx.rect(left, top, w, h);
-};
-
-const drawFrameOnCanvas = (
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  height: number,
-  frameWidthPx: number,
-  frameColor: string,
-  frameStyle: FrameStyle,
-  frameShape: FrameShape,
-  frameRadius: number,
-) => {
-  const frame = Math.max(6, Math.min(frameWidthPx, Math.round(Math.min(width, height) * 0.08)));
-  const drawStroke = (inset: number, lineWidth: number, color: string, dashed = false) => {
-    ctx.save();
-    buildFramePath(ctx, width, height, inset, frameShape, frameRadius);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = lineWidth;
-    if (dashed) ctx.setLineDash([Math.max(6, lineWidth * 1.5), Math.max(4, lineWidth * 0.9)]);
-    ctx.stroke();
-    ctx.restore();
-  };
-
-  switch (frameStyle) {
-    case "double": {
-      drawStroke(frame / 2, frame, frameColor);
-      drawStroke(frame * 1.6, Math.max(2, Math.round(frame * 0.45)), "rgba(255,255,255,0.85)");
-      break;
-    }
-    case "shadow": {
-      ctx.save();
-      ctx.shadowColor = "rgba(0,0,0,0.35)";
-      ctx.shadowBlur = Math.max(10, frame * 1.1);
-      drawStroke(frame / 2, frame, frameColor);
-      ctx.restore();
-      break;
-    }
-    case "neon": {
-      ctx.save();
-      ctx.shadowColor = frameColor;
-      ctx.shadowBlur = Math.max(12, frame * 1.6);
-      drawStroke(frame / 2, frame, frameColor);
-      ctx.restore();
-      break;
-    }
-    case "dashed": {
-      drawStroke(frame / 2, Math.max(3, Math.round(frame * 0.75)), frameColor, true);
-      break;
-    }
-    case "vintage": {
-      drawStroke(frame / 2, frame, frameColor);
-      drawStroke(frame * 1.15, Math.max(2, Math.round(frame * 0.22)), "rgba(70,45,20,0.35)");
-      break;
-    }
-    case "inner": {
-      drawStroke(frame * 1.35, Math.max(3, Math.round(frame * 0.5)), frameColor);
-      break;
-    }
-    case "soft": {
-      ctx.save();
-      ctx.shadowColor = "rgba(0,0,0,0.18)";
-      ctx.shadowBlur = Math.max(8, frame);
-      drawStroke(frame / 2, frame, frameColor);
-      ctx.restore();
-      break;
-    }
-    case "film": {
-      drawStroke(frame / 2, frame, "#f5f3ef");
-      drawStroke(frame * 0.75, Math.max(2, Math.round(frame * 0.35)), "#111111");
-      break;
-    }
-    case "bold": {
-      drawStroke(frame * 0.45, Math.round(frame * 1.3), frameColor);
-      break;
-    }
-    case "clean":
-    default: {
-      drawStroke(frame / 2, frame, frameColor);
-      break;
-    }
-  }
-};
 
 const ToolInner = () => {
   const navigate = useNavigate();
@@ -326,25 +172,6 @@ const ToolInner = () => {
   const layoutSessionStorageKey = "tool-layout-session-v2";
   const projectSnapshotStorageKey = "tool-project-snapshot-v1";
   const framePresetsStorageKey = "tool-frame-presets-v1";
-
-  const convertToCm = (value: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
-    if (unit === "cm") return value;
-    if (unit === "mm") return value / 10;
-    if (unit === "in") return value * 2.54;
-    return (value / Math.max(1, dpi)) * 2.54;
-  };
-
-  const convertFromCm = (cmValue: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
-    if (unit === "cm") return cmValue;
-    if (unit === "mm") return cmValue * 10;
-    if (unit === "in") return cmValue / 2.54;
-    return (cmValue / 2.54) * Math.max(1, dpi);
-  };
-
-  const formatUnitValue = (value: number) => {
-    const fixed = value.toFixed(2);
-    return fixed.replace(/\.00$/, "").replace(/(\.\d)0$/, "$1");
-  };
 
   const pagePresets = [
     { id: "1/1", label: "ריבוע" },

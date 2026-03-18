@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Sparkles, Loader2, ImagePlus, Trash2, Camera, ChevronDown, Eye, Wand2, Check, XCircle, Plus, FolderOpen } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import ReactMarkdown from "react-markdown";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ColorSwatch {
   hex: string;
@@ -78,6 +78,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
   const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
   const [lastSuggestedPrompt, setLastSuggestedPrompt] = useState<{prompt: string; name: string} | null>(null);
   const [showGalleryPicker, setShowGalleryPicker] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const [galleryImages, setGalleryImages] = useState<Array<{id: string; url: string; name: string | null}>>([]);
   const [galleryLoading, setGalleryLoading] = useState(false);
 
@@ -136,12 +137,17 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         await sendToAI([...messages, userMsg], true);
       }
     } catch {
-      toast({ title: "שגיאה", description: "לא הצלחתי לטעון את התמונה", variant: "destructive" });
+      toast.error("לא הצלחתי לטעון את התמונה");
     }
   };
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Cleanup abort controller on unmount
+  useEffect(() => {
+    return () => { abortControllerRef.current?.abort(); };
+  }, []);
 
   const extractTaggedContent = useCallback((content: string, tag: string) => {
     const escapedTag = tag.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -297,18 +303,10 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
         ]);
         setPreviewUrl(data.image);
       } else {
-        toast({
-          title: "לא הצלחתי ליצור תצוגה מקדימה",
-          description: data.text || "נסה שוב עם תיאור אחר",
-          variant: "destructive",
-        });
+        toast.error(data.text || "לא הצלחתי ליצור תצוגה מקדימה — נסה שוב עם תיאור אחר");
       }
-    } catch (err) {
-      toast({
-        title: "שגיאה",
-        description: err.message,
-        variant: "destructive",
-      });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "שגיאה");
     } finally {
       setIsGeneratingPreview(false);
     }
@@ -465,6 +463,11 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
     setIsLoading(true);
     let assistantSoFar = "";
 
+    // Abort any previous in-flight request
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     try {
       // Convert messages to API format with image support
       const apiMessages = allMessages.map((m) => {
@@ -493,6 +496,7 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           messages: apiMessages,
           analyzeImage: isAnalysis,
         }),
+        signal: controller.signal,
       });
 
       if (!resp.ok || !resp.body) {
@@ -583,10 +587,10 @@ const AIChatDialog = ({ onApplyBackground, onEditWithImages }: AIChatDialogProps
           }
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: `❌ ${err.message}` },
+        { role: "assistant", content: `❌ ${err instanceof Error ? err.message : "שגיאה"}` },
       ]);
     } finally {
       setIsLoading(false);
@@ -634,28 +638,18 @@ ${selectedElements.length > 0 ? `- אלמנטים לשלב: ${elementsStr}` : ""
   const handlePersistentApply = () => {
     if (lastSuggestedPrompt) {
       onApplyBackground(lastSuggestedPrompt.prompt, lastSuggestedPrompt.name);
-      toast({
-        title: "הרקע הוגדר לעריכה",
-        description: `השתמשתי בהצעה האחרונה: ${lastSuggestedPrompt.name}`,
-      });
+      toast.success(`הרקע הוגדר לעריכה: ${lastSuggestedPrompt.name}`);
       return;
     }
 
     if (onEditWithImages && productImage && referenceImages.length > 0) {
       const fidelity = fidelityLevels.find((f) => f.id === selectedFidelity);
       onEditWithImages(productImage, referenceImages[0], fidelity?.strength || "0.5", selectedElements.join(", "));
-      toast({
-        title: "העריכה הופעלה",
-        description: "הפעלתי עריכה לפי תמונת המוצר ותמונת הייחוס.",
-      });
+      toast.success("העריכה הופעלה לפי תמונת המוצר ותמונת הייחוס");
       return;
     }
 
-    toast({
-      title: "עדיין אין רקע מוכן להחלה",
-      description: "בחר הצעת AI או העלה תמונת ייחוס, ואז לחץ שוב.",
-      variant: "destructive",
-    });
+    toast.error("עדיין אין רקע מוכן להחלה — בחר הצעת AI או העלה תמונת ייחוס");
   };
 
   const handleQuickReply = async (value: string) => {
