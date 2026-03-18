@@ -547,7 +547,7 @@ const ToolInner = () => {
               color,
             };
           })
-          .filter((item): item is FramePresetDefinition => item !== null && typeof item === "object");
+          .filter((item): item is NonNullable<typeof item> => item !== null) as FramePresetDefinition[];
 
         if (imported.length === 0) {
           toast.error("לא נמצאו פריסטים תקינים לייבוא");
