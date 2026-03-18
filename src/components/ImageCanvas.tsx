@@ -113,10 +113,15 @@ const ImageCanvas = memo(({
   onImageScaleXChange,
   onImageScaleYChange,
 }: ImageCanvasProps) => {
-  const [sliderPos, setSliderPos] = useState(50);
+  const [sliderPos, setSliderPos] = useState(0);
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const [localMode, setLocalMode] = useState<CompareMode>(compareMode);
   const [showBeforeInToggle, setShowBeforeInToggle] = useState(false);
+
+  // Reset slider to 0 (full "before") whenever a new result arrives
+  useEffect(() => {
+    setSliderPos(0);
+  }, [resultImage]);
   const [activeGuide, setActiveGuide] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -342,6 +347,32 @@ const ImageCanvas = memo(({
 
   return (
     <div className="relative w-full overflow-hidden rounded-lg bg-card p-3 shadow-lg">
+      {/* ── לפני / אחרי tabs above canvas ── */}
+      {resultImage && (
+        <div className="mb-2 flex gap-1 rounded-lg border border-border/60 bg-muted/40 p-1" dir="rtl">
+          <button
+            onClick={() => { setLocalMode("slider"); setSliderPos(0); }}
+            className={`flex-1 rounded-md py-1.5 px-3 font-display text-sm font-bold transition-all ${
+              localMode === "slider" && sliderPos < 50
+                ? "bg-foreground/80 text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            לפני
+          </button>
+          <button
+            onClick={() => { setLocalMode("slider"); setSliderPos(100); }}
+            className={`flex-1 rounded-md py-1.5 px-3 font-display text-sm font-bold transition-all ${
+              localMode === "slider" && sliderPos >= 50
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+            }`}
+          >
+            אחרי
+          </button>
+        </div>
+      )}
+
       {svgMarkup && (
         <div
           dangerouslySetInnerHTML={{
@@ -410,7 +441,10 @@ const ImageCanvas = memo(({
               {renderOverlay()}
 
               {/* Original (לפני) clips from the left, revealing the RIGHT portion — RTL natural direction */}
-              <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}>
+              <div
+                className="absolute inset-0 overflow-hidden transition-[clip-path] duration-150"
+                style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}
+              >
                 <img
                   src={originalImage}
                   alt="Original"
@@ -418,7 +452,7 @@ const ImageCanvas = memo(({
                 />
               </div>
 
-              <div className="absolute top-0 bottom-0 z-10" style={{ left: `${sliderPos}%` }}>
+              <div className="absolute top-0 bottom-0 z-10 transition-[left] duration-150" style={{ left: `${sliderPos}%` }}>
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex h-10 w-10 items-center justify-center rounded-full bg-primary shadow-lg">
                   <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
                     <path d="M7 4L3 10L7 16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-primary-foreground" />
