@@ -1,5 +1,5 @@
-import { useState, memo } from "react";
-import { Download, FileImage, FileText, Cloud, ZoomIn, Sparkles, Type, Proportions } from "lucide-react";
+import { useState, useRef, memo } from "react";
+import { Download, FileImage, FileText, Cloud, ZoomIn, Sparkles, Type, Proportions, ImageIcon, X } from "lucide-react";
 import { toast } from "sonner";
 import { cloudinaryOptimize, upscaleImage } from "@/lib/ai-tools";
 
@@ -14,6 +14,7 @@ export interface ExportOptions {
   watermark?: string;
   watermarkPosition?: "bottom-center" | "bottom-right" | "bottom-left";
   watermarkOpacity?: number;
+  watermarkImage?: string;
   resizeWidth?: number;
   resizeHeight?: number;
   maintainAspect?: boolean;
@@ -49,6 +50,8 @@ const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: Expo
   const [watermark, setWatermark] = useState("");
   const [watermarkPosition, setWatermarkPosition] = useState<"bottom-center" | "bottom-right" | "bottom-left">("bottom-center");
   const [watermarkOpacity, setWatermarkOpacity] = useState(50);
+  const [watermarkImage, setWatermarkImage] = useState<string | null>(null);
+  const watermarkFileRef = useRef<HTMLInputElement | null>(null);
   const [resizeWidth, setResizeWidth] = useState<number | "">("");
   const [resizeHeight, setResizeHeight] = useState<number | "">("");
   const [maintainAspect, setMaintainAspect] = useState(true);
@@ -168,6 +171,40 @@ const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: Expo
           placeholder="סטודיו רותי פרל"
           className="w-full rounded-lg border border-border bg-background px-3 py-1.5 font-body text-sm text-foreground placeholder:text-muted-foreground focus:border-primary/50 focus:outline-none"
         />
+        {/* Logo / image watermark */}
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-[11px] text-muted-foreground shrink-0">או לוגו:</span>
+          {watermarkImage ? (
+            <div className="flex items-center gap-1.5">
+              <img src={watermarkImage} className="h-8 max-w-[80px] rounded border border-border object-contain" alt="logo" />
+              <button onClick={() => setWatermarkImage(null)} className="flex h-6 w-6 items-center justify-center rounded border border-border text-muted-foreground hover:text-destructive" title="הסר">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => watermarkFileRef.current?.click()}
+              className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+            >
+              <ImageIcon className="h-3 w-3" />
+              העלה לוגו
+            </button>
+          )}
+          <input
+            ref={watermarkFileRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (ev) => setWatermarkImage(ev.target?.result as string);
+              reader.readAsDataURL(file);
+              e.currentTarget.value = "";
+            }}
+          />
+        </div>
         {watermark && (
           <div className="flex gap-2">
             <select
@@ -236,6 +273,7 @@ const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: Expo
                 watermark: watermark || undefined,
                 watermarkPosition,
                 watermarkOpacity,
+                watermarkImage: watermarkImage || undefined,
                 resizeWidth: preset.resizeWidth,
                 resizeHeight: preset.resizeHeight,
                 maintainAspect: preset.maintainAspect,
@@ -255,6 +293,7 @@ const ExportPanel = memo(({ resultImage, isExporting, onExport, onResult }: Expo
           watermark: watermark || undefined,
           watermarkPosition,
           watermarkOpacity,
+          watermarkImage: watermarkImage || undefined,
           resizeWidth: typeof resizeWidth === "number" ? resizeWidth : undefined,
           resizeHeight: typeof resizeHeight === "number" ? resizeHeight : undefined,
           maintainAspect,

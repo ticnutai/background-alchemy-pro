@@ -41,6 +41,7 @@ import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
 import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
+import { extractColorPalette } from "@/lib/smart-image-tools";
 import type { User } from "@supabase/supabase-js";
 import { Switch } from "@/components/ui/switch";
 
@@ -292,6 +293,10 @@ const ToolInner = () => {
   const [panMode, setPanMode] = useState(false);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [beforeAfterPos, setBeforeAfterPos] = useState(50);
+  const [autoSavedAt, setAutoSavedAt] = useState<Date | null>(null);
+  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
+  const [palette, setPalette] = useState<string[]>([]);
+  const [isExportingAnimation, setIsExportingAnimation] = useState(false);
   const [frameEnabled, setFrameEnabled] = useState(false);
   const [frameWidthPx, setFrameWidthPx] = useState(22);
   const [frameColor, setFrameColor] = useState("#ffffff");
@@ -311,6 +316,7 @@ const ToolInner = () => {
   const [gridSizePx, setGridSizePx] = useState(20);
   const [sourceImageMeta, setSourceImageMeta] = useState<{ width: number; height: number } | null>(null);
   const projectFileInputRef = useRef<HTMLInputElement | null>(null);
+  const saveProjectSnapshotRef = useRef<(mode?: "manual" | "auto") => void>(() => {});
   const dragStateRef = useRef<{ dragging: boolean; startX: number; startY: number; startLeft: number; startTop: number }>({
     dragging: false,
     startX: 0,
@@ -325,6 +331,7 @@ const ToolInner = () => {
   const layoutSessionStorageKey = "tool-layout-session-v2";
   const projectSnapshotStorageKey = "tool-project-snapshot-v1";
   const framePresetsStorageKey = "tool-frame-presets-v1";
+  const autoSaveStorageKey = "tool-autosave-v1";
 
   const convertToCm = (value: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
     if (unit === "cm") return value;
@@ -1269,6 +1276,29 @@ const ToolInner = () => {
           ctx.shadowColor = "transparent";
         }
 
+        // Apply logo/image watermark
+        if (options?.watermarkImage) {
+          const wmImg = await new Promise<HTMLImageElement>((resolve, reject) => {
+            const i = new Image();
+            i.onload = () => resolve(i);
+            i.onerror = reject;
+            i.src = options.watermarkImage!;
+          });
+          const maxH = Math.round(finalH * 0.12);
+          const scale = Math.min(maxH / wmImg.height, (finalW * 0.25) / wmImg.width);
+          const ww = wmImg.width * scale;
+          const wh = wmImg.height * scale;
+          ctx.globalAlpha = (options.watermarkOpacity || 50) / 100;
+          let wx: number;
+          switch (options.watermarkPosition) {
+            case "bottom-left": wx = 16; break;
+            case "bottom-right": wx = finalW - ww - 16; break;
+            default: wx = (finalW - ww) / 2; break;
+          }
+          ctx.drawImage(wmImg, wx, finalH - wh - 16, ww, wh);
+          ctx.globalAlpha = 1;
+        }
+
         if (format === "pdf") {
           // Simple PDF with embedded image
           const dataUrl = canvas.toDataURL("image/png", 1);
@@ -1295,6 +1325,63 @@ const ToolInner = () => {
     },
     [resultImage, originalImage, adjustments, dispatch, frameEnabled, frameWidthPx, frameColor, frameStyle, frameShape, frameRadius]
   );
+
+  const exportAnimation = useCallback(async () => {
+    if (!originalImage || !resultImage) return;
+    if (!window.MediaRecorder) { toast.error("הדפדפן שלך לא תומך MediaRecorder"); return; }
+    setIsExportingAnimation(true);
+    try {
+      const img1 = new Image(); img1.crossOrigin = "anonymous";
+      const img2 = new Image(); img2.crossOrigin = "anonymous";
+      await Promise.all([
+        new Promise<void>((r, j) => { img1.onload = () => r(); img1.onerror = j; img1.src = originalImage; }),
+        new Promise<void>((r, j) => { img2.onload = () => r(); img2.onerror = j; img2.src = resultImage; }),
+      ]);
+      const W = Math.min(img2.naturalWidth, 1200);
+      const H = Math.round(img2.naturalHeight * W / img2.naturalWidth);
+      const canvas = document.createElement("canvas");
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext("2d")!;
+      const stream = canvas.captureStream(15);
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
+      const recorder = new MediaRecorder(stream, { mimeType });
+      const chunks: BlobPart[] = [];
+      recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: "video/webm" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a"); a.href = url;
+        a.download = `before-after-${Date.now()}.webm`; a.click();
+        URL.revokeObjectURL(url);
+        toast.success("אנימציה הורדה - WebM");
+        setIsExportingAnimation(false);
+      };
+      recorder.start();
+      // 2s before, 0.75s fade, 2s after = ~4.75s @ 15fps ≈ 72 frames
+      const TOTAL = 72, HOLD = 30, FADE = 12;
+      let f = 0;
+      const tick = () => {
+        ctx.clearRect(0, 0, W, H);
+        if (f < HOLD) {
+          ctx.drawImage(img1, 0, 0, W, H);
+        } else if (f < HOLD + FADE) {
+          ctx.drawImage(img1, 0, 0, W, H);
+          ctx.globalAlpha = (f - HOLD) / FADE;
+          ctx.drawImage(img2, 0, 0, W, H);
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.drawImage(img2, 0, 0, W, H);
+        }
+        f++;
+        if (f < TOTAL) requestAnimationFrame(tick);
+        else recorder.stop();
+      };
+      requestAnimationFrame(tick);
+    } catch (err) {
+      toast.error("שגיאה ביצוא אנימציה");
+      setIsExportingAnimation(false);
+    }
+  }, [originalImage, resultImage]);
 
   const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
     if (!user) return;
@@ -1388,9 +1475,9 @@ const ToolInner = () => {
     }
   }, [resultImage, originalImage, user, saveNewName, suggestedName, customPrompt, activePrompt, searchParams, adjustments, dispatch]);
 
-  const saveProjectSnapshot = useCallback(() => {
+  const saveProjectSnapshot = useCallback((mode: "manual" | "auto" = "manual") => {
     if (!originalImage) {
-      toast.error("אין פרויקט פעיל לשמירה");
+      if (mode === "manual") toast.error("אין פרויקט פעיל לשמירה");
       return;
     }
 
@@ -1437,6 +1524,12 @@ const ToolInner = () => {
 
     localStorage.setItem(projectSnapshotStorageKey, JSON.stringify(snapshot));
 
+    if (mode === "auto") {
+      localStorage.setItem(autoSaveStorageKey, JSON.stringify(snapshot));
+      setAutoSavedAt(new Date());
+      return;
+    }
+
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1478,6 +1571,36 @@ const ToolInner = () => {
     sizeDpi,
     sizeUnit,
   ]);
+
+  // Keep ref current so timer always calls the latest version
+  useEffect(() => { saveProjectSnapshotRef.current = saveProjectSnapshot; }, [saveProjectSnapshot]);
+
+  // Auto-save timer (every 90 seconds)
+  useEffect(() => {
+    const id = setInterval(() => saveProjectSnapshotRef.current("auto"), 90_000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Restore prompt: check for auto-save on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(autoSaveStorageKey);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.tool?.originalImage) setShowRestorePrompt(true);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Extract color palette when original image changes
+  useEffect(() => {
+    if (!originalImage) { setPalette([]); return; }
+    let cancelled = false;
+    extractColorPalette(originalImage, { count: 6 })
+      .then((colors) => { if (!cancelled) setPalette(colors); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [originalImage]);
 
   const applyProjectSnapshot = useCallback((snapshot: any) => {
     if (!snapshot?.tool?.originalImage) {
@@ -1564,6 +1687,31 @@ const ToolInner = () => {
           e.currentTarget.value = "";
         }}
       />
+      {/* Auto-save Restore Prompt */}
+      {showRestorePrompt && !originalImage && (
+        <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-3 bg-primary/90 px-4 py-2.5 text-primary-foreground shadow-lg">
+          <span className="text-sm font-semibold">נמצא פרויקט שמור אוטומטית — תרצה לשחזר?</span>
+          <button
+            onClick={() => {
+              try {
+                const raw = localStorage.getItem(autoSaveStorageKey);
+                if (raw) applyProjectSnapshot(JSON.parse(raw));
+              } catch {}
+              setShowRestorePrompt(false);
+            }}
+            className="rounded bg-white/20 px-3 py-1 text-xs font-bold hover:bg-white/30"
+          >
+            שחזר
+          </button>
+          <button
+            onClick={() => setShowRestorePrompt(false)}
+            className="rounded bg-white/10 px-3 py-1 text-xs font-bold hover:bg-white/20"
+          >
+            התעלם
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
@@ -2317,6 +2465,22 @@ const ToolInner = () => {
                     </button>
                   )}
 
+                  {showBeforeAfter && originalImage && resultImage && (
+                    <button
+                      onClick={exportAnimation}
+                      disabled={isExportingAnimation}
+                      className="flex h-9 items-center gap-1 rounded-lg border border-border px-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
+                      title="הורד אנימציה WebM"
+                    >
+                      {isExportingAnimation ? (
+                        <span className="animate-spin inline-block h-3.5 w-3.5 text-center leading-none">⟳</span>
+                      ) : (
+                        <Download className="h-3.5 w-3.5" />
+                      )}
+                      אנימציה
+                    </button>
+                  )}
+
                   {resultImage && (
                     <>
                       <div className="h-6 w-px bg-border mx-1" />
@@ -2385,6 +2549,30 @@ const ToolInner = () => {
                     onSelectImage={(url) => dispatch({ type: "SET_RESULT_IMAGE", payload: url })}
                     currentResultUrl={resultImage}
                   />
+                )}
+
+                {/* Color Palette + Auto-save indicator */}
+                {(palette.length > 0 || autoSavedAt) && (
+                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+                    {palette.length > 0 && (
+                      <>
+                        <span className="text-xs text-muted-foreground shrink-0">פלטה:</span>
+                        {palette.map((color) => (
+                          <button
+                            key={color}
+                            title={color}
+                            className="h-6 w-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </>
+                    )}
+                    {autoSavedAt && (
+                      <span className="ml-auto text-[10px] text-muted-foreground">
+                        שמור אוטומטית לפני {Math.max(1, Math.round((Date.now() - autoSavedAt.getTime()) / 60000))} דק&apos;
+                      </span>
+                    )}
+                  </div>
                 )}
 
                 {/* Batch results */}
