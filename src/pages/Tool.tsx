@@ -2307,14 +2307,38 @@ const ToolInner = () => {
                   </button>
 
                   {resultImage && originalImage && (
-                    <button
-                      onClick={() => { setShowBeforeAfter((v) => !v); setBeforeAfterPos(50); }}
-                      className={`flex h-9 items-center gap-1 rounded-lg border px-2 text-xs font-bold transition-all ${showBeforeAfter ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                      title="לפני / אחרי"
-                    >
-                      <GitCompare className="h-3.5 w-3.5" />
-                      לפני/אחרי
-                    </button>
+                    <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+                      <button
+                        onClick={() => { setShowBeforeAfter(true); setBeforeAfterPos(50); setCompareViewMode("slider"); }}
+                        className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold transition-all ${showBeforeAfter && compareViewMode === "slider" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+                        title="השוואה עם וילון"
+                      >
+                        <GitCompare className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { setShowBeforeAfter(true); setCompareViewMode("side-by-side"); }}
+                        className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold transition-all ${showBeforeAfter && compareViewMode === "side-by-side" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+                        title="צד בצד"
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { setShowBeforeAfter(true); setCompareViewMode("new-only"); }}
+                        className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold transition-all ${showBeforeAfter && compareViewMode === "new-only" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+                        title="רק חדשה"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      {showBeforeAfter && (
+                        <button
+                          onClick={() => { setShowBeforeAfter(false); }}
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          title="סגור השוואה"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      )}
+                    </div>
                   )}
 
                   {resultImage && (
