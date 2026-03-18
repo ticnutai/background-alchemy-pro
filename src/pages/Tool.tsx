@@ -2119,60 +2119,84 @@ const ToolInner = () => {
                     ))}
                   </div>
                   {showBeforeAfter && originalImage && resultImage ? (
+                    compareViewMode === "new-only" ? (
+                      <div className="relative w-full overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: "4/3" }}>
+                        <img src={resultImage} alt="תוצאה" className="h-full w-full object-contain" />
+                        <span className="absolute top-2 right-2 rounded-md bg-primary/90 px-2 py-0.5 text-[11px] font-bold text-primary-foreground">אחרי</span>
+                      </div>
+                    ) : compareViewMode === "side-by-side" ? (
+                      <div className="flex gap-2 w-full">
+                        <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: "4/3" }}>
+                          <img src={originalImage} alt="לפני" className="h-full w-full object-contain" />
+                          <span className="absolute top-2 right-2 rounded-md bg-muted-foreground/70 px-2 py-0.5 text-[11px] font-bold text-white">לפני</span>
+                        </div>
+                        <div className="relative flex-1 overflow-hidden rounded-xl border border-primary/30 bg-muted" style={{ aspectRatio: "4/3" }}>
+                          <img src={resultImage} alt="אחרי" className="h-full w-full object-contain" />
+                          <span className="absolute top-2 right-2 rounded-md bg-primary/90 px-2 py-0.5 text-[11px] font-bold text-primary-foreground">אחרי</span>
+                        </div>
+                      </div>
+                    ) : (
                     <div
-                      className="relative w-full overflow-hidden rounded-xl border border-border bg-muted select-none"
+                      className="relative w-full overflow-hidden rounded-xl border border-border bg-muted select-none touch-none"
                       style={{ aspectRatio: "4/3" }}
+                      onMouseMove={(e) => {
+                        if (e.buttons === 1) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setBeforeAfterPos(Math.min(98, Math.max(2, ((e.clientX - rect.left) / rect.width) * 100)));
+                        }
+                      }}
+                      onTouchMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setBeforeAfterPos(Math.min(98, Math.max(2, ((e.touches[0].clientX - rect.left) / rect.width) * 100)));
+                      }}
                     >
                       {/* After (full) */}
                       <img src={resultImage} alt="אחרי" className="absolute inset-0 h-full w-full object-contain" />
-                      {/* Before (clipped to left portion) */}
+                      {/* Before (clipped) */}
                       <div
                         className="absolute inset-0 overflow-hidden"
                         style={{ clipPath: `inset(0 ${100 - beforeAfterPos}% 0 0)` }}
                       >
                         <img src={originalImage} alt="לפני" className="h-full w-full object-contain" />
                       </div>
-                      {/* Divider */}
+                      {/* Divider line */}
                       <div
-                        className="absolute top-0 bottom-0 z-20 w-1 cursor-ew-resize bg-white/90 shadow-lg"
+                        className="absolute top-0 bottom-0 z-20 w-0.5 bg-white shadow-lg pointer-events-none"
                         style={{ left: `${beforeAfterPos}%`, transform: "translateX(-50%)" }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const el = e.currentTarget.parentElement!;
-                          const onMove = (mv: MouseEvent) => {
-                            const rect = el.getBoundingClientRect();
-                            setBeforeAfterPos(Math.min(98, Math.max(2, ((mv.clientX - rect.left) / rect.width) * 100)));
-                          };
-                          const onUp = () => {
-                            window.removeEventListener("mousemove", onMove);
-                            window.removeEventListener("mouseup", onUp);
-                          };
-                          window.addEventListener("mousemove", onMove);
-                          window.addEventListener("mouseup", onUp);
-                        }}
-                        onTouchStart={(e) => {
-                          e.preventDefault();
-                          const el = e.currentTarget.parentElement!;
-                          const onMove = (tv: TouchEvent) => {
-                            const rect = el.getBoundingClientRect();
-                            setBeforeAfterPos(Math.min(98, Math.max(2, ((tv.touches[0].clientX - rect.left) / rect.width) * 100)));
-                          };
-                          const onEnd = () => {
-                            window.removeEventListener("touchmove", onMove);
-                            window.removeEventListener("touchend", onEnd);
-                          };
-                          window.addEventListener("touchmove", onMove, { passive: false });
-                          window.addEventListener("touchend", onEnd);
-                        }}
                       >
-                        <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-lg">
-                          <span className="text-[10px] font-bold text-muted-foreground select-none">↔</span>
+                        <div className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-primary shadow-xl cursor-ew-resize pointer-events-auto"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const container = e.currentTarget.closest('[style*="aspect-ratio"]') as HTMLElement;
+                            if (!container) return;
+                            const onMove = (mv: MouseEvent) => {
+                              const rect = container.getBoundingClientRect();
+                              setBeforeAfterPos(Math.min(98, Math.max(2, ((mv.clientX - rect.left) / rect.width) * 100)));
+                            };
+                            const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+                            window.addEventListener("mousemove", onMove);
+                            window.addEventListener("mouseup", onUp);
+                          }}
+                          onTouchStart={(e) => {
+                            const container = e.currentTarget.closest('[style*="aspect-ratio"]') as HTMLElement;
+                            if (!container) return;
+                            const onMove = (tv: TouchEvent) => {
+                              const rect = container.getBoundingClientRect();
+                              setBeforeAfterPos(Math.min(98, Math.max(2, ((tv.touches[0].clientX - rect.left) / rect.width) * 100)));
+                            };
+                            const onEnd = () => { window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onEnd); };
+                            window.addEventListener("touchmove", onMove, { passive: false });
+                            window.addEventListener("touchend", onEnd);
+                          }}
+                        >
+                          <Move className="h-4 w-4 text-primary-foreground" />
                         </div>
                       </div>
                       {/* Labels */}
-                      <span className="absolute bottom-2 left-3 rounded bg-black/50 px-1.5 py-0.5 text-[11px] font-bold text-white">לפני</span>
-                      <span className="absolute bottom-2 right-3 rounded bg-black/50 px-1.5 py-0.5 text-[11px] font-bold text-white">אחרי</span>
+                      <span className="absolute top-2 left-3 rounded-md bg-muted-foreground/70 px-2 py-0.5 text-[11px] font-bold text-white">לפני</span>
+                      <span className="absolute top-2 right-3 rounded-md bg-primary/90 px-2 py-0.5 text-[11px] font-bold text-primary-foreground">אחרי</span>
                     </div>
+                    )
                   ) : (
                   <ImageCanvas
                     originalImage={originalImage}
