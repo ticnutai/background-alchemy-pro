@@ -41,7 +41,6 @@ import SmartRemoveBgPanel from "@/components/SmartRemoveBgPanel";
 import TooltipHelpButton from "@/components/TooltipHelpSystem";
 import { applyCanvasFilters, type CanvasFilterOptions } from "@/lib/canvas-filters";
 import { getCachedResult, setCachedResult } from "@/lib/result-cache";
-import { extractColorPalette } from "@/lib/smart-image-tools";
 import type { User } from "@supabase/supabase-js";
 import { Switch } from "@/components/ui/switch";
 
@@ -293,10 +292,7 @@ const ToolInner = () => {
   const [panMode, setPanMode] = useState(false);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [beforeAfterPos, setBeforeAfterPos] = useState(50);
-  const [autoSavedAt, setAutoSavedAt] = useState<Date | null>(null);
-  const [showRestorePrompt, setShowRestorePrompt] = useState(false);
-  const [palette, setPalette] = useState<string[]>([]);
-  const [isExportingAnimation, setIsExportingAnimation] = useState(false);
+  const [compareViewMode, setCompareViewMode] = useState<"slider" | "side-by-side" | "new-only">("slider");
   const [frameEnabled, setFrameEnabled] = useState(false);
   const [frameWidthPx, setFrameWidthPx] = useState(22);
   const [frameColor, setFrameColor] = useState("#ffffff");
@@ -316,7 +312,6 @@ const ToolInner = () => {
   const [gridSizePx, setGridSizePx] = useState(20);
   const [sourceImageMeta, setSourceImageMeta] = useState<{ width: number; height: number } | null>(null);
   const projectFileInputRef = useRef<HTMLInputElement | null>(null);
-  const saveProjectSnapshotRef = useRef<(mode?: "manual" | "auto") => void>(() => {});
   const dragStateRef = useRef<{ dragging: boolean; startX: number; startY: number; startLeft: number; startTop: number }>({
     dragging: false,
     startX: 0,
@@ -331,7 +326,6 @@ const ToolInner = () => {
   const layoutSessionStorageKey = "tool-layout-session-v2";
   const projectSnapshotStorageKey = "tool-project-snapshot-v1";
   const framePresetsStorageKey = "tool-frame-presets-v1";
-  const autoSaveStorageKey = "tool-autosave-v1";
 
   const convertToCm = (value: number, unit: "cm" | "mm" | "in" | "px", dpi: number) => {
     if (unit === "cm") return value;
@@ -892,7 +886,7 @@ const ToolInner = () => {
           dispatch({ type: "SET_ORIGINAL_IMAGE", payload: editImageUrl });
         });
     }
-  }, [searchParams, dispatch, originalImage]);
+  }, [searchParams]);
 
   const handleImageSelect = useCallback((base64: string) => {
     dispatch({ type: "SET_ORIGINAL_IMAGE", payload: base64 });
@@ -1021,8 +1015,8 @@ const ToolInner = () => {
       } else if (selectedPresetName) {
         dispatch({ type: "SET_SUGGESTED_NAME", payload: selectedPresetName });
       }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד התמונה");
+    } catch (err) {
+      toast.error(err.message || "שגיאה בעיבוד התמונה");
     } finally {
       dispatch({ type: "SET_PROCESSING", payload: false });
     }
@@ -1097,8 +1091,8 @@ const ToolInner = () => {
       if (data?.error) throw new Error(data.error);
       dispatch({ type: "SET_RESULT_IMAGE", payload: data.resultImage });
       toast.success("התמונה שופרה!");
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בשיפור התמונה");
+    } catch (err) {
+      toast.error(err.message || "שגיאה בשיפור התמונה");
     } finally {
       dispatch({ type: "SET_ENHANCING", payload: false });
     }
@@ -1276,29 +1270,6 @@ const ToolInner = () => {
           ctx.shadowColor = "transparent";
         }
 
-        // Apply logo/image watermark
-        if (options?.watermarkImage) {
-          const wmImg = await new Promise<HTMLImageElement>((resolve, reject) => {
-            const i = new Image();
-            i.onload = () => resolve(i);
-            i.onerror = reject;
-            i.src = options.watermarkImage!;
-          });
-          const maxH = Math.round(finalH * 0.12);
-          const scale = Math.min(maxH / wmImg.height, (finalW * 0.25) / wmImg.width);
-          const ww = wmImg.width * scale;
-          const wh = wmImg.height * scale;
-          ctx.globalAlpha = (options.watermarkOpacity || 50) / 100;
-          let wx: number;
-          switch (options.watermarkPosition) {
-            case "bottom-left": wx = 16; break;
-            case "bottom-right": wx = finalW - ww - 16; break;
-            default: wx = (finalW - ww) / 2; break;
-          }
-          ctx.drawImage(wmImg, wx, finalH - wh - 16, ww, wh);
-          ctx.globalAlpha = 1;
-        }
-
         if (format === "pdf") {
           // Simple PDF with embedded image
           const dataUrl = canvas.toDataURL("image/png", 1);
@@ -1325,63 +1296,6 @@ const ToolInner = () => {
     },
     [resultImage, originalImage, adjustments, dispatch, frameEnabled, frameWidthPx, frameColor, frameStyle, frameShape, frameRadius]
   );
-
-  const exportAnimation = useCallback(async () => {
-    if (!originalImage || !resultImage) return;
-    if (!window.MediaRecorder) { toast.error("הדפדפן שלך לא תומך MediaRecorder"); return; }
-    setIsExportingAnimation(true);
-    try {
-      const img1 = new Image(); img1.crossOrigin = "anonymous";
-      const img2 = new Image(); img2.crossOrigin = "anonymous";
-      await Promise.all([
-        new Promise<void>((r, j) => { img1.onload = () => r(); img1.onerror = j; img1.src = originalImage; }),
-        new Promise<void>((r, j) => { img2.onload = () => r(); img2.onerror = j; img2.src = resultImage; }),
-      ]);
-      const W = Math.min(img2.naturalWidth, 1200);
-      const H = Math.round(img2.naturalHeight * W / img2.naturalWidth);
-      const canvas = document.createElement("canvas");
-      canvas.width = W; canvas.height = H;
-      const ctx = canvas.getContext("2d")!;
-      const stream = canvas.captureStream(15);
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
-      const recorder = new MediaRecorder(stream, { mimeType });
-      const chunks: BlobPart[] = [];
-      recorder.ondataavailable = (e) => e.data.size > 0 && chunks.push(e.data);
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a"); a.href = url;
-        a.download = `before-after-${Date.now()}.webm`; a.click();
-        URL.revokeObjectURL(url);
-        toast.success("אנימציה הורדה - WebM");
-        setIsExportingAnimation(false);
-      };
-      recorder.start();
-      // 2s before, 0.75s fade, 2s after = ~4.75s @ 15fps ≈ 72 frames
-      const TOTAL = 72, HOLD = 30, FADE = 12;
-      let f = 0;
-      const tick = () => {
-        ctx.clearRect(0, 0, W, H);
-        if (f < HOLD) {
-          ctx.drawImage(img1, 0, 0, W, H);
-        } else if (f < HOLD + FADE) {
-          ctx.drawImage(img1, 0, 0, W, H);
-          ctx.globalAlpha = (f - HOLD) / FADE;
-          ctx.drawImage(img2, 0, 0, W, H);
-          ctx.globalAlpha = 1;
-        } else {
-          ctx.drawImage(img2, 0, 0, W, H);
-        }
-        f++;
-        if (f < TOTAL) requestAnimationFrame(tick);
-        else recorder.stop();
-      };
-      requestAnimationFrame(tick);
-    } catch (err) {
-      toast.error("שגיאה ביצוא אנימציה");
-      setIsExportingAnimation(false);
-    }
-  }, [originalImage, resultImage]);
 
   const handleSaveToGallery = useCallback(async (mode: "replace" | "new") => {
     if (!user) return;
@@ -1466,8 +1380,8 @@ const ToolInner = () => {
           }
         }
       }
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "שגיאה בשמירה");
+    } catch (err) {
+      toast.error(err.message || "שגיאה בשמירה");
     } finally {
       setIsSaving(false);
       setShowSaveDialog(false);
@@ -1475,9 +1389,9 @@ const ToolInner = () => {
     }
   }, [resultImage, originalImage, user, saveNewName, suggestedName, customPrompt, activePrompt, searchParams, adjustments, dispatch]);
 
-  const saveProjectSnapshot = useCallback((mode: "manual" | "auto" = "manual") => {
+  const saveProjectSnapshot = useCallback(() => {
     if (!originalImage) {
-      if (mode === "manual") toast.error("אין פרויקט פעיל לשמירה");
+      toast.error("אין פרויקט פעיל לשמירה");
       return;
     }
 
@@ -1524,12 +1438,6 @@ const ToolInner = () => {
 
     localStorage.setItem(projectSnapshotStorageKey, JSON.stringify(snapshot));
 
-    if (mode === "auto") {
-      localStorage.setItem(autoSaveStorageKey, JSON.stringify(snapshot));
-      setAutoSavedAt(new Date());
-      return;
-    }
-
     const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -1570,41 +1478,8 @@ const ToolInner = () => {
     showComparison,
     sizeDpi,
     sizeUnit,
-    suggestedName,
   ]);
 
-  // Keep ref current so timer always calls the latest version
-  useEffect(() => { saveProjectSnapshotRef.current = saveProjectSnapshot; }, [saveProjectSnapshot]);
-
-  // Auto-save timer (every 90 seconds)
-  useEffect(() => {
-    const id = setInterval(() => saveProjectSnapshotRef.current("auto"), 90_000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Restore prompt: check for auto-save on mount
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(autoSaveStorageKey);
-      if (!raw) return;
-      const parsed = JSON.parse(raw);
-      if (parsed?.tool?.originalImage) setShowRestorePrompt(true);
-    } catch {
-      // corrupt auto-save data — ignore
-    }
-  }, []);
-
-  // Extract color palette when original image changes
-  useEffect(() => {
-    if (!originalImage) { setPalette([]); return; }
-    let cancelled = false;
-    extractColorPalette(originalImage, { count: 6 })
-      .then((colors) => { if (!cancelled) setPalette(colors); })
-      .catch(() => {});
-    return () => { cancelled = true; };
-  }, [originalImage]);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- snapshot is deserialized JSON with dynamic shape
   const applyProjectSnapshot = useCallback((snapshot: any) => {
     if (!snapshot?.tool?.originalImage) {
       toast.error("קובץ פרויקט לא תקין");
@@ -1690,33 +1565,6 @@ const ToolInner = () => {
           e.currentTarget.value = "";
         }}
       />
-      {/* Auto-save Restore Prompt */}
-      {showRestorePrompt && !originalImage && (
-        <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-3 bg-primary/90 px-4 py-2.5 text-primary-foreground shadow-lg">
-          <span className="text-sm font-semibold">נמצא פרויקט שמור אוטומטית — תרצה לשחזר?</span>
-          <button
-            onClick={() => {
-              try {
-                const raw = localStorage.getItem(autoSaveStorageKey);
-                if (raw) applyProjectSnapshot(JSON.parse(raw));
-              } catch {
-                // corrupt auto-save — ignore
-              }
-              setShowRestorePrompt(false);
-            }}
-            className="rounded bg-white/20 px-3 py-1 text-xs font-bold hover:bg-white/30"
-          >
-            שחזר
-          </button>
-          <button
-            onClick={() => setShowRestorePrompt(false)}
-            className="rounded bg-white/10 px-3 py-1 text-xs font-bold hover:bg-white/20"
-          >
-            התעלם
-          </button>
-        </div>
-      )}
-
       {/* Header */}
       <header className="border-b border-border bg-card">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
@@ -2016,8 +1864,8 @@ const ToolInner = () => {
                                   if (currentImg) setCachedResult(currentImg, "live-filter-apply", filters as unknown as Record<string, unknown>, data.resultImage);
                                   setLiveFilterCss("");
                                 }
-                              } catch (err: unknown) {
-                                toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד");
+                              } catch (err) {
+                                toast.error(err.message || "שגיאה בעיבוד");
                               } finally {
                                 setFilterProcessing(false);
                               }
@@ -2043,8 +1891,8 @@ const ToolInner = () => {
                                     applyFilterResult(data.resultImage, "שכבות פילטר");
                                     setLiveFilterCss("");
                                   }
-                                } catch (err: unknown) {
-                                  toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד");
+                                } catch (err) {
+                                  toast.error(err.message || "שגיאה בעיבוד");
                                 } finally {
                                   setFilterProcessing(false);
                                 }
@@ -2071,8 +1919,8 @@ const ToolInner = () => {
                                   if (data?.resultImage) {
                                     applyFilterResult(data.resultImage, "העברת פלטה");
                                   }
-                                } catch (err: unknown) {
-                                  toast.error(err instanceof Error ? err.message : "שגיאה בהעברת צבע");
+                                } catch (err) {
+                                  toast.error(err.message || "שגיאה בהעברת צבע");
                                 } finally {
                                   setFilterProcessing(false);
                                 }
@@ -2087,7 +1935,7 @@ const ToolInner = () => {
                               onApply={async (region, filterType, intensity, maskDataUrl) => {
                                 setFilterProcessing(true);
                                 const currentImg = resultImage || originalImage;
-                                const params: Record<string, string | number | undefined> = { region, filterType, intensity };
+                                const params: Record<string, any> = { region, filterType, intensity };
                                 if (region === "custom" && maskDataUrl) {
                                   params.maskImage = maskDataUrl;
                                 }
@@ -2108,8 +1956,8 @@ const ToolInner = () => {
                                     applyFilterResult(data.resultImage, region === "custom" ? "פילטר אזורי מותאם" : "פילטר אזורי");
                                     if (currentImg) setCachedResult(currentImg, "regional-mask", params, data.resultImage);
                                   }
-                                } catch (err: unknown) {
-                                  toast.error(err instanceof Error ? err.message : "שגיאה בעיבוד");
+                                } catch (err: any) {
+                                  toast.error(err.message || "שגיאה בעיבוד");
                                 } finally {
                                   setFilterProcessing(false);
                                 }
@@ -2271,60 +2119,84 @@ const ToolInner = () => {
                     ))}
                   </div>
                   {showBeforeAfter && originalImage && resultImage ? (
+                    compareViewMode === "new-only" ? (
+                      <div className="relative w-full overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: "4/3" }}>
+                        <img src={resultImage} alt="תוצאה" className="h-full w-full object-contain" />
+                        <span className="absolute top-2 right-2 rounded-md bg-primary/90 px-2 py-0.5 text-[11px] font-bold text-primary-foreground">אחרי</span>
+                      </div>
+                    ) : compareViewMode === "side-by-side" ? (
+                      <div className="flex gap-2 w-full">
+                        <div className="relative flex-1 overflow-hidden rounded-xl border border-border bg-muted" style={{ aspectRatio: "4/3" }}>
+                          <img src={originalImage} alt="לפני" className="h-full w-full object-contain" />
+                          <span className="absolute top-2 right-2 rounded-md bg-muted-foreground/70 px-2 py-0.5 text-[11px] font-bold text-white">לפני</span>
+                        </div>
+                        <div className="relative flex-1 overflow-hidden rounded-xl border border-primary/30 bg-muted" style={{ aspectRatio: "4/3" }}>
+                          <img src={resultImage} alt="אחרי" className="h-full w-full object-contain" />
+                          <span className="absolute top-2 right-2 rounded-md bg-primary/90 px-2 py-0.5 text-[11px] font-bold text-primary-foreground">אחרי</span>
+                        </div>
+                      </div>
+                    ) : (
                     <div
-                      className="relative w-full overflow-hidden rounded-xl border border-border bg-muted select-none"
+                      className="relative w-full overflow-hidden rounded-xl border border-border bg-muted select-none touch-none"
                       style={{ aspectRatio: "4/3" }}
+                      onMouseMove={(e) => {
+                        if (e.buttons === 1) {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setBeforeAfterPos(Math.min(98, Math.max(2, ((e.clientX - rect.left) / rect.width) * 100)));
+                        }
+                      }}
+                      onTouchMove={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setBeforeAfterPos(Math.min(98, Math.max(2, ((e.touches[0].clientX - rect.left) / rect.width) * 100)));
+                      }}
                     >
                       {/* After (full) */}
                       <img src={resultImage} alt="אחרי" className="absolute inset-0 h-full w-full object-contain" />
-                      {/* Before (clipped to left portion) */}
+                      {/* Before (clipped) */}
                       <div
                         className="absolute inset-0 overflow-hidden"
                         style={{ clipPath: `inset(0 ${100 - beforeAfterPos}% 0 0)` }}
                       >
                         <img src={originalImage} alt="לפני" className="h-full w-full object-contain" />
                       </div>
-                      {/* Divider */}
+                      {/* Divider line */}
                       <div
-                        className="absolute top-0 bottom-0 z-20 w-1 cursor-ew-resize bg-white/90 shadow-lg"
+                        className="absolute top-0 bottom-0 z-20 w-0.5 bg-white shadow-lg pointer-events-none"
                         style={{ left: `${beforeAfterPos}%`, transform: "translateX(-50%)" }}
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const el = e.currentTarget.parentElement!;
-                          const onMove = (mv: MouseEvent) => {
-                            const rect = el.getBoundingClientRect();
-                            setBeforeAfterPos(Math.min(98, Math.max(2, ((mv.clientX - rect.left) / rect.width) * 100)));
-                          };
-                          const onUp = () => {
-                            window.removeEventListener("mousemove", onMove);
-                            window.removeEventListener("mouseup", onUp);
-                          };
-                          window.addEventListener("mousemove", onMove);
-                          window.addEventListener("mouseup", onUp);
-                        }}
-                        onTouchStart={(e) => {
-                          e.preventDefault();
-                          const el = e.currentTarget.parentElement!;
-                          const onMove = (tv: TouchEvent) => {
-                            const rect = el.getBoundingClientRect();
-                            setBeforeAfterPos(Math.min(98, Math.max(2, ((tv.touches[0].clientX - rect.left) / rect.width) * 100)));
-                          };
-                          const onEnd = () => {
-                            window.removeEventListener("touchmove", onMove);
-                            window.removeEventListener("touchend", onEnd);
-                          };
-                          window.addEventListener("touchmove", onMove, { passive: false });
-                          window.addEventListener("touchend", onEnd);
-                        }}
                       >
-                        <div className="absolute left-1/2 top-1/2 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-white shadow-lg">
-                          <span className="text-[10px] font-bold text-muted-foreground select-none">↔</span>
+                        <div className="absolute left-1/2 top-1/2 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-primary shadow-xl cursor-ew-resize pointer-events-auto"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const container = e.currentTarget.closest('[style*="aspect-ratio"]') as HTMLElement;
+                            if (!container) return;
+                            const onMove = (mv: MouseEvent) => {
+                              const rect = container.getBoundingClientRect();
+                              setBeforeAfterPos(Math.min(98, Math.max(2, ((mv.clientX - rect.left) / rect.width) * 100)));
+                            };
+                            const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
+                            window.addEventListener("mousemove", onMove);
+                            window.addEventListener("mouseup", onUp);
+                          }}
+                          onTouchStart={(e) => {
+                            const container = e.currentTarget.closest('[style*="aspect-ratio"]') as HTMLElement;
+                            if (!container) return;
+                            const onMove = (tv: TouchEvent) => {
+                              const rect = container.getBoundingClientRect();
+                              setBeforeAfterPos(Math.min(98, Math.max(2, ((tv.touches[0].clientX - rect.left) / rect.width) * 100)));
+                            };
+                            const onEnd = () => { window.removeEventListener("touchmove", onMove); window.removeEventListener("touchend", onEnd); };
+                            window.addEventListener("touchmove", onMove, { passive: false });
+                            window.addEventListener("touchend", onEnd);
+                          }}
+                        >
+                          <Move className="h-4 w-4 text-primary-foreground" />
                         </div>
                       </div>
                       {/* Labels */}
-                      <span className="absolute bottom-2 left-3 rounded bg-black/50 px-1.5 py-0.5 text-[11px] font-bold text-white">לפני</span>
-                      <span className="absolute bottom-2 right-3 rounded bg-black/50 px-1.5 py-0.5 text-[11px] font-bold text-white">אחרי</span>
+                      <span className="absolute top-2 left-3 rounded-md bg-muted-foreground/70 px-2 py-0.5 text-[11px] font-bold text-white">לפני</span>
+                      <span className="absolute top-2 right-3 rounded-md bg-primary/90 px-2 py-0.5 text-[11px] font-bold text-primary-foreground">אחרי</span>
                     </div>
+                    )
                   ) : (
                   <ImageCanvas
                     originalImage={originalImage}
@@ -2460,30 +2332,38 @@ const ToolInner = () => {
                   </button>
 
                   {resultImage && originalImage && (
-                    <button
-                      onClick={() => { setShowBeforeAfter((v) => !v); setBeforeAfterPos(50); }}
-                      className={`flex h-9 items-center gap-1 rounded-lg border px-2 text-xs font-bold transition-all ${showBeforeAfter ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"}`}
-                      title="לפני / אחרי"
-                    >
-                      <GitCompare className="h-3.5 w-3.5" />
-                      לפני/אחרי
-                    </button>
-                  )}
-
-                  {showBeforeAfter && originalImage && resultImage && (
-                    <button
-                      onClick={exportAnimation}
-                      disabled={isExportingAnimation}
-                      className="flex h-9 items-center gap-1 rounded-lg border border-border px-2 text-xs font-bold text-muted-foreground hover:text-foreground disabled:opacity-50"
-                      title="הורד אנימציה WebM"
-                    >
-                      {isExportingAnimation ? (
-                        <span className="animate-spin inline-block h-3.5 w-3.5 text-center leading-none">⟳</span>
-                      ) : (
-                        <Download className="h-3.5 w-3.5" />
+                    <div className="flex items-center gap-0.5 rounded-lg border border-border p-0.5">
+                      <button
+                        onClick={() => { setShowBeforeAfter(true); setBeforeAfterPos(50); setCompareViewMode("slider"); }}
+                        className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold transition-all ${showBeforeAfter && compareViewMode === "slider" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+                        title="השוואה עם וילון"
+                      >
+                        <GitCompare className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { setShowBeforeAfter(true); setCompareViewMode("side-by-side"); }}
+                        className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold transition-all ${showBeforeAfter && compareViewMode === "side-by-side" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+                        title="צד בצד"
+                      >
+                        <LayoutGrid className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => { setShowBeforeAfter(true); setCompareViewMode("new-only"); }}
+                        className={`flex h-8 items-center gap-1 rounded-md px-2 text-xs font-bold transition-all ${showBeforeAfter && compareViewMode === "new-only" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground hover:bg-secondary"}`}
+                        title="רק חדשה"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                      </button>
+                      {showBeforeAfter && (
+                        <button
+                          onClick={() => { setShowBeforeAfter(false); }}
+                          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground hover:bg-secondary"
+                          title="סגור השוואה"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
                       )}
-                      אנימציה
-                    </button>
+                    </div>
                   )}
 
                   {resultImage && (
@@ -2554,30 +2434,6 @@ const ToolInner = () => {
                     onSelectImage={(url) => dispatch({ type: "SET_RESULT_IMAGE", payload: url })}
                     currentResultUrl={resultImage}
                   />
-                )}
-
-                {/* Color Palette + Auto-save indicator */}
-                {(palette.length > 0 || autoSavedAt) && (
-                  <div className="flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
-                    {palette.length > 0 && (
-                      <>
-                        <span className="text-xs text-muted-foreground shrink-0">פלטה:</span>
-                        {palette.map((color) => (
-                          <button
-                            key={color}
-                            title={color}
-                            className="h-6 w-6 rounded-full border-2 border-white shadow-sm hover:scale-110 transition-transform"
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </>
-                    )}
-                    {autoSavedAt && (
-                      <span className="ml-auto text-[10px] text-muted-foreground">
-                        שמור אוטומטית לפני {Math.max(1, Math.round((Date.now() - autoSavedAt.getTime()) / 60000))} דק&apos;
-                      </span>
-                    )}
-                  </div>
                 )}
 
                 {/* Batch results */}
