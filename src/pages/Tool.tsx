@@ -292,6 +292,7 @@ const ToolInner = () => {
   const [panMode, setPanMode] = useState(false);
   const [showBeforeAfter, setShowBeforeAfter] = useState(false);
   const [beforeAfterPos, setBeforeAfterPos] = useState(50);
+  const [compareViewMode, setCompareViewMode] = useState<"slider" | "side-by-side" | "new-only">("slider");
   const [frameEnabled, setFrameEnabled] = useState(false);
   const [frameWidthPx, setFrameWidthPx] = useState(22);
   const [frameColor, setFrameColor] = useState("#ffffff");
