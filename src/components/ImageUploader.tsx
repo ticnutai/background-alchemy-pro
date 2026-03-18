@@ -55,6 +55,7 @@ const ImageUploader = ({ onImageSelect }: ImageUploaderProps) => {
 
   return (
     <label
+      data-testid="image-uploader-drop"
       onDrop={handleDrop}
       onDragOver={(e) => e.preventDefault()}
       className="flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed border-border bg-card p-8 cursor-pointer transition-colors hover:border-primary hover:bg-secondary/50"
@@ -74,6 +75,7 @@ const ImageUploader = ({ onImageSelect }: ImageUploaderProps) => {
         type="file"
         accept="image/*"
         onChange={handleChange}
+        data-testid="image-file-input"
         className="hidden"
       />
     </label>

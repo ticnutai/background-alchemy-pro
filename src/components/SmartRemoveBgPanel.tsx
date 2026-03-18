@@ -82,7 +82,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [progressLabel, setProgressLabel] = useState("");
-  const [segmentResults, setSegmentResults] = useState<any>(null);
+  const [segmentResults, setSegmentResults] = useState<Record<string, unknown> | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   /** Cropped per-element URLs for the segment method */
   const [elementImages, setElementImages] = useState<{ url: string; label: string }[]>([]);
@@ -185,14 +185,14 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
             // Each item is already a separate masked image
             result.segmentation.forEach((url: string, i: number) => {
               const lbl = Array.isArray(result.detections) && result.detections[i]
-                ? (result.detections[i] as any).label ?? `אלמנט ${i + 1}`
+                ? ((result.detections[i] as Record<string, unknown>).label as string) ?? `אלמנט ${i + 1}`
                 : `אלמנט ${i + 1}`;
               elements.push({ url, label: lbl });
             });
           } else if (outputUrl && Array.isArray(result.detections) && result.detections.length > 0) {
             // Crop each bounding-box from the result image
             for (let i = 0; i < result.detections.length; i++) {
-              const det = result.detections[i] as any;
+              const det = result.detections[i] as Record<string, unknown>;
               const box = det.box ?? det.bbox ?? det.bounding_box;
               if (!box) continue;
               // Support both [x1,y1,x2,y2] and {x,y,w,h} formats
@@ -212,8 +212,8 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
         }
       }
       setProgress(100);
-    } catch (err: any) {
-      toast.error(err.message || "שגיאה בהסרת הרקע");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "שגיאה בהסרת הרקע");
     } finally {
       setProcessing(false);
     }
@@ -281,7 +281,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
 
       {/* Progress */}
       {processing && (
-        <div className="space-y-2">
+        <div className="space-y-2" data-testid="remove-bg-progress">
           <Progress value={progress} className="h-2" />
           <div className="flex items-center justify-between">
             <span className="font-body text-[10px] text-muted-foreground">{progressLabel}</span>
@@ -292,12 +292,13 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
 
       {/* Preview + action buttons */}
       {previewUrl && !processing && (
-        <div className="space-y-3">
+        <div className="space-y-3" data-testid="removal-preview-container">
           {/* Checkerboard preview */}
           <div className="relative rounded-lg overflow-hidden border border-border bg-[repeating-conic-gradient(hsl(var(--muted))_0%_25%,transparent_0%_50%)] bg-[length:16px_16px]">
             <img
               src={previewUrl}
               alt="bg removed"
+              data-testid="removal-preview-image"
               className="w-full h-auto max-h-48 object-contain"
             />
             <div className="absolute top-1.5 right-1.5 rounded-full bg-primary/90 px-2 py-0.5 font-accent text-[9px] font-bold text-primary-foreground flex items-center gap-1">
@@ -315,6 +316,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
                 onResult(previewUrl);
                 toast.success("התמונה נשמרה");
               }}
+              data-testid="removal-save-button"
               className="flex flex-col items-center justify-center gap-1 rounded-lg bg-primary py-2.5 font-display text-[11px] font-bold text-primary-foreground hover:brightness-110 transition-all"
             >
               <Save className="h-4 w-4" />
@@ -332,6 +334,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
                 }
                 toast.success("נשמר + הורד כקובץ PNG");
               }}
+              data-testid="removal-duplicate-button"
               className="flex flex-col items-center justify-center gap-1 rounded-lg border-2 border-primary bg-primary/10 py-2.5 font-display text-[11px] font-bold text-primary hover:bg-primary/20 transition-all"
             >
               <Copy className="h-4 w-4" />
@@ -341,6 +344,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
             {/* Cancel */}
             <button
               onClick={() => { setPreviewUrl(null); setSegmentResults(null); setElementImages([]); setProgress(0); }}
+              data-testid="removal-cancel-button"
               className="flex flex-col items-center justify-center gap-1 rounded-lg border border-border py-2.5 font-display text-[11px] font-bold text-muted-foreground hover:bg-destructive/10 hover:border-destructive/40 hover:text-destructive transition-all"
             >
               <X className="h-4 w-4" />
@@ -437,6 +441,7 @@ export default function SmartRemoveBgPanel({ currentImage, onResult, onDuplicate
         <button
           onClick={handleRemoveBg}
           disabled={processing || !currentImage}
+          data-testid="remove-bg-button"
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-3 font-display text-sm font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50"
         >
           {processing ? (

@@ -3,7 +3,7 @@ import DOMPurify from "dompurify";
 import { getFilterString, getOverlayStyles, getSvgFilterId, getSvgFilterMarkup, type ImageAdjustments, defaultAdjustments } from "./ImageAdjustmentsPanel";
 import type { FrameShape, FrameStyle } from "./FrameStylePanel";
 
-type CompareMode = "slider" | "side-by-side" | "fade" | "split";
+type CompareMode = "slider" | "side-by-side" | "fade" | "split" | "toggle";
 
 interface ImageCanvasProps {
   originalImage: string;
@@ -38,6 +38,7 @@ const compareModeLabels: Record<CompareMode, string> = {
   "side-by-side": "צד-צד",
   fade: "דהייה",
   split: "פיצול",
+  toggle: "החלפה",
 };
 
 const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
@@ -115,6 +116,7 @@ const ImageCanvas = memo(({
   const [sliderPos, setSliderPos] = useState(50);
   const [fadeOpacity, setFadeOpacity] = useState(1);
   const [localMode, setLocalMode] = useState<CompareMode>(compareMode);
+  const [showBeforeInToggle, setShowBeforeInToggle] = useState(false);
   const [activeGuide, setActiveGuide] = useState<{ x: number | null; y: number | null }>({ x: null, y: null });
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -336,24 +338,7 @@ const ImageCanvas = memo(({
     return <div className="pointer-events-none absolute inset-0" style={overlayStyles} />;
   };
 
-  const renderModeSelector = () => {
-    if (!resultImage) return null;
-    return (
-      <div className="absolute bottom-3 right-3 z-10 flex gap-1 rounded-lg bg-background/80 p-1 backdrop-blur-sm border border-border/50">
-        {(Object.keys(compareModeLabels) as CompareMode[]).map((mode) => (
-          <button
-            key={mode}
-            onClick={() => setLocalMode(mode)}
-            className={`rounded-md px-2 py-1 font-accent text-[10px] font-semibold transition-colors ${
-              localMode === mode ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            {compareModeLabels[mode]}
-          </button>
-        ))}
-      </div>
-    );
-  };
+
 
   return (
     <div className="relative w-full overflow-hidden rounded-lg bg-card p-3 shadow-lg">
@@ -420,10 +405,12 @@ const ImageCanvas = memo(({
               onTouchStart={() => { if (!panMode) handleMouseDown(); }}
               onTouchEnd={handleMouseUp}
             >
+              {/* Result (אחרי) fills the full canvas — shows on the LEFT in RTL */}
               <img src={resultImage} alt="Result" className={mediaClass} style={{ filter: combinedFilter }} />
               {renderOverlay()}
 
-              <div className="absolute inset-0 overflow-hidden" style={{ width: `${sliderPos}%` }}>
+              {/* Original (לפני) clips from the left, revealing the RIGHT portion — RTL natural direction */}
+              <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 0 0 ${sliderPos}%)` }}>
                 <img
                   src={originalImage}
                   alt="Original"
@@ -440,21 +427,23 @@ const ImageCanvas = memo(({
                 </div>
               </div>
 
-              <div className="absolute top-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
-              <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
+              {/* RTL: לפני on the RIGHT, אחרי on the LEFT */}
+              <div className="absolute top-3 left-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+              <div className="absolute top-3 right-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
             </div>
           )}
 
           {localMode === "side-by-side" && (
+            /* RTL: אחרי on the LEFT, לפני on the RIGHT */
             <div className="flex h-full gap-1">
-              <div className="relative flex-1">
-                <img src={originalImage} alt="Original" className={mediaClass} />
-                <div className="absolute top-3 left-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
-              </div>
               <div className="relative flex-1">
                 <img src={resultImage} alt="Result" className={mediaClass} style={{ filter: combinedFilter }} />
                 {renderOverlay()}
-                <div className="absolute top-3 right-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+                <div className="absolute top-3 left-3 rounded-md bg-primary/90 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">אחרי</div>
+              </div>
+              <div className="relative flex-1">
+                <img src={originalImage} alt="Original" className={mediaClass} />
+                <div className="absolute top-3 right-3 rounded-md bg-foreground/70 px-2 py-1 font-display text-xs font-semibold text-primary-foreground">לפני</div>
               </div>
             </div>
           )}
@@ -497,10 +486,30 @@ const ImageCanvas = memo(({
             </div>
           )}
 
-          {hasAdjustments && (
-            <div className="absolute bottom-3 right-3 rounded-md bg-accent/90 px-2 py-1 font-display text-xs font-semibold text-accent-foreground z-10">+ התאמות</div>
+          {localMode === "toggle" && (
+            <div className="relative h-full">
+              <img
+                src={showBeforeInToggle ? originalImage : resultImage}
+                alt={showBeforeInToggle ? "Original" : "Result"}
+                className={`${mediaClass} transition-opacity duration-300`}
+                style={!showBeforeInToggle ? { filter: combinedFilter } : undefined}
+              />
+              {!showBeforeInToggle && renderOverlay()}
+              <button
+                onClick={() => setShowBeforeInToggle((b) => !b)}
+                className="absolute bottom-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-1.5 rounded-full bg-background/90 px-4 py-1.5 font-display text-xs font-semibold border border-border shadow-lg hover:bg-secondary transition-all"
+              >
+                🔄 {showBeforeInToggle ? "הצג אחרי" : "הצג לפני"}
+              </button>
+              <div className={`absolute top-3 right-3 rounded-md px-2 py-1 font-display text-xs font-semibold text-primary-foreground ${showBeforeInToggle ? "bg-foreground/70" : "bg-primary/90"}`}>
+                {showBeforeInToggle ? "לפני" : "אחרי"}
+              </div>
+            </div>
           )}
-          {renderModeSelector()}
+
+          {hasAdjustments && (
+            <div className="absolute top-3 left-1/2 -translate-x-1/2 rounded-md bg-accent/90 px-2 py-1 font-display text-xs font-semibold text-accent-foreground z-10">+ התאמות</div>
+          )}
         </>
       ) : (
         <div className="relative h-full">
@@ -589,6 +598,25 @@ const ImageCanvas = memo(({
           תמונה {Math.round(imageScaleXPercent)}% x {Math.round(imageScaleYPercent)}%
         </div>
       </div>
+
+      {/* ── Before/After mode tab bar — below the canvas ── */}
+      {resultImage && (
+        <div className="mt-2 flex gap-1 rounded-lg border border-border/60 bg-muted/50 p-1" dir="rtl">
+          {(Object.keys(compareModeLabels) as CompareMode[]).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setLocalMode(mode)}
+              className={`flex-1 rounded-md py-1.5 px-1 font-display text-[11px] font-semibold transition-all ${
+                localMode === mode
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary/80"
+              }`}
+            >
+              {compareModeLabels[mode]}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 });
